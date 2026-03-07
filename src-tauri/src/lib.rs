@@ -17,6 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            l1_rag::search_esrs,
             l2_gap_analysis::gap_analysis
         ])
         .run(tauri::generate_context!())
