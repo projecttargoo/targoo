@@ -413,10 +413,9 @@ export default function App() {
         <aside style={s.sidebar}>
           {/* Logo Area */}
           <div style={{ padding: '0 12px 24px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #007AFF, #00C7BE)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>t</div>
+            <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>t</div>
             <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F', letterSpacing: '-0.3px' }}>targoo</span>
           </div>
-
           {/* Navigation */}
           <nav style={{ marginBottom: '32px' }}>
             {['Dashboard', 'Gap Analysis', 'Reports', 'Settings'].map((item) => {
