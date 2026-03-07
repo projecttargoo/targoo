@@ -12,7 +12,8 @@ import {
   User, 
   Send,
   MoreHorizontal,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -167,10 +168,12 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [gapData, setGapData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportPath, setReportPath] = useState(null);
 
   // Initial load
   useEffect(() => {
-    if (activeNav === 'gap analysis') {
+    if (activeNav === 'gap analysis' || (activeNav === 'dashboard' && gapData.length === 0)) {
       runGapAnalysis();
     }
   }, [activeNav]);
@@ -196,6 +199,31 @@ export default function App() {
       console.error("Gap analysis failed:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    setIsGeneratingReport(true);
+    setReportPath(null);
+    try {
+      // Re-format gapData back to the expected HashMap format for the backend
+      const topicsMap = {};
+      gapData.forEach(item => {
+        topicsMap[item.name] = item.status;
+      });
+
+      const path = await invoke('generate_report', {
+        companyName: "Müller GmbH",
+        gapAnalysisJson: JSON.stringify({ topics: topicsMap }),
+        language: "en"
+      });
+      setReportPath(path);
+      setTimeout(() => setReportPath(null), 10000); // Clear message after 10s
+    } catch (error) {
+      console.error("Report generation failed:", error);
+      alert("Failed to generate report: " + error);
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
@@ -344,7 +372,7 @@ export default function App() {
             <span style={{ backgroundColor: '#E1F7E3', color: '#34C759', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '6px' }}>ACTIVE</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {isLoading && <Loader2 className="animate-spin text-blue-500" size={20} />}
+            {(isLoading || isGeneratingReport) && <Loader2 className="animate-spin text-blue-500" size={20} />}
             <div style={{ position: 'relative' }}>
               <Search size={16} color="#86868B" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
               <input 
@@ -366,9 +394,18 @@ export default function App() {
           </div>
         </header>
 
-        {/* Dashboard Grid */}
+        {/* Scrollable Dashboard Area */}
         <div style={s.centerContent}>
           
+          {reportPath && (
+            <div style={{ gridColumn: 'span 12', backgroundColor: '#E1F7E3', color: '#1D1D1F', padding: '12px 20px', borderRadius: '12px', border: '1px solid #34C759', display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <CheckCircle2 size={20} color="#34C759" />
+              <div style={{ fontSize: '13px' }}>
+                <strong>Report Generated!</strong> Saved to: <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>{reportPath}</span>
+              </div>
+            </div>
+          )}
+
           {activeNav === 'dashboard' && (
             <>
               {/* ESG Score Card */}
@@ -429,10 +466,33 @@ export default function App() {
             </>
           )}
 
-          {/* Gap Matrix Table Card - Always visible if navigation is Gap Analysis or Dashboard */}
+          {/* Gap Matrix Table Card */}
           {(activeNav === 'dashboard' || activeNav === 'gap analysis') && (
             <div style={{ gridColumn: 'span 12' }}>
               <Card title={activeNav === 'gap analysis' ? "Full ESRS Gap Analysis" : "ESRS Gap Analysis Matrix"} style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ padding: '16px 24px', borderBottom: '1px solid #F5F5F7', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button 
+                    onClick={handleGenerateReport}
+                    disabled={isGeneratingReport || gapData.length === 0}
+                    style={{ 
+                      backgroundColor: '#007AFF', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      padding: '8px 16px', 
+                      fontSize: '12px', 
+                      fontWeight: '600', 
+                      cursor: (isGeneratingReport || gapData.length === 0) ? 'not-allowed' : 'pointer',
+                      opacity: (isGeneratingReport || gapData.length === 0) ? 0.6 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    {isGeneratingReport ? <Loader2 className="animate-spin" size={14} /> : <FileText size={14} />}
+                    Generate ESRS Report (.docx)
+                  </button>
+                </div>
                 {isLoading && gapData.length === 0 ? (
                   <div style={{ padding: '40px', textAlign: 'center' }}>
                     <Loader2 className="animate-spin mx-auto text-blue-500 mb-2" size={24} />
@@ -449,7 +509,7 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(gapData.length > 0 ? gapData : []).map((topic, i) => (
+                      {(gapData || []).map((topic, i) => (
                         <tr key={topic.id} style={{ borderBottom: i !== gapData.length -1 ? '1px solid #F5F5F7' : 'none' }}>
                           <td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B', fontFamily: 'monospace' }}>{topic.id}</td>
                           <td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td>
