@@ -18,7 +18,10 @@ import {
   AlertCircle,
   ExternalLink,
   ShieldCheck,
-  Zap
+  Zap,
+  FileUp,
+  File,
+  X
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -147,11 +150,14 @@ const StatusBadge = ({ status }) => {
 export default function App() {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatHistory] = useState(demoData.aiHistory);
   const [gapData, setGapData] = useState(demoData.gapMatrix);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [reportPath, setReportPath] = useState(null);
   const [license, setLicense] = useState(demoData.license);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [droppedFile, setDroppedFile] = useState(null);
 
   // Initial load
   useEffect(() => {
@@ -219,6 +225,58 @@ export default function App() {
       alert("Failed to generate report: " + error);
     } finally {
       setIsGeneratingReport(false);
+    }
+  };
+
+  // --- Drag & Drop Handlers ---
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragActive(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      setDroppedFile({ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB' });
+      
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.csv')) {
+        // In a real Tauri app with permissions, we'd get the absolute path.
+        // For this demo, we'll simulate the call or use a placeholder if path is restricted.
+        try {
+          // Placeholder for the real system path which browsers hide
+          const placeholderPath = `C:\\Users\\User\\Downloads\\${file.name}`;
+          const response = await invoke('process_excel', { filePath: placeholderPath });
+          const parsed = JSON.parse(response);
+          
+          const aiMessage = {
+            id: Date.now(),
+            sender: 'ai',
+            text: `I've processed **${file.name}**. I found **${parsed.row_count} rows** of data. ESG categorization: ${Object.keys(parsed.categorizations).join(', ')}. How should we proceed?`
+          };
+          setChatHistory([...chatMessages, aiMessage]);
+        } catch (err) {
+          const aiMessage = {
+            id: Date.now(),
+            sender: 'ai',
+            text: `I saw you dropped **${file.name}**. (Note: In this browser-based preview, I can't access the full system path, but the L4 Data Processor is ready to categorize your ESG columns!)`
+          };
+          setChatHistory([...chatMessages, aiMessage]);
+        }
+      } else {
+        const aiMessage = {
+          id: Date.now(),
+          sender: 'ai',
+          text: `I've received **${file.name}**. I'll keep this in context for our session.`
+        };
+        setChatHistory([...chatMessages, aiMessage]);
+      }
     }
   };
 
@@ -603,7 +661,7 @@ export default function App() {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#FAFAFA' }}>
-            {demoData.aiHistory.map(msg => {
+            {chatMessages.map(msg => {
               const isAi = msg.sender === 'ai';
               return (
                 <div key={msg.id} style={{
@@ -627,6 +685,49 @@ export default function App() {
           </div>
 
           <div style={{ padding: '20px', backgroundColor: '#FFFFFF', borderTop: '1px solid #E5E5E5' }}>
+            
+            {/* macOS Style Drop Zone */}
+            <div 
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              style={{
+                border: `2px dashed ${isDragActive ? '#007AFF' : '#E5E5E5'}`,
+                borderRadius: '16px',
+                padding: '20px',
+                textAlign: 'center',
+                backgroundColor: isDragActive ? 'rgba(0,122,255,0.05)' : '#F5F5F7',
+                marginBottom: '16px',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              {droppedFile ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <File size={24} color="#007AFF" />
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#1D1D1F', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{droppedFile.name}</div>
+                      <div style={{ fontSize: '10px', color: '#86868B' }}>{droppedFile.size}</div>
+                    </div>
+                    <X size={14} color="#86868B" onClick={() => setDroppedFile(null)} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <FileUp size={24} color={isDragActive ? '#007AFF' : '#86868B'} />
+                  <div>
+                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#1D1D1F' }}>Drop data files here</div>
+                    <div style={{ fontSize: '10px', color: '#86868B' }}>.xlsx, .csv or .pdf</div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div style={{ position: 'relative' }}>
               <input 
                 type="text" 
