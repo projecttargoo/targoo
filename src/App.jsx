@@ -1,185 +1,504 @@
 import React, { useState } from 'react';
+import { 
+  LayoutGrid, 
+  BarChart2, 
+  FileText, 
+  Settings, 
+  Search, 
+  Plus, 
+  MessageSquare, 
+  ChevronRight, 
+  User, 
+  Send,
+  MoreHorizontal
+} from 'lucide-react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts';
 
-export default function App() {
-  const [activeClient, setActiveClient] = useState('Müller GmbH');
-  const [score, setScore] = useState(78);
-  const [chatInput, setChatInput] = useState("");
+// --- Data ---
+const co2Data = [
+  { month: 'Jan', co2: 450 },
+  { month: 'Feb', co2: 420 },
+  { month: 'Mar', co2: 440 },
+  { month: 'Apr', co2: 390 },
+  { month: 'May', co2: 360 },
+  { month: 'Jun', co2: 340 },
+  { month: 'Jul', co2: 320 },
+];
 
-  const clients = [
-    { name: 'Müller GmbH', score: 78 },
-    { name: 'Banen GmbH', score: 62 },
-    { name: 'Karken GmbH', score: 85 }
-  ];
+const esrsTopics = [
+  { id: "E1", name: "Climate change", status: "yellow" },
+  { id: "E2", name: "Pollution", status: "green" },
+  { id: "E3", name: "Water resources", status: "red" },
+  { id: "E4", name: "Biodiversity", status: "yellow" },
+  { id: "E5", name: "Circular economy", status: "green" },
+  { id: "S1", name: "Own workforce", status: "green" },
+  { id: "S2", name: "Value chain workers", status: "yellow" },
+  { id: "S3", name: "Affected communities", status: "green" },
+  { id: "G1", name: "Business conduct", status: "green" },
+];
+
+const clients = [
+  { name: "Müller GmbH", industry: "Manufacturing", active: true },
+  { name: "Schmidt Logistik", industry: "Transportation", active: false },
+  { name: "Weber Solar", industry: "Energy", active: false },
+  { name: "Bauer Agrar", industry: "Agriculture", active: false },
+];
+
+const messages = [
+  { id: 1, sender: 'ai', text: "I've analyzed the Q3 data for Müller GmbH. The water usage intensity (E3) exceeds the sector benchmark by 15%." },
+  { id: 2, sender: 'user', text: "What's the main driver?" },
+  { id: 3, sender: 'ai', text: "The primary driver is the new cooling process at the Hamburg facility. It accounts for 60% of the total increase." },
+];
+
+// --- Components ---
+
+const Card = ({ children, title, style }) => (
+  <div style={{
+    backgroundColor: '#FFFFFF',
+    borderRadius: '12px',
+    border: '1px solid #E5E5E5',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    ...style
+  }}>
+    {title && (
+      <h3 style={{ 
+        margin: '0 0 16px 0', 
+        fontSize: '15px', 
+        fontWeight: '600', 
+        color: '#1D1D1F' 
+      }}>
+        {title}
+      </h3>
+    )}
+    {children}
+  </div>
+);
+
+const CircularProgress = ({ value, size = 160, strokeWidth = 12 }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (value / 100) * circumference;
 
   return (
-    <div className="flex h-screen w-full bg-[#f5f5f7]/50 text-[#1d1d1f] overflow-hidden select-none font-sans">
-      
-      {/* SIDEBAR */}
-      <nav className="w-80 bg-white/70 backdrop-blur-3xl border-r border-[#d2d2d7]/30 flex flex-col p-8 shrink-0 shadow-[20px_0_40px_rgba(0,0,0,0.01)] z-20">
-        
-        {/* LOGO - Vibrant & Modern */}
-        <div className="flex items-center gap-5 mb-14 text-left group">
-          <div className="w-14 h-14 bg-[#1d1d1f] rounded-[1.4rem] flex items-center justify-center relative shadow-2xl transition-all duration-700 group-hover:rotate-[10deg] group-hover:scale-110">
-            <svg viewBox="0 0 100 100" className="w-9 h-9">
-              <defs>
-                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#007AFF" />
-                  <stop offset="50%" stopColor="#34C759" />
-                  <stop offset="100%" stopColor="#FFD60A" />
-                </linearGradient>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="2.5" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
-              <rect x="30" y="30" width="40" height="40" rx="6" fill="none" stroke="url(#logoGrad)" strokeWidth="4" filter="url(#glow)" />
-              <rect x="44" y="44" width="12" height="12" rx="3" fill="url(#logoGrad)" />
-              <path d="M 20 40 C 10 60, 20 90, 50 90 C 85 90, 95 60, 85 35" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.8" />
-              <circle cx="85" cy="35" r="5" fill="#34C759" className="animate-pulse" />
-            </svg>
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-3xl font-[900] tracking-tighter leading-none lowercase">targoo</h1>
-            <p className="text-[10px] font-black text-[#86868b] uppercase tracking-[0.25em] mt-1 opacity-60">advisor engine</p>
-          </div>
+    <div style={{ position: 'relative', width: size, height: size, margin: '0 auto' }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#F5F5F7"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#007AFF"
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
+        />
+      </svg>
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <span style={{ fontSize: '42px', fontWeight: '700', color: '#1D1D1F', letterSpacing: '-1px' }}>{value}</span>
+        <span style={{ fontSize: '13px', fontWeight: '500', color: '#86868B', marginTop: '-4px' }}>ESG SCORE</span>
+      </div>
+    </div>
+  );
+};
+
+const ProgressBar = ({ label, value, color }) => (
+  <div style={{ marginBottom: '16px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+      <span style={{ fontSize: '13px', fontWeight: '500', color: '#1D1D1F' }}>{label}</span>
+      <span style={{ fontSize: '13px', fontWeight: '600', color: '#86868B' }}>{value}%</span>
+    </div>
+    <div style={{ width: '100%', height: '6px', backgroundColor: '#F5F5F7', borderRadius: '3px', overflow: 'hidden' }}>
+      <div style={{ width: `${value}%`, height: '100%', backgroundColor: color, borderRadius: '3px' }} />
+    </div>
+  </div>
+);
+
+const StatusBadge = ({ status }) => {
+  const colors = {
+    green: { bg: '#E1F7E3', dot: '#34C759' },
+    yellow: { bg: '#FFF4D6', dot: '#FF9F0A' },
+    red: { bg: '#FFEBEB', dot: '#FF3B30' },
+  };
+  const c = colors[status];
+  return (
+    <div style={{
+      backgroundColor: c.bg,
+      height: '24px',
+      padding: '0 10px',
+      borderRadius: '12px',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '6px',
+      border: '1px solid rgba(0,0,0,0.02)'
+    }}>
+      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: c.dot }} />
+      <span style={{ fontSize: '11px', fontWeight: '600', color: '#1D1D1F', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        {status}
+      </span>
+    </div>
+  );
+};
+
+// --- Main App Component ---
+
+export default function App() {
+  const [activeNav, setActiveNav] = useState('dashboard');
+  const [chatInput, setChatInput] = useState('');
+
+  // Styles object for structural layout
+  const s = {
+    layout: {
+      display: 'grid',
+      gridTemplateColumns: '240px 1fr 320px',
+      height: '100vh',
+      width: '100vw',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      backgroundColor: '#FFFFFF',
+      overflow: 'hidden',
+    },
+    sidebar: {
+      backgroundColor: '#F5F5F7',
+      borderRight: '1px solid #E5E5E5',
+      display: 'flex',
+      flexDirection: 'column',
+      padding: '20px 16px',
+    },
+    center: {
+      backgroundColor: '#FFFFFF',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    },
+    centerContent: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: '32px',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(12, 1fr)',
+      gap: '24px',
+      alignContent: 'start',
+    },
+    rightPanel: {
+      backgroundColor: '#FFFFFF',
+      borderLeft: '1px solid #E5E5E5',
+      display: 'flex',
+      flexDirection: 'column',
+    },
+    navItem: (isActive) => ({
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '8px 12px',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontSize: '13px',
+      fontWeight: isActive ? '600' : '400',
+      color: isActive ? '#1D1D1F' : '#424245',
+      backgroundColor: isActive ? 'rgba(0,0,0,0.05)' : 'transparent',
+      marginBottom: '4px',
+      transition: 'all 0.15s ease',
+    }),
+    header: {
+      height: '64px',
+      borderBottom: '1px solid #E5E5E5',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 32px',
+      backgroundColor: 'rgba(255,255,255,0.8)',
+      backdropFilter: 'blur(20px)',
+      position: 'sticky',
+      top: 0,
+      zIndex: 10,
+    }
+  };
+
+  return (
+    <div style={s.layout}>
+      {/* --- Sidebar --- */}
+      <aside style={s.sidebar}>
+        {/* Logo Area */}
+        <div style={{ padding: '0 12px 24px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #007AFF, #00C7BE)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>t</div>
+          <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F', letterSpacing: '-0.3px' }}>targoo</span>
         </div>
 
-        {/* CLIENT LIST */}
-        <div className="flex-1 flex flex-col gap-12">
-          <div className="space-y-5">
-            <h3 className="text-[11px] font-black text-[#86868b] uppercase tracking-[0.2em] px-2">Ügyfelek</h3>
-            <div className="flex flex-col gap-2">
-              {clients.map((c) => (
-                <button 
-                  key={c.name}
-                  onClick={() => { setActiveClient(c.name); setScore(c.score); }}
-                  className={`w-full text-left px-5 py-4 rounded-[1.2rem] text-[15px] font-bold transition-all duration-500 ${
-                    activeClient === c.name 
-                    ? 'bg-[#1d1d1f] text-white shadow-2xl scale-[1.02]' 
-                    : 'text-[#424245] hover:bg-white hover:shadow-lg'
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* DROPZONE */}
-          <div className="space-y-5">
-            <h3 className="text-[11px] font-black text-[#86868b] uppercase tracking-[0.2em] px-2">Adatok</h3>
-            <div className="aspect-[4/3] border-2 border-dashed border-[#d2d2d7] rounded-[2.5rem] flex flex-col items-center justify-center text-[#86868b] gap-4 p-6 bg-white/30 hover:bg-white hover:border-black hover:shadow-2xl transition-all duration-700 group cursor-pointer">
-              <div className="w-12 h-12 rounded-2xl bg-white shadow-xl flex items-center justify-center group-hover:scale-125 transition-transform duration-500">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+        {/* Navigation */}
+        <nav style={{ marginBottom: '32px' }}>
+          {['Dashboard', 'Gap Analysis', 'Reports', 'Settings'].map((item) => {
+            const key = item.toLowerCase();
+            const isActive = activeNav === key || (key === 'dashboard' && activeNav === 'dashboard');
+            const Icon = key === 'dashboard' ? LayoutGrid : key.includes('gap') ? BarChart2 : key.includes('rep') ? FileText : Settings;
+            return (
+              <div 
+                key={item} 
+                style={s.navItem(isActive)}
+                onClick={() => setActiveNav(key)}
+              >
+                <Icon size={18} strokeWidth={2} style={{ opacity: isActive ? 1 : 0.7 }} />
+                {item}
               </div>
-              <p className="text-[10px] text-center font-black uppercase tracking-widest leading-tight opacity-40">dokumentumok</p>
-            </div>
-          </div>
+            );
+          })}
+        </nav>
+
+        {/* Clients List */}
+        <div style={{ padding: '0 12px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Clients</span>
+          <Plus size={14} color="#86868B" style={{ cursor: 'pointer' }} />
         </div>
-      </nav>
-
-      {/* DASHBOARD AREA */}
-      <main className="flex-1 flex flex-col overflow-y-auto relative">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-100/20 rounded-full blur-[120px] -z-10"></div>
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-green-100/20 rounded-full blur-[100px] -z-10"></div>
-
-        <div className="p-12 space-y-10">
-          
-          {/* MAIN SCORE CARD */}
-          <section className="bg-white/60 backdrop-blur-2xl rounded-[3.5rem] p-14 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.05)] border border-white/40 flex flex-col items-center">
-            <div className="w-full flex justify-between items-start mb-12 text-left">
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {clients.map(client => (
+            <div key={client.name} style={{
+              padding: '10px 12px',
+              borderRadius: '8px',
+              backgroundColor: client.active ? '#FFFFFF' : 'transparent',
+              boxShadow: client.active ? '0 1px 4px rgba(0,0,0,0.05)' : 'none',
+              marginBottom: '4px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
               <div>
-                <h2 className="text-3xl font-[900] tracking-tighter lowercase">esg pontszám</h2>
-                <div className="flex items-center gap-2 mt-2">
-                   <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                   <p className="text-sm font-bold text-[#86868b] tracking-tight">Audit kész: {activeClient}</p>
-                </div>
+                <div style={{ fontSize: '13px', fontWeight: client.active ? '600' : '400', color: '#1D1D1F' }}>{client.name}</div>
+                <div style={{ fontSize: '11px', color: '#86868B' }}>{client.industry}</div>
               </div>
-              <div className="px-6 py-2 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl">2026. MÁRC. 06.</div>
+              {client.active && <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#007AFF' }} />}
             </div>
-            
-            <div className="flex flex-row items-center justify-center gap-24 w-full">
-              <div className="relative w-80 h-80">
-                <svg className="w-full h-full -rotate-90">
-                  <circle cx="160" cy="160" r="140" stroke="#f5f5f7" strokeWidth="20" fill="transparent" />
-                  <circle 
-                    cx="160" cy="160" r="140" 
-                    stroke="black" strokeWidth="20" 
-                    fill="transparent" 
-                    strokeDasharray={879} 
-                    strokeDashoffset={879 * (1 - score/100)} 
-                    className="transition-all duration-1000 ease-in-out" 
-                    strokeLinecap="round" 
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="flex items-baseline"><span className="text-[10rem] font-[900] tracking-tighter leading-none">{score}</span><span className="text-4xl font-bold text-[#d2d2d7] ml-2">/100</span></div>
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-8 text-left shrink-0">
-                 {['Környezet (E)', 'Társadalom (S)', 'Vezetés (G)'].map((label, idx) => (
-                   <div key={label} className="flex items-center gap-5 group cursor-help transition-all hover:translate-x-2">
-                      <div className={`w-5 h-5 rounded-full shadow-lg ${idx === 0 ? 'bg-black' : idx === 1 ? 'bg-[#d2d2d7]' : 'bg-[#ff3b30] opacity-40'}`}></div>
-                      <span className="text-xs font-black text-[#86868b] uppercase tracking-[0.25em] italic">{label}</span>
-                   </div>
-                 ))}
-              </div>
-            </div>
-          </section>
+          ))}
+        </div>
 
-          {/* GAP ANALYSIS */}
-          <section className="grid grid-cols-2 gap-8">
-             <div className="bg-white/40 backdrop-blur-xl rounded-[3rem] p-12 border border-white/20 shadow-xl flex flex-col justify-center text-left hover:bg-white transition-all duration-500 group">
-               <span className="text-[11px] font-black text-red-500 uppercase tracking-widest mb-3 italic">Hiányzó adatok:</span>
-               <h3 className="text-3xl text-[#1d1d1f] font-[900] leading-tight italic tracking-tighter group-hover:translate-x-2 transition-transform">ESRS E1-4<br/>Célkitűzések</h3>
-             </div>
-             <div className="bg-white/40 backdrop-blur-xl rounded-[3rem] p-12 border border-white/20 shadow-xl flex flex-col justify-center text-left hover:bg-white transition-all duration-500 group">
-               <span className="text-[11px] font-black text-green-500 uppercase tracking-widest mb-3 italic">Ellenőrizve:</span>
-               <h3 className="text-3xl text-[#1d1d1f] font-[900] leading-tight italic tracking-tighter group-hover:translate-x-2 transition-transform">Scope 1 & 2<br/>Kibocsátás</h3>
-             </div>
-          </section>
+        {/* User Profile */}
+        <div style={{ marginTop: 'auto', padding: '16px 12px 0', borderTop: '1px solid rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#E5E5EA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <User size={16} color="#86868B" />
+          </div>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: '500', color: '#1D1D1F' }}>Advisor Admin</div>
+            <div style={{ fontSize: '11px', color: '#86868B' }}>Pro Plan</div>
+          </div>
+        </div>
+      </aside>
+
+      {/* --- Center Content --- */}
+      <main style={s.center}>
+        {/* Header */}
+        <header style={s.header}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h1 style={{ fontSize: '18px', fontWeight: '600', color: '#1D1D1F', margin: 0 }}>Müller GmbH</h1>
+            <span style={{ backgroundColor: '#E1F7E3', color: '#34C759', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '6px' }}>ACTIVE</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ position: 'relative' }}>
+              <Search size={16} color="#86868B" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input 
+                type="text" 
+                placeholder="Search metrics..." 
+                style={{ 
+                  height: '32px', 
+                  width: '240px', 
+                  padding: '0 12px 0 34px', 
+                  borderRadius: '8px', 
+                  border: '1px solid #E5E5E5', 
+                  backgroundColor: '#FFFFFF', 
+                  fontSize: '13px', 
+                  outline: 'none',
+                  color: '#1D1D1F'
+                }} 
+              />
+            </div>
+          </div>
+        </header>
+
+        {/* Dashboard Grid */}
+        <div style={s.centerContent}>
+          
+          {/* ESG Score Card */}
+          <div style={{ gridColumn: 'span 4' }}>
+            <Card title="Overall ESG Score" style={{ height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <CircularProgress value={78} />
+              <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                <div style={{ fontSize: '13px', color: '#34C759', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  ▲ 4.2% <span style={{ color: '#86868B', fontWeight: '400' }}>vs last year</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Pillars Card */}
+          <div style={{ gridColumn: 'span 8' }}>
+            <Card title="Pillar Performance">
+              <div style={{ padding: '8px 0' }}>
+                <ProgressBar label="Environmental" value={68} color="#34C759" />
+                <ProgressBar label="Social" value={82} color="#007AFF" />
+                <ProgressBar label="Governance" value={74} color="#AF52DE" />
+              </div>
+              <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #F5F5F7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Focus Area</div>
+                  <div style={{ fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>E3 Water Resources</div>
+                </div>
+                <button style={{ border: 'none', background: 'none', color: '#007AFF', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>View Details</button>
+              </div>
+            </Card>
+          </div>
+
+          {/* CO2 Chart Card */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <Card title="CO2 Intensity Trend (kg/unit)">
+              <div style={{ height: '240px', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={co2Data}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F5F5F7" />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="co2" 
+                      stroke="#007AFF" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#FFFFFF', stroke: '#007AFF', strokeWidth: 2 }} 
+                      activeDot={{ r: 6 }} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          {/* Gap Matrix Table Card */}
+          <div style={{ gridColumn: 'span 12' }}>
+            <Card title="ESRS Gap Analysis Matrix" style={{ padding: 0, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '-1px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}>
+                    <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>ID</th>
+                    <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Topic</th>
+                    <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Status</th>
+                    <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {esrsTopics.map((topic, i) => (
+                    <tr key={topic.id} style={{ borderBottom: i !== esrsTopics.length -1 ? '1px solid #F5F5F7' : 'none' }}>
+                      <td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B', fontFamily: 'monospace' }}>{topic.id}</td>
+                      <td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td>
+                      <td style={{ padding: '16px 24px' }}>
+                        <StatusBadge status={topic.status} />
+                      </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                        <MoreHorizontal size={16} color="#86868B" style={{ cursor: 'pointer' }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          </div>
+
         </div>
       </main>
 
-      {/* CHAT PANEL */}
-      <aside className="w-[420px] bg-white/80 backdrop-blur-3xl border-l border-[#d2d2d7]/30 flex flex-col shrink-0 shadow-[-20px_0_60px_rgba(0,0,0,0.02)] z-20">
-        <div className="p-10 border-b border-[#f5f5f7] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.6)]"></div>
-            <h2 className="font-[900] text-sm uppercase tracking-[0.3em] lowercase tracking-tighter">targoo ai</h2>
-          </div>
-          <div className="flex gap-5 text-[#d2d2d7] font-bold">
-            <span className="hover:text-black cursor-pointer transition-colors text-xl">···</span>
-            <span className="hover:text-red-500 cursor-pointer transition-colors text-xl">✕</span>
-          </div>
-        </div>
-        
-        <div className="flex-1 p-10 overflow-y-auto space-y-10 flex flex-col bg-[#fbfbfd]/30">
-           <div className="flex gap-5">
-              <div className="w-12 h-12 rounded-[1rem] bg-black flex-shrink-0 flex items-center justify-center shadow-2xl">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="w-6 h-6"><path d="M12 2L2 7l10 5 10-5-10-5z"/></svg>
-              </div>
-              <div className="bg-white border border-[#f5f5f7] rounded-[1.8rem] rounded-tl-none p-7 text-[15px] text-[#424245] shadow-[0_10px_30px_rgba(0,0,0,0.02)] leading-relaxed text-left font-bold italic tracking-tight">
-                Szia! Elemeztem a(z) {activeClient} adatait. A környezeti célok (E1-4) még hiányoznak a teljességhez. Segítsek összeállítani a javaslatot?
-              </div>
-           </div>
+      {/* --- Right AI Panel --- */}
+      <aside style={s.rightPanel}>
+        <div style={{ height: '64px', borderBottom: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', padding: '0 20px' }}>
+          <MessageSquare size={18} color="#1D1D1F" style={{ marginRight: '10px' }} />
+          <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F' }}>Advisor AI</span>
         </div>
 
-        {/* INTERACTIVE INPUT */}
-        <div className="p-10 bg-white border-t border-[#f5f5f7]">
-          <div className="relative group">
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#FAFAFA' }}>
+          {messages.map(msg => {
+            const isAi = msg.sender === 'ai';
+            return (
+              <div key={msg.id} style={{
+                alignSelf: isAi ? 'flex-start' : 'flex-end',
+                maxWidth: '85%',
+                backgroundColor: isAi ? '#FFFFFF' : '#007AFF',
+                color: isAi ? '#1D1D1F' : '#FFFFFF',
+                padding: '12px 16px',
+                borderRadius: '16px',
+                borderTopLeftRadius: isAi ? '4px' : '16px',
+                borderBottomRightRadius: isAi ? '16px' : '4px',
+                boxShadow: isAi ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
+                border: isAi ? '1px solid #E5E5E5' : 'none',
+                fontSize: '13px',
+                lineHeight: '1.5',
+              }}>
+                {msg.text}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ padding: '20px', backgroundColor: '#FFFFFF', borderTop: '1px solid #E5E5E5' }}>
+          <div style={{ position: 'relative' }}>
             <input 
               type="text" 
-              autoFocus
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="üzenet a targoo-nak..." 
-              className="w-full bg-[#f5f5f7] border-3 border-transparent rounded-[1.5rem] py-6 pl-8 pr-20 text-[15px] font-bold outline-none focus:bg-white focus:border-black transition-all duration-500 placeholder:text-[#86868b] italic shadow-inner"
+              placeholder="Ask about compliance..."
+              style={{
+                width: '100%',
+                padding: '12px 40px 12px 16px',
+                borderRadius: '24px',
+                border: '1px solid #E5E5E5',
+                fontSize: '13px',
+                outline: 'none',
+                backgroundColor: '#F5F5F7'
+              }}
             />
-            <button className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black text-white rounded-[1.1rem] flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl">
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            <button style={{ 
+              position: 'absolute', 
+              right: '8px', 
+              top: '50%', 
+              transform: 'translateY(-50%)', 
+              border: 'none', 
+              background: 'none', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Send size={16} color="#007AFF" />
             </button>
+          </div>
+          <div style={{ textAlign: 'center', marginTop: '12px' }}>
+             <span style={{ fontSize: '10px', color: '#86868B', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Powered by DeepSeek-R1</span>
           </div>
         </div>
       </aside>
