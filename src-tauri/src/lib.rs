@@ -1,9 +1,10 @@
-pub mod l1_rag;
-pub mod l2_gap_analysis;
-pub mod l3_report;
-pub mod l4_data_processor;
-pub mod l5_prediction;
-pub mod l6_audit;
+mod l1_rag;
+mod l2_gap_analysis;
+mod l3_report;
+mod l4_data_processor;
+mod l5_prediction;
+mod l6_audit;
+mod license;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -17,6 +18,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            license::fetch_trial_license_status,
             l1_rag::search_esrs,
             l2_gap_analysis::gap_analysis,
             l3_report::generate_report,
