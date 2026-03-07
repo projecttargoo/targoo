@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>targoo advisor engine - CSRD Gap Analysis</title>
+    <style>
+        :root {
+            --brand-green: #1A5C3A;
+            --brand-green-hover: #2E7D32;
+            --text-dark: #1D1D1F;
+            --text-gray: #86868B;
+            --bg-light: #F5F5F7;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #FFFFFF;
+            color: var(--text-dark);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Header --- */
+        header {
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            position: sticky;
+            top: 0;
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(20px);
+            z-index: 100;
+            border-bottom: 1px solid #E5E5E5;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-dark);
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--brand-green), #2E7D32);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 18px;
+            font-style: italic;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .btn-lang {
+            background: none;
+            border: 1px solid #E5E5E5;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-lang:hover {
+            background: var(--bg-light);
+        }
+
+        .btn-primary {
+            background-color: var(--brand-green);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--brand-green-hover);
+        }
+
+        /* --- Hero --- */
+        .hero {
+            padding: 120px 20px 80px;
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: 64px;
+            font-weight: 800;
+            letter-spacing: -2px;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+
+        .hero p {
+            font-size: 24px;
+            color: var(--text-gray);
+            font-weight: 500;
+            max-width: 700px;
+            margin: 0 auto 40px;
+        }
+
+        /* --- Features --- */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 32px;
+            padding: 80px 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-box {
+            background-color: var(--bg-light);
+            padding: 40px;
+            border-radius: 24px;
+            text-align: left;
+            transition: transform 0.2s;
+        }
+
+        .feature-box:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-box h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .feature-box p {
+            font-size: 16px;
+            color: var(--text-gray);
+        }
+
+        /* --- Pricing --- */
+        .pricing {
+            padding: 80px 20px;
+            background-color: #FAFAFA;
+            text-align: center;
+        }
+
+        .pricing h2 {
+            font-size: 40px;
+            font-weight: 800;
+            margin-bottom: 48px;
+        }
+
+        .pricing-grid {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .price-card {
+            background: white;
+            padding: 48px;
+            border-radius: 32px;
+            border: 1px solid #E5E5E5;
+            width: 340px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: var(--shadow);
+        }
+
+        .price-card.featured {
+            border: 2px solid var(--brand-green);
+            transform: scale(1.05);
+        }
+
+        .price-name {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-gray);
+            margin-bottom: 12px;
+        }
+
+        .price-value {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 32px;
+        }
+
+        .price-value span {
+            font-size: 16px;
+            color: var(--text-gray);
+            font-weight: 500;
+        }
+
+        /* --- Footer --- */
+        footer {
+            padding: 60px 40px;
+            text-align: center;
+            border-top: 1px solid #E5E5E5;
+            color: var(--text-gray);
+            font-size: 13px;
+        }
+
+        [data-lang-en] { display: none; }
+
+        html[lang="en"] [data-lang-de] { display: none; }
+        html[lang="en"] [data-lang-en] { display: inline; }
+        html[lang="en"] .feature-box [data-lang-en],
+        html[lang="en"] .hero [data-lang-en],
+        html[lang="en"] .pricing [data-lang-en] { display: block; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="#" class="logo">
+            <div class="logo-icon">t</div>
+            <span class="logo-text">targoo advisor engine</span>
+        </a>
+        <div class="nav-right">
+            <button class="btn-lang" onclick="toggleLanguage()">
+                <span data-lang-de>EN</span>
+                <span data-lang-en>DE</span>
+            </button>
+            <a href="#" class="btn-primary">
+                <span data-lang-de>14 Tage kostenlos testen</span>
+                <span data-lang-en>Start 14-day free trial</span>
+            </a>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1 data-lang-de>CSRD Gap Analysis in 8 Sekunden</h1>
+            <h1 data-lang-en>CSRD Gap Analysis in 8 Seconds</h1>
+            <p data-lang-de>Das sicherste Tool für ESG-Berater. 100% Offline, DSGVO-konform és lokal auf Ihrem Rechner.</p>
+            <p data-lang-en>The most secure tool for ESG consultants. 100% offline, GDPR-compliant, and local on your machine.</p>
+            <a href="#" class="btn-primary" style="font-size: 18px; padding: 16px 32px;">
+                <span data-lang-de>Kostenlos starten</span>
+                <span data-lang-en>Start for Free</span>
+            </a>
+        </section>
+
+        <section class="features">
+            <div class="feature-box">
+                <h3 data-lang-de>Offline & DSGVO</h3>
+                <h3 data-lang-en>Offline & GDPR</h3>
+                <p data-lang-de>Ihre Mandantendaten verlassen niemals Ihren Rechner. Keine Cloud, kein Risiko.</p>
+                <p data-lang-en>Your client data never leaves your computer. No cloud, no risk.</p>
+            </div>
+            <div class="feature-box">
+                <h3 data-lang-de>8 Sekunden Gap Analysis</h3>
+                <h3 data-lang-en>8 Second Gap Analysis</h3>
+                <p data-lang-de>Automatisierte Bewertung aller 10 ESRS Themenbereiche mit KI-Unterstützung.</p>
+                <p data-lang-en>Automated assessment of all 10 ESRS topic areas with AI support.</p>
+            </div>
+            <div class="feature-box">
+                <h3 data-lang-de>Professionelle Berichte</h3>
+                <h3 data-lang-en>Professional Reports</h3>
+                <p data-lang-de>Generieren Sie ESRS-konforme .docx Dokumente für Ihre Mandanten auf Knopfdruck.</p>
+                <p data-lang-en>Generate ESRS-compliant .docx documents for your clients at the touch of a button.</p>
+            </div>
+        </section>
+
+        <section class="pricing">
+            <h2 data-lang-de>Einfache Preise</h2>
+            <h2 data-lang-en>Simple Pricing</h2>
+            <div class="pricing-grid">
+                <div class="price-card">
+                    <div class="price-name" data-lang-de>Trial</div>
+                    <div class="price-name" data-lang-en>Trial</div>
+                    <div class="price-value">€0</div>
+                    <p style="margin-bottom: 24px;" data-lang-de>14 Tage, 5 Berichte</p>
+                    <p style="margin-bottom: 24px;" data-lang-en>14 Days, 5 Reports</p>
+                    <a href="#" class="btn-lang" style="width: 100%; text-decoration: none;">
+                        <span data-lang-de>Starten</span>
+                        <span data-lang-en>Start</span>
+                    </a>
+                </div>
+                <div class="price-card featured">
+                    <div class="price-name" data-lang-de>Professional</div>
+                    <div class="price-name" data-lang-en>Professional</div>
+                    <div class="price-value">€399<span>/mo</span></div>
+                    <p style="margin-bottom: 24px;" data-lang-de>Unbegrenzte Berichte & KI</p>
+                    <p style="margin-bottom: 24px;" data-lang-en>Unlimited Reports & AI</p>
+                    <a href="#" class="btn-primary" style="width: 100%; text-decoration: none;">
+                        <span data-lang-de>Jetzt abonnieren</span>
+                        <span data-lang-en>Subscribe Now</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 targoo advisor engine. All rights reserved.</p>
+        <p style="margin-top: 12px; font-size: 11px;" data-lang-de>Rechtlicher Hinweis: Dies ist ein lokal ausgeführtes Tool. Daten werden nicht an externe Server übertragen.</p>
+        <p style="margin-top: 12px; font-size: 11px;" data-lang-en>Legal Note: This is a locally executed tool. Data is not transmitted to external servers.</p>
+    </footer>
+
+    <script>
+        function toggleLanguage() {
+            const html = document.documentElement;
+            const currentLang = html.getAttribute('lang');
+            html.setAttribute('lang', currentLang === 'de' ? 'en' : 'de');
+        }
+    </script>
+</body>
+</html>
