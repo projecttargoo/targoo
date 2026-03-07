@@ -20,7 +20,8 @@ pub fn run() {
             l1_rag::search_esrs,
             l2_gap_analysis::gap_analysis,
             l3_report::generate_report,
-            l4_data_processor::process_excel
+            l4_data_processor::process_excel,
+            l5_prediction::generate_predictions
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
