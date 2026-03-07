@@ -18,7 +18,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             l1_rag::search_esrs,
-            l2_gap_analysis::gap_analysis
+            l2_gap_analysis::gap_analysis,
+            l3_report::generate_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
