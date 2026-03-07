@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { 
   LayoutGrid, 
   BarChart2, 
@@ -10,7 +11,8 @@ import {
   ChevronRight, 
   User, 
   Send,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -31,18 +33,6 @@ const co2Data = [
   { month: 'May', co2: 360 },
   { month: 'Jun', co2: 340 },
   { month: 'Jul', co2: 320 },
-];
-
-const esrsTopics = [
-  { id: "E1", name: "Climate change", status: "yellow" },
-  { id: "E2", name: "Pollution", status: "green" },
-  { id: "E3", name: "Water resources", status: "red" },
-  { id: "E4", name: "Biodiversity", status: "yellow" },
-  { id: "E5", name: "Circular economy", status: "green" },
-  { id: "S1", name: "Own workforce", status: "green" },
-  { id: "S2", name: "Value chain workers", status: "yellow" },
-  { id: "S3", name: "Affected communities", status: "green" },
-  { id: "G1", name: "Business conduct", status: "green" },
 ];
 
 const clients = [
@@ -150,7 +140,7 @@ const StatusBadge = ({ status }) => {
     yellow: { bg: '#FFF4D6', dot: '#FF9F0A' },
     red: { bg: '#FFEBEB', dot: '#FF3B30' },
   };
-  const c = colors[status];
+  const c = colors[status] || colors.yellow;
   return (
     <div style={{
       backgroundColor: c.bg,
@@ -175,6 +165,39 @@ const StatusBadge = ({ status }) => {
 export default function App() {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [chatInput, setChatInput] = useState('');
+  const [gapData, setGapData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Initial load
+  useEffect(() => {
+    if (activeNav === 'gap analysis') {
+      runGapAnalysis();
+    }
+  }, [activeNav]);
+
+  const runGapAnalysis = async () => {
+    setIsLoading(true);
+    try {
+      const response = await invoke('gap_analysis', { 
+        input: { 
+          company_size: "Large", 
+          sector: "Manufacturing", 
+          country: "Germany" 
+        } 
+      });
+      const parsed = JSON.parse(response);
+      const topics = Object.entries(parsed.topics).map(([name, status], idx) => ({
+        id: `E${idx + 1}`,
+        name,
+        status
+      }));
+      setGapData(topics);
+    } catch (error) {
+      console.error("Gap analysis failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Styles object for structural layout
   const s = {
@@ -258,7 +281,7 @@ export default function App() {
         <nav style={{ marginBottom: '32px' }}>
           {['Dashboard', 'Gap Analysis', 'Reports', 'Settings'].map((item) => {
             const key = item.toLowerCase();
-            const isActive = activeNav === key || (key === 'dashboard' && activeNav === 'dashboard');
+            const isActive = activeNav === key;
             const Icon = key === 'dashboard' ? LayoutGrid : key.includes('gap') ? BarChart2 : key.includes('rep') ? FileText : Settings;
             return (
               <div 
@@ -321,6 +344,7 @@ export default function App() {
             <span style={{ backgroundColor: '#E1F7E3', color: '#34C759', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '6px' }}>ACTIVE</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {isLoading && <Loader2 className="animate-spin text-blue-500" size={20} />}
             <div style={{ position: 'relative' }}>
               <Search size={16} color="#86868B" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
               <input 
@@ -345,91 +369,104 @@ export default function App() {
         {/* Dashboard Grid */}
         <div style={s.centerContent}>
           
-          {/* ESG Score Card */}
-          <div style={{ gridColumn: 'span 4' }}>
-            <Card title="Overall ESG Score" style={{ height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-              <CircularProgress value={78} />
-              <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                <div style={{ fontSize: '13px', color: '#34C759', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                  ▲ 4.2% <span style={{ color: '#86868B', fontWeight: '400' }}>vs last year</span>
-                </div>
+          {activeNav === 'dashboard' && (
+            <>
+              {/* ESG Score Card */}
+              <div style={{ gridColumn: 'span 4' }}>
+                <Card title="Overall ESG Score" style={{ height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                  <CircularProgress value={78} />
+                  <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '13px', color: '#34C759', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                      ▲ 4.2% <span style={{ color: '#86868B', fontWeight: '400' }}>vs last year</span>
+                    </div>
+                  </div>
+                </Card>
               </div>
-            </Card>
-          </div>
 
-          {/* Pillars Card */}
-          <div style={{ gridColumn: 'span 8' }}>
-            <Card title="Pillar Performance">
-              <div style={{ padding: '8px 0' }}>
-                <ProgressBar label="Environmental" value={68} color="#34C759" />
-                <ProgressBar label="Social" value={82} color="#007AFF" />
-                <ProgressBar label="Governance" value={74} color="#AF52DE" />
+              {/* Pillars Card */}
+              <div style={{ gridColumn: 'span 8' }}>
+                <Card title="Pillar Performance">
+                  <div style={{ padding: '8px 0' }}>
+                    <ProgressBar label="Environmental" value={68} color="#34C759" />
+                    <ProgressBar label="Social" value={82} color="#007AFF" />
+                    <ProgressBar label="Governance" value={74} color="#AF52DE" />
+                  </div>
+                  <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #F5F5F7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Focus Area</div>
+                      <div style={{ fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>E3 Water Resources</div>
+                    </div>
+                    <button style={{ border: 'none', background: 'none', color: '#007AFF', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>View Details</button>
+                  </div>
+                </Card>
               </div>
-              <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #F5F5F7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Focus Area</div>
-                  <div style={{ fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>E3 Water Resources</div>
-                </div>
-                <button style={{ border: 'none', background: 'none', color: '#007AFF', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>View Details</button>
-              </div>
-            </Card>
-          </div>
 
-          {/* CO2 Chart Card */}
-          <div style={{ gridColumn: 'span 12' }}>
-            <Card title="CO2 Intensity Trend (kg/unit)">
-              <div style={{ height: '240px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={co2Data}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F5F5F7" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="co2" 
-                      stroke="#007AFF" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, fill: '#FFFFFF', stroke: '#007AFF', strokeWidth: 2 }} 
-                      activeDot={{ r: 6 }} 
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+              {/* CO2 Chart Card */}
+              <div style={{ gridColumn: 'span 12' }}>
+                <Card title="CO2 Intensity Trend (kg/unit)">
+                  <div style={{ height: '240px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={co2Data}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F5F5F7" />
+                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="co2" 
+                          stroke="#007AFF" 
+                          strokeWidth={3} 
+                          dot={{ r: 4, fill: '#FFFFFF', stroke: '#007AFF', strokeWidth: 2 }} 
+                          activeDot={{ r: 6 }} 
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
               </div>
-            </Card>
-          </div>
+            </>
+          )}
 
-          {/* Gap Matrix Table Card */}
-          <div style={{ gridColumn: 'span 12' }}>
-            <Card title="ESRS Gap Analysis Matrix" style={{ padding: 0, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '-1px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}>
-                    <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>ID</th>
-                    <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Topic</th>
-                    <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Status</th>
-                    <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {esrsTopics.map((topic, i) => (
-                    <tr key={topic.id} style={{ borderBottom: i !== esrsTopics.length -1 ? '1px solid #F5F5F7' : 'none' }}>
-                      <td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B', fontFamily: 'monospace' }}>{topic.id}</td>
-                      <td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td>
-                      <td style={{ padding: '16px 24px' }}>
-                        <StatusBadge status={topic.status} />
-                      </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                        <MoreHorizontal size={16} color="#86868B" style={{ cursor: 'pointer' }} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          </div>
+          {/* Gap Matrix Table Card - Always visible if navigation is Gap Analysis or Dashboard */}
+          {(activeNav === 'dashboard' || activeNav === 'gap analysis') && (
+            <div style={{ gridColumn: 'span 12' }}>
+              <Card title={activeNav === 'gap analysis' ? "Full ESRS Gap Analysis" : "ESRS Gap Analysis Matrix"} style={{ padding: 0, overflow: 'hidden' }}>
+                {isLoading && gapData.length === 0 ? (
+                  <div style={{ padding: '40px', textAlign: 'center' }}>
+                    <Loader2 className="animate-spin mx-auto text-blue-500 mb-2" size={24} />
+                    <span style={{ fontSize: '13px', color: '#86868B' }}>Running deep engine analysis...</span>
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '-1px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}>
+                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>ID</th>
+                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Topic</th>
+                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Status</th>
+                        <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(gapData.length > 0 ? gapData : []).map((topic, i) => (
+                        <tr key={topic.id} style={{ borderBottom: i !== gapData.length -1 ? '1px solid #F5F5F7' : 'none' }}>
+                          <td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B', fontFamily: 'monospace' }}>{topic.id}</td>
+                          <td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td>
+                          <td style={{ padding: '16px 24px' }}>
+                            <StatusBadge status={topic.status} />
+                          </td>
+                          <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                            <MoreHorizontal size={16} color="#86868B" style={{ cursor: 'pointer' }} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </Card>
+            </div>
+          )}
 
         </div>
       </main>
@@ -502,6 +539,17 @@ export default function App() {
           </div>
         </div>
       </aside>
+      
+      {/* Global CSS for animations */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+      `}} />
     </div>
   );
 }
