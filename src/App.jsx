@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { demoData } from './demoData';
 import { 
   LayoutGrid, 
   BarChart2, 
@@ -28,30 +29,6 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-
-// --- Data ---
-const co2Data = [
-  { month: 'Jan', co2: 450 },
-  { month: 'Feb', co2: 420 },
-  { month: 'Mar', co2: 440 },
-  { month: 'Apr', co2: 390 },
-  { month: 'May', co2: 360 },
-  { month: 'Jun', co2: 340 },
-  { month: 'Jul', co2: 320 },
-];
-
-const clients = [
-  { name: "Müller GmbH", industry: "Manufacturing", active: true },
-  { name: "Schmidt Logistik", industry: "Transportation", active: false },
-  { name: "Weber Solar", industry: "Energy", active: false },
-  { name: "Bauer Agrar", industry: "Agriculture", active: false },
-];
-
-const messages = [
-  { id: 1, sender: 'ai', text: "I've analyzed the Q3 data for Müller GmbH. The water usage intensity (E3) exceeds the sector benchmark by 15%." },
-  { id: 2, sender: 'user', text: "What's the main driver?" },
-  { id: 3, sender: 'ai', text: "The primary driver is the new cooling process at the Hamburg facility. It accounts for 60% of the total increase." },
-];
 
 // --- Components ---
 
@@ -170,16 +147,16 @@ const StatusBadge = ({ status }) => {
 export default function App() {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [chatInput, setChatInput] = useState('');
-  const [gapData, setGapData] = useState([]);
+  const [gapData, setGapData] = useState(demoData.gapMatrix);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [reportPath, setReportPath] = useState(null);
-  const [license, setLicense] = useState({ status: 'checking', days_remaining: 0, usage_count: 0 });
+  const [license, setLicense] = useState(demoData.license);
 
   // Initial load
   useEffect(() => {
     checkLicenseStatus();
-    if (activeNav === 'gap analysis' || (activeNav === 'dashboard' && gapData.length === 0)) {
+    if (activeNav === 'gap analysis') {
       runGapAnalysis();
     }
   }, [activeNav]);
@@ -208,7 +185,9 @@ export default function App() {
       const topics = Object.entries(parsed.topics).map(([name, status], idx) => ({
         id: `E${idx + 1}`,
         name,
-        status
+        status,
+        action: "Analysis pending",
+        hours: 0
       }));
       setGapData(topics);
     } catch (error) {
@@ -228,12 +207,12 @@ export default function App() {
       });
 
       const path = await invoke('generate_report', {
-        companyName: "Müller GmbH",
+        companyName: demoData.company.name,
         gapAnalysisJson: JSON.stringify({ topics: topicsMap }),
         language: "en"
       });
       setReportPath(path);
-      checkLicenseStatus(); // Refresh usage count after generation
+      checkLicenseStatus(); 
       setTimeout(() => setReportPath(null), 10000);
     } catch (error) {
       console.error("Report generation failed:", error);
@@ -335,7 +314,7 @@ export default function App() {
             
             <h2 style={{ fontSize: '32px', fontWeight: '800', color: '#1D1D1F', marginBottom: '12px', letterSpacing: '-1px' }}>Your trial has ended</h2>
             <p style={{ fontSize: '17px', color: '#86868B', marginBottom: '40px', lineHeight: '1.5' }}>
-              You've successfully audited Müller GmbH. To continue using the engine and unlock deep predictions, please upgrade to a full plan.
+              You've successfully audited {demoData.company.name}. To continue using the engine and unlock deep predictions, please upgrade to a full plan.
             </p>
 
             {/* Value Calculator */}
@@ -405,12 +384,12 @@ export default function App() {
             <Plus size={14} color="#86868B" style={{ cursor: 'pointer' }} />
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {clients.map(client => (
+            {[demoData.company].map(client => (
               <div key={client.name} style={{
                 padding: '10px 12px',
                 borderRadius: '8px',
-                backgroundColor: client.active ? '#FFFFFF' : 'transparent',
-                boxShadow: client.active ? '0 1px 4px rgba(0,0,0,0.05)' : 'none',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
                 marginBottom: '4px',
                 cursor: 'pointer',
                 display: 'flex',
@@ -418,10 +397,10 @@ export default function App() {
                 justifyContent: 'space-between'
               }}>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: client.active ? '600' : '400', color: '#1D1D1F' }}>{client.name}</div>
-                  <div style={{ fontSize: '11px', color: '#86868B' }}>{client.industry}</div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>{client.name}</div>
+                  <div style={{ fontSize: '11px', color: '#86868B' }}>{client.sector}</div>
                 </div>
-                {client.active && <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#007AFF' }} />}
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#007AFF' }} />
               </div>
             ))}
           </div>
@@ -453,8 +432,8 @@ export default function App() {
           {/* Header */}
           <header style={s.header}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <h1 style={{ fontSize: '18px', fontWeight: '600', color: '#1D1D1F', margin: 0 }}>Müller GmbH</h1>
-              <span style={{ backgroundColor: '#E1F7E3', color: '#34C759', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '6px' }}>ACTIVE</span>
+              <h1 style={{ fontSize: '18px', fontWeight: '600', color: '#1D1D1F', margin: 0 }}>{demoData.company.name}</h1>
+              <span style={{ backgroundColor: '#E1F7E3', color: '#34C759', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '6px' }}>{demoData.company.status}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               {(isLoading || isGeneratingReport) && <Loader2 className="animate-spin text-blue-500" size={20} />}
@@ -496,10 +475,10 @@ export default function App() {
                 {/* ESG Score Card */}
                 <div style={{ gridColumn: 'span 4' }}>
                   <Card title="Overall ESG Score" style={{ height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-                    <CircularProgress value={78} />
+                    <CircularProgress value={demoData.scores.total} />
                     <div style={{ marginTop: '24px', textAlign: 'center' }}>
                       <div style={{ fontSize: '13px', color: '#34C759', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                        ▲ 4.2% <span style={{ color: '#86868B', fontWeight: '400' }}>vs last year</span>
+                        ▲ {demoData.scores.trend}
                       </div>
                     </div>
                   </Card>
@@ -509,9 +488,9 @@ export default function App() {
                 <div style={{ gridColumn: 'span 8' }}>
                   <Card title="Pillar Performance">
                     <div style={{ padding: '8px 0' }}>
-                      <ProgressBar label="Environmental" value={68} color="#34C759" />
-                      <ProgressBar label="Social" value={82} color="#007AFF" />
-                      <ProgressBar label="Governance" value={74} color="#AF52DE" />
+                      <ProgressBar label="Environmental" value={demoData.scores.environmental} color="#34C759" />
+                      <ProgressBar label="Social" value={demoData.scores.social} color="#007AFF" />
+                      <ProgressBar label="Governance" value={demoData.scores.governance} color="#AF52DE" />
                     </div>
                     <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #F5F5F7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
@@ -528,7 +507,7 @@ export default function App() {
                   <Card title="CO2 Intensity Trend (kg/unit)">
                     <div style={{ height: '240px', width: '100%' }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={co2Data}>
+                        <LineChart data={demoData.co2Trend}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F5F5F7" />
                           <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} dy={10} />
                           <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} />
@@ -590,7 +569,7 @@ export default function App() {
                           <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>ID</th>
                           <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Topic</th>
                           <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Status</th>
-                          <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Action</th>
+                          <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Next Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -601,8 +580,8 @@ export default function App() {
                             <td style={{ padding: '16px 24px' }}>
                               <StatusBadge status={topic.status} />
                             </td>
-                            <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                              <MoreHorizontal size={16} color="#86868B" style={{ cursor: 'pointer' }} />
+                            <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', color: '#86868B' }}>
+                              {topic.action} {topic.hours > 0 && `(${topic.hours}h)`}
                             </td>
                           </tr>
                         ))}
@@ -624,7 +603,7 @@ export default function App() {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#FAFAFA' }}>
-            {messages.map(msg => {
+            {demoData.aiHistory.map(msg => {
               const isAi = msg.sender === 'ai';
               return (
                 <div key={msg.id} style={{
