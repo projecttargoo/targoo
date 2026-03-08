@@ -16,6 +16,10 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            l6_audit::init_audit_db(app.handle())?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             license::fetch_trial_license_status,
