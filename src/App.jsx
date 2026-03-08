@@ -21,7 +21,8 @@ import {
   Zap,
   FileUp,
   File,
-  X
+  X,
+  Target
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -35,8 +36,8 @@ import {
 
 // --- Components ---
 
-const Card = ({ children, title, style }) => (
-  <div style={{
+const Card = ({ children, title, style, id }) => (
+  <div id={id} style={{
     backgroundColor: '#FFFFFF',
     borderRadius: '12px',
     border: '1px solid #E5E5E5',
@@ -159,48 +160,9 @@ export default function App() {
   const [license, setLicense] = useState(demoData.license);
   const [isDragActive, setIsDragActive] = useState(false);
   const [droppedFile, setDroppedFile] = useState(null);
-
-  const handleSendChat = async () => {
-    if (!chatInput.trim()) return;
-
-    const userMessage = {
-      id: Date.now(),
-      sender: 'user',
-      text: chatInput
-    };
-
-    setChatHistory(prev => [...prev, userMessage]);
-    const currentInput = chatInput;
-    setChatInput('');
-    setIsAiTyping(true);
-
-    try {
-      const response = await invoke('ask_ai', { question: currentInput });
-      
-      const parts = response.split('---');
-      const mainText = parts[0].trim();
-      const citations = parts.length > 1 ? parts[1].trim() : '';
-
-      const aiMessage = {
-        id: Date.now() + 1,
-        sender: 'ai',
-        text: mainText,
-        citations: citations
-      };
-
-      setChatHistory(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error("AI request failed:", error);
-      const errorMessage = {
-        id: Date.now() + 1,
-        sender: 'ai',
-        text: "I'm sorry, I encountered an error while processing your request. Please try again."
-      };
-      setChatHistory(prev => [...prev, errorMessage]);
-    } finally {
-      setIsAiTyping(false);
-    }
-  };
+  
+  // Demo Tour State
+  const [tourStep, setTourStep] = useState(0); // 0: none, 1-5: active
 
   // Initial load
   useEffect(() => {
@@ -208,7 +170,43 @@ export default function App() {
     if (activeNav === 'gap analysis') {
       runGapAnalysis();
     }
+    
+    // Check if tour is needed
+    if (!localStorage.getItem('demo_completed')) {
+      startTour();
+    }
   }, [activeNav]);
+
+  const startTour = () => {
+    setTourStep(1);
+    
+    setTimeout(() => {
+      setTourStep(2);
+      setActiveNav('gap analysis');
+    }, 3000);
+
+    setTimeout(() => {
+      setTourStep(3);
+    }, 12000);
+
+    setTimeout(() => {
+      setTourStep(4);
+    }, 20000);
+
+    setTimeout(() => {
+      setTourStep(5);
+    }, 28000);
+
+    setTimeout(() => {
+      setTourStep(0);
+      localStorage.setItem('demo_completed', 'true');
+    }, 35000);
+  };
+
+  const skipTour = () => {
+    setTourStep(0);
+    localStorage.setItem('demo_completed', 'true');
+  };
 
   const checkLicenseStatus = async () => {
     try {
@@ -271,6 +269,48 @@ export default function App() {
     }
   };
 
+  const handleSendChat = async () => {
+    if (!chatInput.trim()) return;
+
+    const userMessage = {
+      id: Date.now(),
+      sender: 'user',
+      text: chatInput
+    };
+
+    setChatHistory(prev => [...prev, userMessage]);
+    const currentInput = chatInput;
+    setChatInput('');
+    setIsAiTyping(true);
+
+    try {
+      const response = await invoke('ask_ai', { question: currentInput });
+      
+      const parts = response.split('---');
+      const mainText = parts[0].trim();
+      const citations = parts.length > 1 ? parts[1].trim() : '';
+
+      const aiMessage = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: mainText,
+        citations: citations
+      };
+
+      setChatHistory(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("AI request failed:", error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: "I'm sorry, I encountered an error while processing your request. Please try again."
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
+    } finally {
+      setIsAiTyping(false);
+    }
+  };
+
   // --- Drag & Drop Handlers ---
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -290,10 +330,7 @@ export default function App() {
       setDroppedFile({ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB' });
       
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.csv')) {
-        // In a real Tauri app with permissions, we'd get the absolute path.
-        // For this demo, we'll simulate the call or use a placeholder if path is restricted.
         try {
-          // Placeholder for the real system path which browsers hide
           const placeholderPath = `C:\\Users\\User\\Downloads\\${file.name}`;
           const response = await invoke('process_excel', { filePath: placeholderPath });
           const parsed = JSON.parse(response);
@@ -391,34 +428,55 @@ export default function App() {
     }
   };
 
-  const isTrialActive = license.status === 'trial_active';
   const isTrialEnded = license.status === 'trial_expired' || license.status === 'trial_limit_reached';
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       
-      {/* License Modal - Full Screen Overlay */}
+      {/* Demo Tour Elements */}
+      {tourStep > 0 && (
+        <div style={{ position: 'fixed', top: '24px', right: '24px', zIndex: 10005 }}>
+          <button 
+            onClick={skipTour}
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '20px', padding: '6px 16px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', backdropFilter: 'blur(10px)' }}
+          >
+            Skip Tour
+          </button>
+        </div>
+      )}
+
+      {tourStep === 1 && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(5px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.5s ease' }}>
+          <div style={{ textAlign: 'center', animation: 'fadeInScale 0.8s ease-out' }}>
+            <div style={{ width: '80px', height: '80px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '40px', margin: '0 auto 24px', boxShadow: '0 10px 30px rgba(46,125,50,0.3)' }}>t</div>
+            <h2 style={{ fontSize: '32px', fontWeight: '800', color: '#1D1D1F', marginBottom: '12px', letterSpacing: '-1px' }}>Welcome to targoo advisor engine</h2>
+            <p style={{ fontSize: '17px', color: '#86868B' }}>Müller GmbH demo environment is ready.</p>
+          </div>
+        </div>
+      )}
+
+      {tourStep === 5 && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.2)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: '#FFFFFF', padding: '40px', borderRadius: '32px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', textAlign: 'center', maxWidth: '400px', animation: 'fadeInScale 0.5s ease-out' }}>
+            <div style={{ width: '56px', height: '56px', backgroundColor: '#E1F7E3', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+              <Zap size={28} color="#34C759" fill="#34C759" />
+            </div>
+            <h3 style={{ fontSize: '24px', fontWeight: '700', color: '#1D1D1F', marginBottom: '12px' }}>Value Saved Today</h3>
+            <div style={{ fontSize: '48px', fontWeight: '800', color: '#34C759', marginBottom: '8px' }}>€660.00</div>
+            <p style={{ fontSize: '15px', color: '#86868B', lineHeight: '1.4' }}>5.5 hours of senior advisor time saved through automation.</p>
+          </div>
+        </div>
+      )}
+
+      {/* License Modal */}
       {isTrialEnded && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(255,255,255,0.98)',
-          backdropFilter: 'blur(10px)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '40px'
-        }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(255,255,255,0.98)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
           <div style={{ maxWidth: '500px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ width: '64px', height: '64px', background: 'linear-gradient(135deg, #007AFF, #00C7BE)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '32px', marginBottom: '32px', boxShadow: '0 10px 30px rgba(0,122,255,0.2)' }}>t</div>
-            
             <h2 style={{ fontSize: '32px', fontWeight: '800', color: '#1D1D1F', marginBottom: '12px', letterSpacing: '-1px' }}>Your trial has ended</h2>
             <p style={{ fontSize: '17px', color: '#86868B', marginBottom: '40px', lineHeight: '1.5' }}>
               You've successfully audited {demoData.company.name}. To continue using the engine and unlock deep predictions, please upgrade to a full plan.
             </p>
-
-            {/* Value Calculator */}
             <div style={{ width: '100%', backgroundColor: '#F5F5F7', padding: '24px', borderRadius: '24px', marginBottom: '40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', textAlign: 'left' }}>
               <div>
                 <div style={{ fontSize: '11px', color: '#86868B', fontWeight: '700', textTransform: 'uppercase', marginBottom: '4px' }}>Reports Generated</div>
@@ -433,69 +491,55 @@ export default function App() {
                 <span style={{ fontSize: '18px', fontWeight: '800', color: '#007AFF' }}>ROI 1790%</span>
               </div>
             </div>
-
-            <a 
-              href="https://targoo.com/subscribe" 
-              target="_blank" 
-              rel="noreferrer"
-              style={{ width: '100%', height: '56px', backgroundColor: '#34C759', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '16px', fontSize: '17px', fontWeight: '700', textDecoration: 'none', marginBottom: '20px', transition: 'transform 0.2s', boxShadow: '0 4px 15px rgba(52,199,89,0.3)' }}
-            >
+            <a href="https://targoo.com/subscribe" target="_blank" rel="noreferrer" style={{ width: '100%', height: '56px', backgroundColor: '#34C759', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '16px', fontSize: '17px', fontWeight: '700', textDecoration: 'none', marginBottom: '20px', boxShadow: '0 4px 15px rgba(52,199,89,0.3)' }}>
               Subscribe Now <Zap size={18} fill="white" style={{ marginLeft: '10px' }} />
             </a>
-
-            <button style={{ border: 'none', background: 'none', color: '#007AFF', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-              Request 14 day extension
-            </button>
           </div>
         </div>
       )}
 
       {/* Main Layout */}
       <div style={s.layout}>
-        {/* --- Sidebar --- */}
         <aside style={s.sidebar}>
-          {/* Logo Area */}
           <div style={{ padding: '0 12px 24px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>t</div>
             <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F', letterSpacing: '-0.3px' }}>targoo</span>
           </div>
-          {/* Navigation */}
           <nav style={{ marginBottom: '32px' }}>
             {['Dashboard', 'Gap Analysis', 'Reports', 'Settings'].map((item) => {
               const key = item.toLowerCase();
               const isActive = activeNav === key;
               const Icon = key === 'dashboard' ? LayoutGrid : key.includes('gap') ? BarChart2 : key.includes('rep') ? FileText : Settings;
+              const isGapAnalysis = key === 'gap analysis';
+              
               return (
                 <div 
                   key={item} 
-                  style={s.navItem(isActive)}
+                  style={{
+                    ...s.navItem(isActive),
+                    position: 'relative',
+                    ...(isGapAnalysis && tourStep === 2 ? { boxShadow: '0 0 0 4px #34C759', animation: 'pulse-ring 2s infinite' } : {})
+                  }}
                   onClick={() => setActiveNav(key)}
                 >
                   <Icon size={18} strokeWidth={2} style={{ opacity: isActive ? 1 : 0.7 }} />
                   {item}
+                  {isGapAnalysis && tourStep === 2 && (
+                    <div className="tour-tooltip" style={{ left: '100%', marginLeft: '20px', width: '180px' }}>
+                      Gap Analysis in 8 seconds
+                    </div>
+                  )}
                 </div>
               );
             })}
           </nav>
-
-          {/* Clients List */}
           <div style={{ padding: '0 12px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Clients</span>
             <Plus size={14} color="#86868B" style={{ cursor: 'pointer' }} />
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {[demoData.company].map(client => (
-              <div key={client.name} style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
-                backgroundColor: '#FFFFFF',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-                marginBottom: '4px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
+              <div key={client.name} style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', marginBottom: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>{client.name}</div>
                   <div style={{ fontSize: '11px', color: '#86868B' }}>{client.sector}</div>
@@ -504,8 +548,6 @@ export default function App() {
               </div>
             ))}
           </div>
-
-          {/* User Profile */}
           <div style={{ marginTop: 'auto', padding: '16px 12px 0', borderTop: '1px solid rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#E5E5EA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <User size={16} color="#86868B" />
@@ -517,19 +559,14 @@ export default function App() {
           </div>
         </aside>
 
-        {/* --- Center Content --- */}
         <main style={s.center}>
-          
-          {/* Trial Banner */}
-          {isTrialActive && (
+          {license.status === 'trial_active' && (
             <div style={{ height: '32px', backgroundColor: '#007AFF', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', gap: '8px' }}>
               <ShieldCheck size={14} />
               TRIAL MODE: {license.days_remaining} DAYS REMAINING
               <a href="https://targoo.com/subscribe" target="_blank" rel="noreferrer" style={{ color: 'white', textDecoration: 'underline', marginLeft: '12px' }}>Upgrade to Pro</a>
             </div>
           )}
-
-          {/* Header */}
           <header style={s.header}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <h1 style={{ fontSize: '18px', fontWeight: '600', color: '#1D1D1F', margin: 0 }}>{demoData.company.name}</h1>
@@ -539,28 +576,12 @@ export default function App() {
               {(isLoading || isGeneratingReport) && <Loader2 className="animate-spin text-blue-500" size={20} />}
               <div style={{ position: 'relative' }}>
                 <Search size={16} color="#86868B" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input 
-                  type="text" 
-                  placeholder="Search metrics..." 
-                  style={{ 
-                    height: '32px', 
-                    width: '240px', 
-                    padding: '0 12px 0 34px', 
-                    borderRadius: '8px', 
-                    border: '1px solid #E5E5E5', 
-                    backgroundColor: '#FFFFFF', 
-                    fontSize: '13px', 
-                    outline: 'none',
-                    color: '#1D1D1F'
-                  }} 
-                />
+                <input type="text" placeholder="Search metrics..." style={{ height: '32px', width: '240px', padding: '0 12px 0 34px', borderRadius: '8px', border: '1px solid #E5E5E5', backgroundColor: '#FFFFFF', fontSize: '13px', outline: 'none', color: '#1D1D1F' }} />
               </div>
             </div>
           </header>
 
-          {/* Scrollable Dashboard Area */}
           <div style={s.centerContent}>
-            
             {reportPath && (
               <div style={{ gridColumn: 'span 12', backgroundColor: '#E1F7E3', color: '#1D1D1F', padding: '12px 20px', borderRadius: '12px', border: '1px solid #34C759', display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <CheckCircle2 size={20} color="#34C759" />
@@ -572,19 +593,14 @@ export default function App() {
 
             {activeNav === 'dashboard' && (
               <>
-                {/* ESG Score Card */}
                 <div style={{ gridColumn: 'span 4' }}>
                   <Card title="Overall ESG Score" style={{ height: '100%', alignItems: 'center', justifyContent: 'center' }}>
                     <CircularProgress value={demoData.scores.total} />
                     <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '13px', color: '#34C759', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                        ▲ {demoData.scores.trend}
-                      </div>
+                      <div style={{ fontSize: '13px', color: '#34C759', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>▲ {demoData.scores.trend}</div>
                     </div>
                   </Card>
                 </div>
-
-                {/* Pillars Card */}
                 <div style={{ gridColumn: 'span 8' }}>
                   <Card title="Pillar Performance">
                     <div style={{ padding: '8px 0' }}>
@@ -592,45 +608,11 @@ export default function App() {
                       <ProgressBar label="Social" value={demoData.scores.social} color="#007AFF" />
                       <ProgressBar label="Governance" value={demoData.scores.governance} color="#AF52DE" />
                     </div>
-                    <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #F5F5F7', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Focus Area</div>
-                        <div style={{ fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>E3 Water Resources</div>
-                      </div>
-                      <button style={{ border: 'none', background: 'none', color: '#007AFF', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>View Details</button>
-                    </div>
-                  </Card>
-                </div>
-
-                {/* CO2 Chart Card */}
-                <div style={{ gridColumn: 'span 12' }}>
-                  <Card title="CO2 Intensity Trend (kg/unit)">
-                    <div style={{ height: '240px', width: '100%' }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={demoData.co2Trend}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F5F5F7" />
-                          <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} dy={10} />
-                          <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#86868B'}} />
-                          <Tooltip 
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="co2" 
-                            stroke="#007AFF" 
-                            strokeWidth={3} 
-                            dot={{ r: 4, fill: '#FFFFFF', stroke: '#007AFF', strokeWidth: 2 }} 
-                            activeDot={{ r: 6 }} 
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
                   </Card>
                 </div>
               </>
             )}
 
-            {/* Gap Matrix Table Card */}
             {(activeNav === 'dashboard' || activeNav === 'gap analysis') && (
               <div style={{ gridColumn: 'span 12' }}>
                 <Card title={activeNav === 'gap analysis' ? "Full ESRS Gap Analysis" : "ESRS Gap Analysis Matrix"} style={{ padding: 0, overflow: 'hidden' }}>
@@ -639,229 +621,113 @@ export default function App() {
                       onClick={handleGenerateReport}
                       disabled={isGeneratingReport || gapData.length === 0}
                       style={{ 
-                        backgroundColor: '#007AFF', 
-                        color: 'white', 
-                        border: 'none', 
-                        borderRadius: '8px', 
-                        padding: '8px 16px', 
-                        fontSize: '12px', 
-                        fontWeight: '600', 
-                        cursor: (isGeneratingReport || gapData.length === 0) ? 'not-allowed' : 'pointer',
-                        opacity: (isGeneratingReport || gapData.length === 0) ? 0.6 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
+                        backgroundColor: '#007AFF', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+                        position: 'relative',
+                        ...(tourStep === 3 ? { boxShadow: '0 0 0 4px #007AFF', animation: 'pulse-ring-blue 2s infinite' } : {})
                       }}
                     >
                       {isGeneratingReport ? <Loader2 className="animate-spin" size={14} /> : <FileText size={14} />}
                       Generate ESRS Report (.docx)
+                      {tourStep === 3 && (
+                        <div className="tour-tooltip" style={{ bottom: '100%', right: '0', marginBottom: '20px', width: '220px' }}>
+                          Professional ESRS Report in 45 seconds
+                        </div>
+                      )}
                     </button>
                   </div>
-                  {isLoading && gapData.length === 0 ? (
-                    <div style={{ padding: '40px', textAlign: 'center' }}>
-                      <Loader2 className="animate-spin mx-auto text-blue-500 mb-2" size={24} />
-                      <span style={{ fontSize: '13px', color: '#86868B' }}>Running deep engine analysis...</span>
-                    </div>
-                  ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '-1px' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}>
-                          <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>ID</th>
-                          <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Topic</th>
-                          <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Status</th>
-                          <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Next Action</th>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}>
+                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>ID</th>
+                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Topic</th>
+                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(gapData || []).map((topic, i) => (
+                        <tr key={topic.id} style={{ borderBottom: '1px solid #F5F5F7' }}>
+                          <td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B' }}>{topic.id}</td>
+                          <td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F' }}>{topic.name}</td>
+                          <td style={{ padding: '16px 24px' }}><StatusBadge status={topic.status} /></td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {(gapData || []).map((topic, i) => (
-                          <tr key={topic.id} style={{ borderBottom: i !== gapData.length -1 ? '1px solid #F5F5F7' : 'none' }}>
-                            <td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B', fontFamily: 'monospace' }}>{topic.id}</td>
-                            <td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td>
-                            <td style={{ padding: '16px 24px' }}>
-                              <StatusBadge status={topic.status} />
-                            </td>
-                            <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', color: '#86868B' }}>
-                              {topic.action} {topic.hours > 0 && `(${topic.hours}h)`}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
+                      ))}
+                    </tbody>
+                  </table>
                 </Card>
               </div>
             )}
-
           </div>
         </main>
 
-        {/* --- Right AI Panel --- */}
-        <aside style={s.rightPanel}>
+        <aside style={{ ...s.rightPanel, position: 'relative', ...(tourStep === 4 ? { boxShadow: '-10px 0 30px rgba(0,122,255,0.1)', zIndex: 10001 } : {}) }}>
+          {tourStep === 4 && (
+            <div className="tour-tooltip" style={{ top: '80px', right: '100%', marginRight: '20px', width: '240px' }}>
+              Ask anything - cited ESRS paragraphs
+            </div>
+          )}
           <div style={{ height: '64px', borderBottom: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', padding: '0 20px' }}>
             <MessageSquare size={18} color="#1D1D1F" style={{ marginRight: '10px' }} />
             <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F' }}>Advisor AI</span>
           </div>
-
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#FAFAFA' }}>
-            {chatMessages.map(msg => {
-              const isAi = msg.sender === 'ai';
-              return (
-                <div key={msg.id} style={{
-                  alignSelf: isAi ? 'flex-start' : 'flex-end',
-                  maxWidth: '90%',
-                  backgroundColor: isAi ? '#FFFFFF' : '#007AFF',
-                  color: isAi ? '#1D1D1F' : '#FFFFFF',
-                  padding: '12px 16px',
-                  borderRadius: '16px',
-                  borderTopLeftRadius: isAi ? '4px' : '16px',
-                  borderBottomRightRadius: isAi ? '16px' : '4px',
-                  boxShadow: isAi ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
-                  border: isAi ? '1px solid #E5E5E5' : 'none',
-                  borderLeft: isAi ? '4px solid #34C759' : 'none',
-                  fontSize: '13px',
-                  lineHeight: '1.5',
-                  whiteSpace: 'pre-wrap'
-                }}>
-                  {msg.text}
-                  {isAi && msg.citations && (
-                    <div style={{ 
-                      marginTop: '12px', 
-                      paddingTop: '8px', 
-                      borderTop: '1px solid #F5F5F7', 
-                      fontSize: '11px', 
-                      color: '#86868B',
-                      fontStyle: 'italic'
-                    }}>
-                      {msg.citations}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {chatMessages.map(msg => (
+              <div key={msg.id} style={{ alignSelf: msg.sender === 'ai' ? 'flex-start' : 'flex-end', maxWidth: '90%', backgroundColor: msg.sender === 'ai' ? '#FFFFFF' : '#007AFF', color: msg.sender === 'ai' ? '#1D1D1F' : '#FFFFFF', padding: '12px 16px', borderRadius: '16px', borderTopLeftRadius: msg.sender === 'ai' ? '4px' : '16px', boxShadow: msg.sender === 'ai' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none', border: msg.sender === 'ai' ? '1px solid #E5E5E5' : 'none', borderLeft: msg.sender === 'ai' ? '4px solid #34C759' : 'none', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                {msg.text}
+                {msg.sender === 'ai' && msg.citations && (
+                  <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #F5F5F7', fontSize: '11px', color: '#86868B', fontStyle: 'italic' }}>{msg.citations}</div>
+                )}
+              </div>
+            ))}
             {isAiTyping && (
-              <div style={{
-                alignSelf: 'flex-start',
-                backgroundColor: '#FFFFFF',
-                padding: '12px 16px',
-                borderRadius: '16px',
-                borderTopLeftRadius: '4px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                border: '1px solid #E5E5E5',
-                display: 'flex',
-                gap: '4px'
-              }}>
+              <div style={{ alignSelf: 'flex-start', backgroundColor: '#FFFFFF', padding: '12px 16px', borderRadius: '16px', borderTopLeftRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #E5E5E5', display: 'flex', gap: '4px' }}>
                 <div className="typing-dot"></div>
                 <div className="typing-dot" style={{ animationDelay: '0.2s' }}></div>
                 <div className="typing-dot" style={{ animationDelay: '0.4s' }}></div>
               </div>
             )}
           </div>
-
           <div style={{ padding: '20px', backgroundColor: '#FFFFFF', borderTop: '1px solid #E5E5E5' }}>
-            
-            {/* macOS Style Drop Zone */}
-            <div 
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              style={{
-                border: `2px dashed ${isDragActive ? '#007AFF' : '#E5E5E5'}`,
-                borderRadius: '16px',
-                padding: '20px',
-                textAlign: 'center',
-                backgroundColor: isDragActive ? 'rgba(0,122,255,0.05)' : '#F5F5F7',
-                marginBottom: '16px',
-                transition: 'all 0.2s ease',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              {droppedFile ? (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <File size={24} color="#007AFF" />
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#1D1D1F', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{droppedFile.name}</div>
-                      <div style={{ fontSize: '10px', color: '#86868B' }}>{droppedFile.size}</div>
-                    </div>
-                    <X size={14} color="#86868B" onClick={() => setDroppedFile(null)} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <FileUp size={24} color={isDragActive ? '#007AFF' : '#86868B'} />
-                  <div>
-                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#1D1D1F' }}>Drop data files here</div>
-                    <div style={{ fontSize: '10px', color: '#86868B' }}>.xlsx, .csv or .pdf</div>
-                  </div>
-                </>
-              )}
-            </div>
-
             <div style={{ position: 'relative' }}>
-              <input 
-                type="text" 
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
-                placeholder="Ask about compliance..."
-                style={{
-                  width: '100%',
-                  padding: '12px 40px 12px 16px',
-                  borderRadius: '24px',
-                  border: '1px solid #E5E5E5',
-                  fontSize: '13px',
-                  outline: 'none',
-                  backgroundColor: '#F5F5F7'
-                }}
-              />
-              <button 
-                onClick={handleSendChat}
-                style={{ 
-                  position: 'absolute', 
-                  right: '8px', 
-                  top: '50%', 
-                  transform: 'translateY(-50%)', 
-                  border: 'none', 
-                  background: 'none', 
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Send size={16} color="#007AFF" />
-              </button>
-            </div>
-            <div style={{ textAlign: 'center', marginTop: '12px' }}>
-               <span style={{ fontSize: '10px', color: '#86868B', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Powered by DeepSeek-R1</span>
+              <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendChat()} placeholder="Ask about compliance..." style={{ width: '100%', padding: '12px 40px 12px 16px', borderRadius: '24px', border: '1px solid #E5E5E5', fontSize: '13px', outline: 'none', backgroundColor: '#F5F5F7' }} />
+              <button onClick={handleSendChat} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer' }}><Send size={16} color="#007AFF" /></button>
             </div>
           </div>
         </aside>
       </div>
       
-      {/* Global CSS for animations */}
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse-ring { 
+          0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); } 
+          70% { box-shadow: 0 0 0 15px rgba(52, 199, 89, 0); } 
+          100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); } 
         }
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
+        @keyframes pulse-ring-blue { 
+          0% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.7); } 
+          70% { box-shadow: 0 0 0 15px rgba(0, 122, 255, 0); } 
+          100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); } 
         }
-        .animate-spin {
-          animation: spin 1s linear infinite;
+        .animate-spin { animation: spin 1s linear infinite; }
+        .typing-dot { width: 6px; height: 6px; background-color: #86868B; border-radius: 50%; animation: bounce 1s infinite ease-in-out; }
+        .tour-tooltip {
+          position: absolute;
+          background: #1D1D1F;
+          color: white;
+          padding: 12px 16px;
+          border-radius: 12px;
+          font-size: 13px;
+          font-weight: 600;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+          z-index: 10002;
+          pointer-events: none;
+          animation: fadeInScale 0.3s ease-out;
         }
-        .typing-dot {
-          width: 6px;
-          height: 6px;
-          background-color: #86868B;
-          border-radius: 50%;
-          animation: bounce 1s infinite ease-in-out;
+        .tour-tooltip::after {
+          content: '';
+          position: absolute;
+          border: 8px solid transparent;
         }
       `}} />
     </div>
