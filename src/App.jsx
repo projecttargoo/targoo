@@ -151,6 +151,7 @@ export default function App() {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatHistory] = useState(demoData.aiHistory);
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const [gapData, setGapData] = useState(demoData.gapMatrix);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -158,6 +159,48 @@ export default function App() {
   const [license, setLicense] = useState(demoData.license);
   const [isDragActive, setIsDragActive] = useState(false);
   const [droppedFile, setDroppedFile] = useState(null);
+
+  const handleSendChat = async () => {
+    if (!chatInput.trim()) return;
+
+    const userMessage = {
+      id: Date.now(),
+      sender: 'user',
+      text: chatInput
+    };
+
+    setChatHistory(prev => [...prev, userMessage]);
+    const currentInput = chatInput;
+    setChatInput('');
+    setIsAiTyping(true);
+
+    try {
+      const response = await invoke('ask_ai', { question: currentInput });
+      
+      const parts = response.split('---');
+      const mainText = parts[0].trim();
+      const citations = parts.length > 1 ? parts[1].trim() : '';
+
+      const aiMessage = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: mainText,
+        citations: citations
+      };
+
+      setChatHistory(prev => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("AI request failed:", error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: "I'm sorry, I encountered an error while processing your request. Please try again."
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
+    } finally {
+      setIsAiTyping(false);
+    }
+  };
 
   // Initial load
   useEffect(() => {
@@ -665,7 +708,7 @@ export default function App() {
               return (
                 <div key={msg.id} style={{
                   alignSelf: isAi ? 'flex-start' : 'flex-end',
-                  maxWidth: '85%',
+                  maxWidth: '90%',
                   backgroundColor: isAi ? '#FFFFFF' : '#007AFF',
                   color: isAi ? '#1D1D1F' : '#FFFFFF',
                   padding: '12px 16px',
@@ -674,13 +717,44 @@ export default function App() {
                   borderBottomRightRadius: isAi ? '16px' : '4px',
                   boxShadow: isAi ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
                   border: isAi ? '1px solid #E5E5E5' : 'none',
+                  borderLeft: isAi ? '4px solid #34C759' : 'none',
                   fontSize: '13px',
                   lineHeight: '1.5',
+                  whiteSpace: 'pre-wrap'
                 }}>
                   {msg.text}
+                  {isAi && msg.citations && (
+                    <div style={{ 
+                      marginTop: '12px', 
+                      paddingTop: '8px', 
+                      borderTop: '1px solid #F5F5F7', 
+                      fontSize: '11px', 
+                      color: '#86868B',
+                      fontStyle: 'italic'
+                    }}>
+                      {msg.citations}
+                    </div>
+                  )}
                 </div>
               );
             })}
+            {isAiTyping && (
+              <div style={{
+                alignSelf: 'flex-start',
+                backgroundColor: '#FFFFFF',
+                padding: '12px 16px',
+                borderRadius: '16px',
+                borderTopLeftRadius: '4px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                border: '1px solid #E5E5E5',
+                display: 'flex',
+                gap: '4px'
+              }}>
+                <div className="typing-dot"></div>
+                <div className="typing-dot" style={{ animationDelay: '0.2s' }}></div>
+                <div className="typing-dot" style={{ animationDelay: '0.4s' }}></div>
+              </div>
+            )}
           </div>
 
           <div style={{ padding: '20px', backgroundColor: '#FFFFFF', borderTop: '1px solid #E5E5E5' }}>
@@ -732,6 +806,7 @@ export default function App() {
                 type="text" 
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
                 placeholder="Ask about compliance..."
                 style={{
                   width: '100%',
@@ -743,18 +818,21 @@ export default function App() {
                   backgroundColor: '#F5F5F7'
                 }}
               />
-              <button style={{ 
-                position: 'absolute', 
-                right: '8px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                border: 'none', 
-                background: 'none', 
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+              <button 
+                onClick={handleSendChat}
+                style={{ 
+                  position: 'absolute', 
+                  right: '8px', 
+                  top: '50%', 
+                  transform: 'translateY(-50%)', 
+                  border: 'none', 
+                  background: 'none', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
                 <Send size={16} color="#007AFF" />
               </button>
             </div>
@@ -771,8 +849,19 @@ export default function App() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
         .animate-spin {
           animation: spin 1s linear infinite;
+        }
+        .typing-dot {
+          width: 6px;
+          height: 6px;
+          background-color: #86868B;
+          border-radius: 50%;
+          animation: bounce 1s infinite ease-in-out;
         }
       `}} />
     </div>
