@@ -22,7 +22,10 @@ import {
   FileUp,
   File,
   X,
-  Target
+  Target,
+  ArrowUp,
+  ArrowDown,
+  Clock
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -37,14 +40,15 @@ import {
 // --- Components ---
 
 const Card = ({ children, title, style, id }) => (
-  <div id={id} style={{
+  <div id={id} className="premium-card" style={{
     backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
+    borderRadius: '16px',
     border: '1px solid #E5E5E5',
     boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
     padding: '24px',
     display: 'flex',
     flexDirection: 'column',
+    transition: 'all 0.3s ease',
     ...style
   }}>
     {title && (
@@ -61,10 +65,14 @@ const Card = ({ children, title, style, id }) => (
   </div>
 );
 
-const CircularProgress = ({ value, size = 160, strokeWidth = 12 }) => {
+const Skeleton = ({ width, height, borderRadius = '8px' }) => (
+  <div className="skeleton" style={{ width, height, borderRadius, marginBottom: '8px' }} />
+);
+
+const CircularProgress = ({ value, animatedValue, size = 160, strokeWidth = 12 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (value / 100) * circumference;
+  const offset = circumference - (animatedValue / 100) * circumference;
 
   return (
     <div style={{ position: 'relative', width: size, height: size, margin: '0 auto' }}>
@@ -87,7 +95,7 @@ const CircularProgress = ({ value, size = 160, strokeWidth = 12 }) => {
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
+          style={{ transition: 'stroke-dashoffset 0.5s ease-out' }}
         />
       </svg>
       <div style={{
@@ -101,21 +109,24 @@ const CircularProgress = ({ value, size = 160, strokeWidth = 12 }) => {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <span style={{ fontSize: '42px', fontWeight: '700', color: '#1D1D1F', letterSpacing: '-1px' }}>{value}</span>
+        <span style={{ fontSize: '42px', fontWeight: '700', color: '#1D1D1F', letterSpacing: '-1px' }}>{Math.floor(animatedValue)}</span>
         <span style={{ fontSize: '13px', fontWeight: '500', color: '#86868B', marginTop: '-4px' }}>ESG SCORE</span>
       </div>
     </div>
   );
 };
 
-const ProgressBar = ({ label, value, color }) => (
+const ProgressBar = ({ label, value, color, trend }) => (
   <div style={{ marginBottom: '16px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', alignItems: 'center' }}>
       <span style={{ fontSize: '13px', fontWeight: '500', color: '#1D1D1F' }}>{label}</span>
-      <span style={{ fontSize: '13px', fontWeight: '600', color: '#86868B' }}>{value}%</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {trend === 'up' ? <ArrowUp size={12} color="#34C759" /> : <ArrowDown size={12} color="#FF3B30" />}
+        <span style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>{value}%</span>
+      </div>
     </div>
-    <div style={{ width: '100%', height: '6px', backgroundColor: '#F5F5F7', borderRadius: '3px', overflow: 'hidden' }}>
-      <div style={{ width: `${value}%`, height: '100%', backgroundColor: color, borderRadius: '3px' }} />
+    <div style={{ width: '100%', height: '8px', backgroundColor: '#F5F5F7', borderRadius: '4px', overflow: 'hidden' }}>
+      <div style={{ width: `${value}%`, height: '100%', backgroundColor: color, borderRadius: '4px', transition: 'width 1.5s ease-in-out' }} />
     </div>
   </div>
 );
@@ -160,6 +171,7 @@ export default function App() {
   const [license, setLicense] = useState(demoData.license);
   const [isDragActive, setIsDragActive] = useState(false);
   const [droppedFile, setDroppedFile] = useState(null);
+  const [animatedScore, setAnimatedScore] = useState(0);
   
   // Demo Tour State
   const [tourStep, setTourStep] = useState(0); // 0: none, 1-5: active
@@ -175,6 +187,20 @@ export default function App() {
     if (!localStorage.getItem('demo_completed')) {
       startTour();
     }
+
+    // Animate score on load
+    const target = demoData.scores.total;
+    let current = 0;
+    const interval = setInterval(() => {
+      if (current >= target) {
+        setAnimatedScore(target);
+        clearInterval(interval);
+      } else {
+        current += 1;
+        setAnimatedScore(current);
+      }
+    }, 20);
+    return () => clearInterval(interval);
   }, [activeNav]);
 
   const startTour = () => {
@@ -311,7 +337,6 @@ export default function App() {
     }
   };
 
-  // --- Drag & Drop Handlers ---
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragActive(true);
@@ -370,6 +395,7 @@ export default function App() {
       fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
       backgroundColor: '#FFFFFF',
       overflow: 'hidden',
+      transition: 'all 0.3s ease',
     },
     sidebar: {
       backgroundColor: '#F5F5F7',
@@ -377,12 +403,14 @@ export default function App() {
       display: 'flex',
       flexDirection: 'column',
       padding: '20px 16px',
+      transition: 'all 0.3s ease',
     },
     center: {
       backgroundColor: '#FFFFFF',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
+      transition: 'all 0.3s ease',
     },
     centerContent: {
       flex: 1,
@@ -398,12 +426,13 @@ export default function App() {
       borderLeft: '1px solid #E5E5E5',
       display: 'flex',
       flexDirection: 'column',
+      transition: 'all 0.3s ease',
     },
     navItem: (isActive) => ({
       display: 'flex',
       alignItems: 'center',
-      gap: '12px',
-      padding: '8px 12px',
+      justifyContent: 'space-between',
+      padding: '10px 12px',
       borderRadius: '8px',
       cursor: 'pointer',
       fontSize: '13px',
@@ -411,16 +440,16 @@ export default function App() {
       color: isActive ? '#1D1D1F' : '#424245',
       backgroundColor: isActive ? 'rgba(0,0,0,0.05)' : 'transparent',
       marginBottom: '4px',
-      transition: 'all 0.15s ease',
+      transition: 'all 0.2s ease',
     }),
     header: {
-      height: '64px',
+      height: '72px',
       borderBottom: '1px solid #E5E5E5',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: '0 32px',
-      backgroundColor: 'rgba(255,255,255,0.8)',
+      background: 'linear-gradient(to bottom, #FFFFFF, #F8F8F8)',
       backdropFilter: 'blur(20px)',
       position: 'sticky',
       top: 0,
@@ -511,6 +540,7 @@ export default function App() {
               const isActive = activeNav === key;
               const Icon = key === 'dashboard' ? LayoutGrid : key.includes('gap') ? BarChart2 : key.includes('rep') ? FileText : Settings;
               const isGapAnalysis = key === 'gap analysis';
+              const isReport = key === 'reports';
               
               return (
                 <div 
@@ -522,8 +552,13 @@ export default function App() {
                   }}
                   onClick={() => setActiveNav(key)}
                 >
-                  <Icon size={18} strokeWidth={2} style={{ opacity: isActive ? 1 : 0.7 }} />
-                  {item}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Icon size={18} strokeWidth={2} style={{ opacity: isActive ? 1 : 0.7 }} />
+                    {item}
+                  </div>
+                  {isGapAnalysis && <span style={{ fontSize: '10px', color: '#86868B', fontWeight: '500', opacity: 0.6 }}>⌘G</span>}
+                  {isReport && <span style={{ fontSize: '10px', color: '#86868B', fontWeight: '500', opacity: 0.6 }}>⌘R</span>}
+                  
                   {isGapAnalysis && tourStep === 2 && (
                     <div className="tour-tooltip" style={{ left: '100%', marginLeft: '20px', width: '180px' }}>
                       Gap Analysis in 8 seconds
@@ -538,13 +573,16 @@ export default function App() {
             <Plus size={14} color="#86868B" style={{ cursor: 'pointer' }} />
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {[demoData.company].map(client => (
-              <div key={client.name} style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', marginBottom: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>{client.name}</div>
-                  <div style={{ fontSize: '11px', color: '#86868B' }}>{client.sector}</div>
+            {[demoData.company, { name: "Audit Log Inc.", sector: "Tech", status: "Inactive" }].map(client => (
+              <div key={client.name} style={{ padding: '12px', borderRadius: '12px', backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', marginBottom: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'transform 0.2s ease' }} className="premium-sidebar-item">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: client.status === 'Active' ? '#34C759' : '#8E8E93' }} />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>{client.name}</div>
+                    <div style={{ fontSize: '11px', color: '#86868B' }}>{client.sector}</div>
+                  </div>
                 </div>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#007AFF' }} />
+                <ChevronRight size={14} color="#C7C7CC" />
               </div>
             ))}
           </div>
@@ -568,22 +606,30 @@ export default function App() {
             </div>
           )}
           <header style={s.header}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <h1 style={{ fontSize: '18px', fontWeight: '600', color: '#1D1D1F', margin: 0 }}>{demoData.company.name}</h1>
-              <span style={{ backgroundColor: '#E1F7E3', color: '#34C759', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '6px' }}>{demoData.company.status}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1D1D1F', margin: 0, letterSpacing: '-0.5px' }}>{demoData.company.name}</h1>
+                  <span style={{ backgroundColor: '#E1F7E3', color: '#34C759', fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', textTransform: 'uppercase' }}>{demoData.company.status}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                  <Clock size={12} color="#86868B" />
+                  <span style={{ fontSize: '11px', color: '#86868B', fontWeight: '500' }}>Last updated: Today, 10:42 AM</span>
+                </div>
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               {(isLoading || isGeneratingReport) && <Loader2 className="animate-spin text-blue-500" size={20} />}
               <div style={{ position: 'relative' }}>
                 <Search size={16} color="#86868B" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input type="text" placeholder="Search metrics..." style={{ height: '32px', width: '240px', padding: '0 12px 0 34px', borderRadius: '8px', border: '1px solid #E5E5E5', backgroundColor: '#FFFFFF', fontSize: '13px', outline: 'none', color: '#1D1D1F' }} />
+                <input type="text" placeholder="Search metrics..." style={{ height: '36px', width: '280px', padding: '0 12px 0 34px', borderRadius: '10px', border: '1px solid #E5E5E5', backgroundColor: '#FFFFFF', fontSize: '13px', outline: 'none', color: '#1D1D1F', transition: 'border-color 0.2s' }} className="premium-search" />
               </div>
             </div>
           </header>
 
           <div style={s.centerContent}>
             {reportPath && (
-              <div style={{ gridColumn: 'span 12', backgroundColor: '#E1F7E3', color: '#1D1D1F', padding: '12px 20px', borderRadius: '12px', border: '1px solid #34C759', display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div style={{ gridColumn: 'span 12', backgroundColor: '#E1F7E3', color: '#1D1D1F', padding: '12px 20px', borderRadius: '12px', border: '1px solid #34C759', display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', animation: 'fadeInScale 0.4s ease-out' }}>
                 <CheckCircle2 size={20} color="#34C759" />
                 <div style={{ fontSize: '13px' }}>
                   <strong>Report Generated!</strong> Saved to: <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>{reportPath}</span>
@@ -595,18 +641,20 @@ export default function App() {
               <>
                 <div style={{ gridColumn: 'span 4' }}>
                   <Card title="Overall ESG Score" style={{ height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-                    <CircularProgress value={demoData.scores.total} />
+                    <CircularProgress value={demoData.scores.total} animatedValue={animatedScore} />
                     <div style={{ marginTop: '24px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '13px', color: '#34C759', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>▲ {demoData.scores.trend}</div>
+                      <div style={{ fontSize: '13px', color: '#34C759', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                        <ArrowUp size={14} /> {demoData.scores.trend}
+                      </div>
                     </div>
                   </Card>
                 </div>
                 <div style={{ gridColumn: 'span 8' }}>
                   <Card title="Pillar Performance">
                     <div style={{ padding: '8px 0' }}>
-                      <ProgressBar label="Environmental" value={demoData.scores.environmental} color="#34C759" />
-                      <ProgressBar label="Social" value={demoData.scores.social} color="#007AFF" />
-                      <ProgressBar label="Governance" value={demoData.scores.governance} color="#AF52DE" />
+                      <ProgressBar label="Environmental" value={demoData.scores.environmental} color="#34C759" trend="up" />
+                      <ProgressBar label="Social" value={demoData.scores.social} color="#007AFF" trend="down" />
+                      <ProgressBar label="Governance" value={demoData.scores.governance} color="#AF52DE" trend="up" />
                     </div>
                   </Card>
                 </div>
@@ -621,13 +669,15 @@ export default function App() {
                       onClick={handleGenerateReport}
                       disabled={isGeneratingReport || gapData.length === 0}
                       style={{ 
-                        backgroundColor: '#007AFF', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+                        backgroundColor: '#007AFF', color: 'white', border: 'none', borderRadius: '10px', padding: '10px 20px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
                         position: 'relative',
+                        transition: 'all 0.2s ease',
                         ...(tourStep === 3 ? { boxShadow: '0 0 0 4px #007AFF', animation: 'pulse-ring-blue 2s infinite' } : {})
                       }}
+                      className="premium-button"
                     >
                       {isGeneratingReport ? <Loader2 className="animate-spin" size={14} /> : <FileText size={14} />}
-                      Generate ESRS Report (.docx)
+                      Generate ESRS Report
                       {tourStep === 3 && (
                         <div className="tour-tooltip" style={{ bottom: '100%', right: '0', marginBottom: '20px', width: '220px' }}>
                           Professional ESRS Report in 45 seconds
@@ -635,24 +685,33 @@ export default function App() {
                       )}
                     </button>
                   </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}>
-                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>ID</th>
-                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Topic</th>
-                        <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#86868B', textTransform: 'uppercase' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(gapData || []).map((topic, i) => (
-                        <tr key={topic.id} style={{ borderBottom: '1px solid #F5F5F7' }}>
-                          <td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B' }}>{topic.id}</td>
-                          <td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F' }}>{topic.name}</td>
-                          <td style={{ padding: '16px 24px' }}><StatusBadge status={topic.status} /></td>
+                  {isLoading ? (
+                    <div style={{ padding: '24px' }}>
+                      <Skeleton width="100%" height="40px" />
+                      <Skeleton width="100%" height="40px" />
+                      <Skeleton width="100%" height="40px" />
+                      <Skeleton width="100%" height="40px" />
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}>
+                          <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ID</th>
+                          <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Topic</th>
+                          <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {(gapData || []).map((topic, i) => (
+                          <tr key={topic.id} style={{ borderBottom: '1px solid #F5F5F7', transition: 'background-color 0.2s' }} className="premium-row">
+                            <td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B', fontFamily: 'SF Mono, monospace' }}>{topic.id}</td>
+                            <td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td>
+                            <td style={{ padding: '16px 24px' }}><StatusBadge status={topic.status} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </Card>
               </div>
             )}
@@ -665,13 +724,13 @@ export default function App() {
               Ask anything - cited ESRS paragraphs
             </div>
           )}
-          <div style={{ height: '64px', borderBottom: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', padding: '0 20px' }}>
+          <div style={{ height: '72px', borderBottom: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', padding: '0 20px', background: 'linear-gradient(to bottom, #FFFFFF, #F8F8F8)' }}>
             <MessageSquare size={18} color="#1D1D1F" style={{ marginRight: '10px' }} />
-            <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F' }}>Advisor AI</span>
+            <span style={{ fontSize: '15px', fontWeight: '700', color: '#1D1D1F' }}>Advisor AI</span>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#FAFAFA' }}>
             {chatMessages.map(msg => (
-              <div key={msg.id} style={{ alignSelf: msg.sender === 'ai' ? 'flex-start' : 'flex-end', maxWidth: '90%', backgroundColor: msg.sender === 'ai' ? '#FFFFFF' : '#007AFF', color: msg.sender === 'ai' ? '#1D1D1F' : '#FFFFFF', padding: '12px 16px', borderRadius: '16px', borderTopLeftRadius: msg.sender === 'ai' ? '4px' : '16px', boxShadow: msg.sender === 'ai' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none', border: msg.sender === 'ai' ? '1px solid #E5E5E5' : 'none', borderLeft: msg.sender === 'ai' ? '4px solid #34C759' : 'none', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+              <div key={msg.id} style={{ alignSelf: msg.sender === 'ai' ? 'flex-start' : 'flex-end', maxWidth: '90%', backgroundColor: msg.sender === 'ai' ? '#FFFFFF' : '#007AFF', color: msg.sender === 'ai' ? '#1D1D1F' : '#FFFFFF', padding: '12px 16px', borderRadius: '16px', borderTopLeftRadius: msg.sender === 'ai' ? '4px' : '16px', boxShadow: msg.sender === 'ai' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none', border: msg.sender === 'ai' ? '1px solid #E5E5E5' : 'none', borderLeft: msg.sender === 'ai' ? '4px solid #34C759' : 'none', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap', animation: 'fadeInScale 0.3s ease-out' }}>
                 {msg.text}
                 {msg.sender === 'ai' && msg.citations && (
                   <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #F5F5F7', fontSize: '11px', color: '#86868B', fontStyle: 'italic' }}>{msg.citations}</div>
@@ -688,7 +747,7 @@ export default function App() {
           </div>
           <div style={{ padding: '20px', backgroundColor: '#FFFFFF', borderTop: '1px solid #E5E5E5' }}>
             <div style={{ position: 'relative' }}>
-              <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendChat()} placeholder="Ask about compliance..." style={{ width: '100%', padding: '12px 40px 12px 16px', borderRadius: '24px', border: '1px solid #E5E5E5', fontSize: '13px', outline: 'none', backgroundColor: '#F5F5F7' }} />
+              <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendChat()} placeholder="Ask about compliance..." style={{ width: '100%', padding: '12px 40px 12px 16px', borderRadius: '24px', border: '1px solid #E5E5E5', fontSize: '13px', outline: 'none', backgroundColor: '#F5F5F7' }} className="premium-search" />
               <button onClick={handleSendChat} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer' }}><Send size={16} color="#007AFF" /></button>
             </div>
           </div>
@@ -698,7 +757,7 @@ export default function App() {
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
-        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes pulse-ring { 
           0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7); } 
           70% { box-shadow: 0 0 0 15px rgba(52, 199, 89, 0); } 
@@ -708,6 +767,11 @@ export default function App() {
           0% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.7); } 
           70% { box-shadow: 0 0 0 15px rgba(0, 122, 255, 0); } 
           100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0); } 
+        }
+        @keyframes skeleton-loading {
+          0% { background-color: #F5F5F7; }
+          50% { background-color: #E5E5EA; }
+          100% { background-color: #F5F5F7; }
         }
         .animate-spin { animation: spin 1s linear infinite; }
         .typing-dot { width: 6px; height: 6px; background-color: #86868B; border-radius: 50%; animation: bounce 1s infinite ease-in-out; }
@@ -724,10 +788,30 @@ export default function App() {
           pointer-events: none;
           animation: fadeInScale 0.3s ease-out;
         }
-        .tour-tooltip::after {
-          content: '';
-          position: absolute;
-          border: 8px solid transparent;
+        .premium-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.06) !important;
+        }
+        .premium-row:hover {
+          background-color: #F0F7FF !important;
+        }
+        .premium-sidebar-item:hover {
+          transform: translateX(4px);
+          background-color: #FDFDFD !important;
+        }
+        .premium-button:hover {
+          filter: brightness(1.1);
+          transform: translateY(-1px);
+        }
+        .premium-button:active {
+          transform: translateY(0);
+        }
+        .premium-search:focus {
+          border-color: #007AFF !important;
+          background-color: #FFFFFF !important;
+        }
+        .skeleton {
+          animation: skeleton-loading 1.5s infinite ease-in-out;
         }
       `}} />
     </div>
