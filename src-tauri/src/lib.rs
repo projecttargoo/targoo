@@ -21,6 +21,7 @@ pub fn run() {
             license::fetch_trial_license_status,
             license::get_fingerprint,
             l1_rag::search_esrs,
+            l1_rag::ask_ai,
             l2_gap_analysis::gap_analysis,
             l3_report::generate_report,
             l4_data_processor::process_excel,
