@@ -5,6 +5,7 @@ mod l4_data_processor;
 mod l5_prediction;
 mod l6_audit;
 mod license;
+mod model_downloader;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -29,7 +30,9 @@ pub fn run() {
             l2_gap_analysis::gap_analysis,
             l3_report::generate_report,
             l4_data_processor::process_excel,
-            l5_prediction::generate_predictions
+            l5_prediction::generate_predictions,
+            model_downloader::check_model,
+            model_downloader::download_model
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
