@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { demoData } from './demoData';
 import { 
   LayoutGrid, 
@@ -118,6 +119,8 @@ const StatusBadge = ({ status }) => {
 // --- Main App Component ---
 
 export default function App() {
+  const [modelStatus, setModelStatus] = useState('checking'); // checking, not_found, downloading, ready
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [activeNav, setActiveNav] = useState('dashboard');
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatHistory] = useState(demoData.aiHistory);
@@ -142,6 +145,24 @@ export default function App() {
   const [activeSettingsTab, setActiveSettingsTab] = useState('account');
 
   useEffect(() => {
+    const init = async () => {
+      const status = await invoke('check_model');
+      setModelStatus(status);
+      
+      if (status === 'not_found') {
+        startModelDownload();
+      }
+    };
+
+    init();
+
+    const unlisten = listen('download_progress', (event) => {
+      setDownloadProgress(event.payload);
+      if (event.payload >= 100) {
+        setTimeout(() => setModelStatus('ready'), 2000);
+      }
+    });
+
     checkLicenseStatus();
     const savedClients = localStorage.getItem('targoo_clients');
     if (savedClients) { setClients(JSON.parse(savedClients)); }
@@ -153,8 +174,22 @@ export default function App() {
       if (current >= target) { clearInterval(interval); }
       else { current += 1; setAnimatedScore(current); }
     }, 20);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      unlisten.then(f => f());
+    };
   }, []);
+
+  const startModelDownload = async () => {
+    setModelStatus('downloading');
+    try {
+      await invoke('download_model');
+    } catch (e) {
+      console.error("Download failed", e);
+      setModelStatus('not_found');
+    }
+  };
 
   const startTour = () => {
     setTourStep(1);
@@ -237,6 +272,75 @@ export default function App() {
   };
 
   const activeClient = clients[0] || demoData.company;
+
+  if (modelStatus === 'checking') {
+    return (
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
+        <Loader2 className="animate-spin" size={32} color="#007AFF" />
+      </div>
+    );
+  }
+
+  if (modelStatus === 'not_found' || modelStatus === 'downloading') {
+    const isDone = downloadProgress >= 100;
+    return (
+      <div style={{ 
+        width: '100vw', 
+        height: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        backgroundColor: '#FFFFFF',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif'
+      }}>
+        <div style={{ 
+          width: '100px', 
+          height: '100px', 
+          background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', 
+          borderRadius: '24px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          color: 'white', 
+          fontWeight: '800', 
+          fontSize: '48px', 
+          marginBottom: '40px',
+          boxShadow: '0 20px 40px rgba(46,125,50,0.15)'
+        }}>t</div>
+        
+        <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1D1D1F', marginBottom: '8px' }}>
+          {isDone ? 'AI Engine Ready' : 'Setting up AI Engine'}
+          {isDone && <CheckCircle2 size={24} color="#34C759" style={{ marginLeft: '12px', display: 'inline-block', verticalAlign: 'middle' }} />}
+        </h2>
+        
+        <p style={{ fontSize: '17px', color: '#86868B', marginBottom: '48px' }}>
+          {isDone ? 'Starting your ESG advisor workspace...' : 'Downloading Gemma 3 1B ESG Model (800MB)'}
+        </p>
+
+        {!isDone && (
+          <div style={{ width: '320px' }}>
+            <div style={{ width: '100%', height: '6px', backgroundColor: '#F5F5F7', borderRadius: '3px', overflow: 'hidden', marginBottom: '16px' }}>
+              <div style={{ 
+                width: `${downloadProgress}%`, 
+                height: '100%', 
+                backgroundColor: '#007AFF', 
+                borderRadius: '3px', 
+                transition: 'width 0.3s ease-out' 
+              }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>{Math.floor(downloadProgress)}% complete</span>
+              <span style={{ fontSize: '13px', color: '#86868B' }}>
+                {downloadProgress > 0 ? `${Math.ceil((100 - downloadProgress) * 0.5)}s remaining` : 'Calculating...'}
+              </span>
+            </div>
+            <p style={{ fontSize: '12px', color: '#AEAEB2', textAlign: 'center', marginTop: '32px' }}>This only happens once</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const renderSettings = () => (
     <div style={s.settingsPanel}>
@@ -403,10 +507,10 @@ export default function App() {
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       
-      {/* Onboarding & Tour Overlays ... */}
+      {/* Onboarding & Tour Overlays */}
       {onboardingStep > 0 && (
-        <div style={s.onboardingModal}>
-          <div style={s.onboardingBox}>
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: 'white', width: '480px', borderRadius: '24px', padding: '40px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ width: '56px', height: '56px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '28px', margin: '0 auto 24px' }}>t</div>
             {onboardingStep === 1 && (
               <div className="onboarding-step">
