@@ -14,11 +14,7 @@
       {
         "title": "targoo advisor engine",
         "width": 1200,
-        "height": 800,
-        "webviewInstallMode": {
-          "type": "downloadBootstrapper",
-          "silent": true
-        }
+        "height": 800
       }
     ],
     "security": {
@@ -27,13 +23,19 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "publisher": "Targoo Software",
     "copyright": "2026 Targoo Software",
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["English", "German"],
+        "languages": [
+          "English",
+          "German"
+        ],
         "displayLanguageSelector": false
       },
       "webviewInstallMode": {
