@@ -1,3 +1,6 @@
+use tauri::Manager;
+use std::sync::Mutex;
+
 mod l1_rag;
 mod l2_gap_analysis;
 mod l3_report;
@@ -17,8 +20,24 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(Mutex::new(None::<l1_rag::GemmaEngine>))
         .setup(|app| {
             l6_audit::init_audit_db(app.handle())?;
+
+            // Try to initialize Gemma engine if model exists
+            let app_handle = app.handle().clone();
+            let app_dir = app_handle.path().app_data_dir().unwrap_or_default();
+            let model_path = app_dir.join("models").join("gemma-3-1b-it-q4_k_m.gguf");
+
+            if model_path.exists() {
+                if let Ok(engine) = l1_rag::init_gemma(model_path.to_str().unwrap_or_default()) {
+                    let engine_state = app_handle.state::<Mutex<Option<l1_rag::GemmaEngine>>>();
+                    if let Ok(mut lock) = engine_state.lock() {
+                        *lock = Some(engine);
+                    };
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

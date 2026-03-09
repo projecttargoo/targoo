@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use rusqlite::Connection;
-use tauri::command;
+use tauri::{command, State};
+use std::sync::Mutex;
+use llama_cpp::{LlamaModel, LlamaParams, SessionParams, standard_sampler::StandardSampler};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EsrsDocument {
@@ -15,6 +17,43 @@ pub struct SearchResult {
     pub results: Vec<EsrsDocument>,
 }
 
+pub struct GemmaEngine {
+    pub model: LlamaModel,
+}
+
+pub fn init_gemma(model_path: &str) -> Result<GemmaEngine, String> {
+    let model = LlamaModel::load_from_file(model_path, LlamaParams::default())
+        .map_err(|e| format!("Failed to load model: {:?}", e))?;
+    Ok(GemmaEngine { model })
+}
+
+pub fn ask_gemma(engine: &GemmaEngine, question: &str, esrs_context: &str) -> Result<String, String> {
+    let system_prompt = "You are a Junior ESG Engineer specialized in ESRS and CSRD compliance. Always cite paragraph numbers like ESRS E1.47. Never hallucinate - only answer from provided context. Be concise and professional.";
+    
+    let prompt = format!(
+        "<start_of_turn>user\n{} \n\nContext:\n{}\n\nQuestion:\n{}<end_of_turn>\n<start_of_turn>model\n",
+        system_prompt, esrs_context, question
+    );
+
+    let mut session = engine.model.create_session(SessionParams::default())
+        .map_err(|e| format!("Failed to create session: {:?}", e))?;
+
+    session.advance_context(&prompt)
+        .map_err(|e| format!("Failed to advance context: {:?}", e))?;
+
+    let completions = session.start_completing_with(StandardSampler::default(), 1024)
+        .map_err(|e| format!("Failed to start completion: {:?}", e))?
+        .into_strings();
+
+    let mut response = String::new();
+    for completion in completions {
+        response.push_str(&completion);
+        if response.len() > 5000 { break; } // Safety limit
+    }
+
+    Ok(response)
+}
+
 pub fn get_search_results(query: String) -> Result<Vec<EsrsDocument>, String> {
     let conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
     
@@ -22,35 +61,10 @@ pub fn get_search_results(query: String) -> Result<Vec<EsrsDocument>, String> {
         .map_err(|e| e.to_string())?;
 
     let mock_data = vec![
-        // ESRS E1 - Climate Change
         ("ESRS E1: Climate change", "E1-1 Para 16", "The undertaking shall disclose its transition plan for climate change mitigation, including its ambition to ensure that its business model and strategy are compatible with the transition to a sustainable economy."),
         ("ESRS E1: Climate change", "E1-4 Para 34", "The undertaking shall disclose the climate-related targets it has set, including GHG emission reduction targets for 2030 and 2050."),
         ("ESRS E1: Climate change", "E1-5 Para 40", "The undertaking shall provide information on its energy consumption and mix, including total energy consumption from non-renewable sources and renewable sources in MWh."),
         ("ESRS E1: Climate change", "E1-6 Para 44", "The undertaking shall disclose its gross Scope 1, 2, 3 and total GHG emissions in metric tonnes of CO2 equivalent."),
-        ("ESRS E1: Climate change", "AR 41", "Energy consumption includes all fuel and electricity consumed by the undertaking in its own operations and by assets it owns or controls."),
-        ("ESRS E1: Climate change", "DR 5", "The undertaking shall report greenhouse gas emissions in accordance with the GHG Protocol Corporate Standard."),
-
-        // ESRS E3 - Water and Marine Resources
-        ("ESRS E3: Water and marine resources", "E3-1 Para 11", "The undertaking shall disclose its policies that address the management of its material impacts, risks and opportunities related to water and marine resources."),
-        ("ESRS E3: Water and marine resources", "E3-4 Para 28", "The undertaking shall disclose its total water consumption in m3 from its own operations, including areas at water stress."),
-        ("ESRS E3: Water and marine resources", "DR 1", "The undertaking shall disclose total water consumption, including water recycled and reused."),
-        ("ESRS E3: Water and marine resources", "E3-2 Para 17", "The undertaking shall disclose its actions and resources related to water and marine resources, including infrastructure investments."),
-
-        // ESRS S1 - Own Workforce
-        ("ESRS S1: Own workforce", "S1-1 Para 17", "The undertaking shall disclose its policies for own workers, including respect for human rights and fundamental freedoms."),
-        ("ESRS S1: Own workforce", "S1-6 Para 47", "The undertaking shall disclose the total number of employees by head count, and breakdowns by gender and by country."),
-        ("ESRS S1: Own workforce", "S1-10 Para 67", "The undertaking shall disclose the percentage of its own workers who are covered by collective bargaining agreements."),
-        ("ESRS S1: Own workforce", "S1-14 Para 87", "The undertaking shall disclose the percentage of employees with disabilities, where applicable."),
-        ("ESRS S1: Own workforce", "S1-3 Para 31", "The undertaking shall disclose the channels for own workers to raise concerns and the processes to remediate negative impacts."),
-        ("ESRS S1: Own workforce", "DR 10", "Coverage of collective bargaining is a key indicator of social dialogue and worker representation."),
-
-        // ESRS G1 - Business Conduct
-        ("ESRS G1: Business conduct", "G1-1 Para 10", "The undertaking shall provide information about its strategy and approach to corporate culture and business conduct, including anti-corruption."),
-        ("ESRS G1: Business conduct", "G1-3 Para 18", "The undertaking shall disclose its policies and procedures to prevent and detect corruption and bribery."),
-        ("ESRS G1: Business conduct", "G1-4 Para 24", "The undertaking shall disclose confirmed incidents of corruption or bribery during the reporting period."),
-        ("ESRS G1: Business conduct", "G1-5 Para 27", "The undertaking shall disclose its political influence and lobbying activities, including total monetary value of financial or in-kind political contributions."),
-        ("ESRS G1: Business conduct", "DR 4", "Training on anti-corruption policies is essential for ensuring a culture of integrity across the organization."),
-        ("ESRS G1: Business conduct", "Para 33", "The undertaking shall disclose its payment practices, especially regarding late payments to small and medium-sized enterprises (SMEs)."),
     ];
 
     for (topic, para, content) in mock_data {
@@ -86,20 +100,28 @@ pub fn search_esrs(query: String) -> Result<String, String> {
 }
 
 #[command]
-pub fn ask_ai(question: String) -> Result<String, String> {
+pub async fn ask_ai(
+    question: String,
+    engine_state: State<'_, Mutex<Option<GemmaEngine>>>
+) -> Result<String, String> {
     let results = get_search_results(question.clone())?;
     
-    if results.is_empty() {
-        return Ok("I'm sorry, I couldn't find any relevant ESRS disclosure requirements for your question in the database. Please try to use keywords like 'climate', 'water', 'emissions', or 'workforce'.".to_string());
-    }
+    let context = if results.is_empty() {
+        "No specific ESRS paragraph found. Answer based on general ESRS knowledge if possible.".to_string()
+    } else {
+        results.iter()
+            .map(|doc| format!("[{}] {}", doc.paragraph_number, doc.content))
+            .collect::<Vec<_>>()
+            .join("\n\n")
+    };
 
-    let mut response = format!("Based on the ESRS documentation, here is the information regarding \"{}\":\n\n", question);
-    
-    for doc in results {
-        response.push_str(&format!("### {} ({})\n{}\n\n", doc.topic, doc.paragraph_number, doc.content));
-    }
+    let engine_lock = engine_state.lock().map_err(|e| e.to_string())?;
+    let engine = engine_lock.as_ref().ok_or("AI Engine not initialized. Please wait for model download.")?;
 
-    response.push_str("---\n*Note: This response is generated based on the official European Sustainability Reporting Standards (ESRS).*");
+    let ai_response = ask_gemma(engine, &question, &context)?;
 
-    Ok(response)
+    let mut final_response = ai_response;
+    final_response.push_str("\n\n---\n*Note: This response is generated by Gemma 3 ESG Engine using local RAG.*");
+
+    Ok(final_response)
 }

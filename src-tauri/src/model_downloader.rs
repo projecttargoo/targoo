@@ -55,9 +55,14 @@ pub async fn download_model<R: Runtime>(app: AppHandle<R>) -> Result<String, Str
     // Hash verification (simplified for placeholder)
     let hash_result = format!("{:x}", hasher.finalize());
     println!("Downloaded hash: {}", hash_result);
-    // if hash_result != MODEL_SHA256 {
-    //     return Err("Hash verification failed".to_string());
-    // }
+    
+    // Initialize the AI Engine after download
+    if let Ok(engine) = crate::l1_rag::init_gemma(model_path.to_str().unwrap_or_default()) {
+        let engine_state = app.state::<std::sync::Mutex<Option<crate::l1_rag::GemmaEngine>>>();
+        if let Ok(mut lock) = engine_state.lock() {
+            *lock = Some(engine);
+        };
+    }
 
     Ok("ready".to_string())
 }
