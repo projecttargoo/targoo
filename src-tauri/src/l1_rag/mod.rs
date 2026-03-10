@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use rusqlite::Connection;
-use tauri::{command, State};
+use tauri::{command, State, AppHandle};
 use std::sync::Mutex;
 use llama_cpp::{LlamaModel, LlamaParams, SessionParams, standard_sampler::StandardSampler};
+use crate::l6_audit::get_db_connection;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EsrsDocument {
@@ -54,28 +54,11 @@ pub fn ask_gemma(engine: &GemmaEngine, question: &str, esrs_context: &str) -> Re
     Ok(response)
 }
 
-pub fn get_search_results(query: String) -> Result<Vec<EsrsDocument>, String> {
-    let conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
-    
-    conn.execute("CREATE VIRTUAL TABLE esrs_fts USING fts5(topic, paragraph_number, content)", [])
-        .map_err(|e| e.to_string())?;
-
-    let mock_data = vec![
-        ("ESRS E1: Climate change", "E1-1 Para 16", "The undertaking shall disclose its transition plan for climate change mitigation, including its ambition to ensure that its business model and strategy are compatible with the transition to a sustainable economy."),
-        ("ESRS E1: Climate change", "E1-4 Para 34", "The undertaking shall disclose the climate-related targets it has set, including GHG emission reduction targets for 2030 and 2050."),
-        ("ESRS E1: Climate change", "E1-5 Para 40", "The undertaking shall provide information on its energy consumption and mix, including total energy consumption from non-renewable sources and renewable sources in MWh."),
-        ("ESRS E1: Climate change", "E1-6 Para 44", "The undertaking shall disclose its gross Scope 1, 2, 3 and total GHG emissions in metric tonnes of CO2 equivalent."),
-    ];
-
-    for (topic, para, content) in mock_data {
-        conn.execute(
-            "INSERT INTO esrs_fts (topic, paragraph_number, content) VALUES (?, ?, ?)",
-            [topic, para, content],
-        ).map_err(|e| e.to_string())?;
-    }
+pub fn get_search_results(app_handle: AppHandle, query: String) -> Result<Vec<EsrsDocument>, String> {
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
 
     let mut stmt = conn
-        .prepare("SELECT rowid, topic, paragraph_number, content FROM esrs_fts WHERE esrs_fts MATCH ? LIMIT 5")
+        .prepare("SELECT rowid, topic, paragraph, content FROM esrs_knowledge WHERE esrs_knowledge MATCH ? LIMIT 5")
         .map_err(|e| e.to_string())?;
 
     let results = stmt.query_map([query], |row| {
@@ -93,18 +76,19 @@ pub fn get_search_results(query: String) -> Result<Vec<EsrsDocument>, String> {
 }
 
 #[command]
-pub fn search_esrs(query: String) -> Result<String, String> {
-    let results = get_search_results(query)?;
+pub fn search_esrs(app_handle: AppHandle, query: String) -> Result<String, String> {
+    let results = get_search_results(app_handle, query)?;
     let search_result = SearchResult { results };
     serde_json::to_string(&search_result).map_err(|e| e.to_string())
 }
 
 #[command]
 pub async fn ask_ai(
+    app_handle: AppHandle,
     question: String,
     engine_state: State<'_, Mutex<Option<GemmaEngine>>>
 ) -> Result<String, String> {
-    let results = get_search_results(question.clone())?;
+    let results = get_search_results(app_handle, question.clone())?;
     
     let context = if results.is_empty() {
         "No specific ESRS paragraph found. Answer based on general ESRS knowledge if possible.".to_string()

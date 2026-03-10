@@ -46,6 +46,36 @@ pub fn generate_hardware_fingerprint(app_handle: &tauri::AppHandle) -> String {
 }
 
 #[tauri::command]
+pub async fn validate_license(license_key: String) -> Result<bool, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://PLACEHOLDER.supabase.co/rest/v1/licenses?select=status&license_code=eq.{}", license_key);
+    
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        return Ok(false);
+    }
+
+    let json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+    
+    if let Some(licenses) = json.as_array() {
+        for license in licenses {
+            if let Some(status) = license.get("status").and_then(|s| s.as_str()) {
+                if status == "active" {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+#[tauri::command]
 pub fn get_fingerprint(app_handle: tauri::AppHandle) -> String {
     generate_hardware_fingerprint(&app_handle)
 }
