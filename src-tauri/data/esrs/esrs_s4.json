@@ -1,0 +1,386 @@
+[
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.100",
+    "content": "The undertaking shall disclose the number of work-related incidents and/or complaints and severe human rights impacts within its own workforce, and any related material fines, sanctions or compensation for the reporting period.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.101",
+    "content": "The objective of this Disclosure Requirement is to allow an understanding of the extent to which work-related incidents and severe cases of human rights impacts are affecting its own workforce.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.102",
+    "content": "The disclosure required by paragraph 100 shall include, subject to the relevant privacy regulations, work-related incidents of discrimination on the grounds of gender, racial or ethnic origin, nationality, religion or belief, disability, age, sexual orientation, or other relevant forms of discrimination involving internal and/or external stakeholders across operations in the reporting period. This",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.103",
+    "content": "The undertaking shall disclose: (a) the total number of incidents of discrimination, including harassment, reported in the reporting period (99); (b) the number of complaints filed through channels for people in the undertaking’s own workforce to raise concerns (including grievance mechanisms) and, where applicable, to the National Contact Points for OECD",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.104",
+    "content": "The undertaking shall disclose the following information regarding identified cases of severe human rights incidents (e.g., forced labour, human trafficking or child labour): (a) the number of severe human rights incidents connected to the undertaking’s workforce in the reporting period, including an indication of how many of these are cases of non-respect of the UN Guiding Principles on Business",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 100",
+    "content": "The measure of the undertaking’s gender pay gap shall be reported for the current reporting period and, if reported in previous sustainability reports, for the previous two reporting periods. Total remuneration Ratio AR 101. When compiling the information required by paragraph 97 (b), the undertaking shall:",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 101",
+    "content": "When compiling the information required by paragraph 97 (b), the undertaking shall: (a) include all employees; (b) consider, depending on the undertaking’s remuneration policies, all of the following:",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 102",
+    "content": "To illustrate the contextual information, the undertaking may provide an explanation to understand the data and how the data has been compiled (methodology). Quantitative data, such as the annual total remuneration ratio, may not be sufficient on its own to understand pay disparity and its drivers. For example, pay ratios can be influenced by the size of the undertaking (for example, revenue, numb",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 103",
+    "content": "In addition to the information required by paragraphs 103 and 104, the undertaking may disclose the status of incidents and/or complaints and actions taken with reference to the following: (a) incidents reviewed by the undertaking; (b) remediation plans being implemented;",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 104",
+    "content": "If the undertaking compiles the information described in AR 105, it shall consider the following: (a) an incident is no longer subject to action if it is resolved, the case is completed, or no further action is required by the undertaking. For example, an incident for which no further action is required can include cases that are withdrawn or where the underlying circumstances that led to the inci",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 105",
+    "content": "Severe human rights incidents include instances of lawsuits, formal complaints through the undertaking or third- party complaint mechanisms, serious allegations in public reports or the media, where these are connected to the undertaking’s own workforce, and the fact of the incidents is not disputed by the undertaking, as well as any other severe impacts of which the undertaking is aware.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 106",
+    "content": "In addition to the information required by paragraph 104 above, the undertaking may disclose the number of severe human rights incidents where the undertaking played a role securing remedy for those affected during the reporting period. OJ L, 22.12.2023",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 10",
+    "content": "The policy may take the form of a stand-alone policy regarding consumers and/or end-users or be included in a broader document such as a code of ethics or a general sustainability policy that has already been disclosed by the undertaking as part of another ESRS. In those cases, the undertaking shall provide an accurate cross-reference to identify the aspects of the policy that satisfy the requirem",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 11",
+    "content": "In disclosing its alignment of its policies with the UN Guiding Principles on Business and Human Rights, the undertaking shall consider that the Guiding Principles refer to the International Bill of Human Rights, which consists of the Universal Declaration of Human Rights and the two Covenants that implement it, and may disclose its alignment with these instruments.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 12",
+    "content": "When disclosing how external facing policies are embedded, the undertaking may, for example, consider internal- facing sales and distribution policies and alignment with other policies relevant to consumers and/or end-users. The undertaking shall also consider its policies for safeguarding the veracity and usefulness of information provided to potential and actual consumers and/or end-users, both ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 13",
+    "content": "The undertaking may provide an illustration of the types of communication of its policies to those individuals, group of individuals or entities for whom they are relevant, either because they are expected to implement them (for example, the undertaking’s employees, contractors and suppliers), or because they have a direct interest in their implementation (for example, own workers, investors). It ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 14",
+    "content": "Credible proxies who have knowledge of the interests, experiences or perspectives of consumers and end-users could include national consumer protection bodies for some consumers. AR 15. When describing which function or role has operational responsibility for such engagement and/or ultimate accountability, the undertaking may disclose whether this is a dedicated role or function or part of a broad",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 15",
+    "content": "When describing which function or role has operational responsibility for such engagement and/or ultimate accountability, the undertaking may disclose whether this is a dedicated role or function or part of a broader role or function, and whether any capacity building activities have been offered to support the staff to undertake engagement. If it cannot identify such a position or function, it ma",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 16",
+    "content": "When preparing the disclosures described in paragraph 20 b) and c), the following illustrations may be considered: (a) for stage(s) at which engagement occurs, examples could be in determining mitigation approaches or in evaluating their effectiveness; (b) for type of engagement, these could be participation, consultation and/or information;",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 17",
+    "content": "To illustrate how the perspectives of consumers and/or end-users have informed specific decisions or activities of the undertaking, the undertaking may provide examples from the current reporting period. Disclosure Requirement S4-3 – Processes to remediate negative impacts and channels for consumers and end-users to raise concerns",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 18",
+    "content": "In fulfilling the requirements set out by the disclosure criteria of ESRS S4-3, the undertaking may be guided by the content of the UN Guiding Principles on Business and Human Rights and the OECD Guidelines for Multinational Enterprises focused on remediation and grievance mechanisms. AR 19. Channels for raising concerns or needs, include grievance mechanisms, hotlines, dialogue processes or other",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 19",
+    "content": "Channels for raising concerns or needs, include grievance mechanisms, hotlines, dialogue processes or other means through which consumers and/or end-users or their legitimate representatives can raise concerns about impacts or explain needs that they would like the undertaking to address. This could include channels provided by the undertaking directly and is to be disclosed in addition to any oth",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 20",
+    "content": "To provide greater insight into the information covered in ESRS S4-3, the undertaking may provide insight into whether and how consumers and/or end-users that may be affected are able to access channels at the level of the undertaking they are affected by, in relation to each material impact. AR 21. Third party mechanisms could include those operated by the government, NGOs, industry associations ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 21",
+    "content": "Third party mechanisms could include those operated by the government, NGOs, industry associations and other collaborative initiatives. With regard to the scope of these mechanisms, the undertaking may disclose whether these are accessible to all consumers and/or end-users who may be potentially or actually materially impacted by the undertaking, or individuals or organisations acting on their beh",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 22",
+    "content": "In relation to the protection of individuals that use the mechanisms against the retaliation, the undertaking may describe whether it treats grievances confidentially and with respect to the rights of privacy and data protection; and whether they allow for consumer and/or end-users to use them anonymously (for example, through representation by a third party).",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 23",
+    "content": "In disclosing whether and how the undertaking knows that consumers and/or end-users are aware of and trust any of these channels, the undertaking may provide relevant and reliable data about the effectiveness of these channels from the perspective of consumers and/or end-users themselves. Examples of sources of information are surveys of OJ L, 22.12.2023",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 24",
+    "content": "In describing the effectiveness of channels for consumers and/or end-users to raise concerns, the undertaking may be guided by the following questions, based on the “effectiveness criteria for nonjudicial grievance mechanisms”, as laid out in the UN Guiding Principles on Business and Human Rights. The below considerations may be applied on an individual channel basis or for the collective system o",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 25",
+    "content": "It may take time to understand negative impacts and how the undertaking may be involved with them through its downstream value chain, as well as to identify appropriate responses and put them into practice). Therefore, the undertaking shall consider: (a) Its general and specific approaches to addressing material negative impacts;",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 26",
+    "content": "Appropriate action can vary according to whether the undertaking causes or contributes to a material impact, or whether the material impact is directly linked to its own operations, products or services through a business relationship. AR 27. Given that material negative impacts affecting consumers and/or end-users that have occurred during the",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 27",
+    "content": "Given that material negative impacts affecting consumers and/or end-users that have occurred during the reporting period may also be linked to entities or operations outside its direct control, the undertaking may disclose whether and how it seeks to use leverage with relevant business relationships to manage those impacts. This may include using commercial leverage (for example, enforcing contrac",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 28",
+    "content": "When the undertaking discloses its participation in an industry or multi-stakeholder initiative as part of its actions to address material negative impacts, the undertaking may disclose how the initiative, and its own involvement, is aiming to address the material impact concerned. It may disclose under ESRS S4-5 the relevant targets set by the initiative and progress towards them.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 29",
+    "content": "When disclosing whether and how it considers actual and potential impacts on consumers and/or end-users in decisions to terminate business relationships and whether and how it seeks to address any negative impacts that may result from termination, the undertaking may include examples. AR 30. In disclosing how it tracks the effectiveness of actions to manage material impacts during the reporting pe",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 30",
+    "content": "In disclosing how it tracks the effectiveness of actions to manage material impacts during the reporting period, the undertaking may disclose any lessons learned from the previous and current reporting periods. AR 31. Processes used to track the effectiveness of actions can include internal or external auditing or verification, court proceedings and/or related court decisions, impact assessments, ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 31",
+    "content": "Processes used to track the effectiveness of actions can include internal or external auditing or verification, court proceedings and/or related court decisions, impact assessments, measurement systems, stakeholder feedback, grievance mechanisms, external performance ratings, and benchmarking. AR 32. Reporting on effectiveness is aimed at enabling the understanding of the links between actions tak",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 32",
+    "content": "Reporting on effectiveness is aimed at enabling the understanding of the links between actions taken by the undertaking and the effective management of impacts. AR 33. With regard to initiatives or processes the undertaking has in place that are based on affected consumers and/or end-users’ needs and their level of implementation, the undertaking may disclose:",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 33",
+    "content": "With regard to initiatives or processes the undertaking has in place that are based on affected consumers and/or end-users’ needs and their level of implementation, the undertaking may disclose: (a) information about whether and how consumers and/or end-users and legitimate representatives or their credible proxies play a role in decisions regarding the design and implementation of these programme",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 34",
+    "content": "The undertaking may disclose whether any initiatives or processes whose primary aim is to deliver positive impacts for consumers and/or end-users are designed to also support the achievement of one or more of the UN Sustainable Development Goals (SDGs). For example, through a commitment to advance UN SDG 3 to “ensure healthy lives and promote well-being for all at all ages” the undertaking may be ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 35",
+    "content": "When disclosing the intended positive outcomes of its actions for consumers and/or end-users a distinction is to be made between evidence of certain activities having occurred (for example, that x number of consumers have received information about healthy eating habits) from evidence of actual outcomes for consumers and/or end- users (for example, that x number of consumers have adopted healthier",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 36",
+    "content": "When disclosing whether initiatives or processes also play a role in mitigating material negative impacts, the undertaking may, for example, consider programmes that aim to support heightened awareness of the risk of online scams, leading to a reduction in the number of cases of end-users experiencing breaches of data privacy. AR 37. When disclosing the material risks and opportunities related to ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 37",
+    "content": "When disclosing the material risks and opportunities related to the undertaking’s impacts or dependencies on consumers and/or end-users, the undertaking may consider the following: (a) risks related to the undertaking’s impacts on consumers and/or end-users may include reputational or legal exposure where poorly designed or defective products result in injuries or deaths;",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 38",
+    "content": "When disclosing whether dependencies turn into risks, the undertaking shall consider external developments. AR 39. When disclosing policies, action and resources and targets related to the management of material risks and opportunities, in cases where risks and opportunities arise from a material impact, the undertaking may cross- reference its disclosures on policies, action and resources and tar",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 39",
+    "content": "When disclosing policies, action and resources and targets related to the management of material risks and opportunities, in cases where risks and opportunities arise from a material impact, the undertaking may cross- reference its disclosures on policies, action and resources and targets in relation to that impact. AR 40. The undertaking shall consider the extent to which its processes to manage ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 40",
+    "content": "The undertaking shall consider the extent to which its processes to manage material risks related to consumers and/or end-users are integrated into its existing risk management processes and how. AR 41. When disclosing the resources allocated to the management of material impacts, the undertaking may disclose which internal functions are involved in managing the impacts and what types of action th",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 41",
+    "content": "When disclosing the resources allocated to the management of material impacts, the undertaking may disclose which internal functions are involved in managing the impacts and what types of action they take to address negative and advance positive impacts. Metrics and targets",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 42",
+    "content": "When disclosing targets in relation to consumers and/or end-users, the undertaking may disclose: (a) the intended outcomes to be achieved in the lives of consumers and/or end-users, being as specific as possible; (b) their stability over time in terms of definitions and methodologies to enable comparability; and/or (c) references standards or commitments on which the targets are based are to be cl",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 43",
+    "content": "Targets related to material risks and opportunities may be the same as or distinct from targets tied to material impacts. For example, a target to ensure equal access to finance for underserved consumers could both reduce discrimination impacts on those consumers and enlarge the undertaking’s pool of customers. AR 44. The undertaking may also distinguish between short, medium and long-term targets",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 44",
+    "content": "The undertaking may also distinguish between short, medium and long-term targets covering the same policy commitment. For example, the undertaking may have as a main objective to make its online services accessible to people with disabilities, with the long-term goal of having adapted 100% of its online services by 2025, and with the short-term objective of adding x number of accessible features e",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_S4",
+    "code": "ESRS_S4.AR 45",
+    "content": "When modifying or replacing a target in the reporting period, the undertaking may explain the change by cross- referencing it to significant changes in the business model or to broader changes in the accepted standard or legislation from which the target is derived to provide contextual information as per ESRS 2 BP-2 Disclosures in relation to specific circumstances.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  }
+]
