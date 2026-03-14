@@ -1,0 +1,730 @@
+[
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 10",
+    "content": "The undertaking may link the information disclosed under paragraphs 20 (a) and AR 9 to the information disclosed under the following Disclosure Requirements: Disclosure Requirement E1-1, paragraph 16 (d) on locked-in GHG emissions; Disclosure Requirement E1-4 and Disclosure Requirement E1-6. AR 11. When disclosing the information on the processes to identify and assess physical risks as required u",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 11",
+    "content": "When disclosing the information on the processes to identify and assess physical risks as required under paragraph 20 (b), the undertaking shall explain whether and how: (a) it has identified climate-related hazards (see table below) over the short-, medium- and long-term and screened whether its assets and business activities may be exposed to these hazards;",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 12",
+    "content": "When disclosing the information on the processes to identify transition risks and opportunities as required under paragraph 20 (c), the undertaking shall explain whether and how it has: (a) identified transition events (see the table with examples below) over the short-, medium- and long-term and screened whether its assets and business activities may be exposed to these events. In case of transit",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 13",
+    "content": "When disclosing the information required under paragraphs 19, 20, 21, AR 10 and AR 11, the undertaking shall explain how it has used climate-related scenario analysis that is commensurate to its circumstances to inform the identification and assessment of physical and transition risks and opportunities over the short-, medium- and long-term, including:",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 14",
+    "content": "When conducting scenario analysis, the undertaking may consider the following guidance: TCFD Technical Supplement on “The Use of Scenario Analysis in Disclosure of Climate-Related Risks and Opportunities” (2017); TCFD “Guidance on Scenario Analysis for Non-Financial Companies” (2020); ISO 14091:2021 “Adaptation to climate change — Guidelines on vulnerability, impacts and risk assessment”; any othe",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 15",
+    "content": "The undertaking shall briefly explain how the climate scenarios used are compatible with the critical climate- related assumptions made in the financial statements. Disclosure Requirement E1-2 – Policies related to climate change mitigation and adaptation AR 16. Policies related to either climate change mitigation or climate adaptation may be disclosed separately as their",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 16",
+    "content": "Policies related to either climate change mitigation or climate adaptation may be disclosed separately as their objectives, people involved, actions and resources needed to implement them are different. AR 17. Policies related to climate change mitigation address the management of the undertaking’s GHG emissions, GHG removals and transition risks over different time horizons, in its own operations",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 17",
+    "content": "Policies related to climate change mitigation address the management of the undertaking’s GHG emissions, GHG removals and transition risks over different time horizons, in its own operations and/or in the upstream and downstream value chain. The requirement under paragraph 14 may relate to stand-alone climate change mitigation policies as well as relevant policies on other matters that indirectly ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 18",
+    "content": "Policies related to climate change adaptation address the management of the undertaking’s physical climate risks and of its transition risks related to climate change adaptation. The requirement under paragraphs 22 and 25 may relate to stand-alone climate change adaptation policies as well as relevant policies on other matters that indirectly support climate change adaptation including training po",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 19",
+    "content": "When disclosing the information on actions as required under paragraphs 29 (a) and 29 (b), the undertaking may: (a) disclose its key actions taken and/or plans to implement climate change mitigation and adaptation policies in its single or separate actions; (b) aggregate types of mitigation actions (decarbonisation levers) such as energy efficiency, electrification, fuel",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 20",
+    "content": "When disclosing the information on resources as required under paragraph 29 (c), the undertaking shall only disclose the significant OpEx and CapEx amounts required for the implementation of the actions as the purpose of this information is to demonstrate the credibility of its actions rather than to reconcile the disclosed amounts to the financial statements. The disclosed CapEx and OpEx amounts ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 21",
+    "content": "In line with the requirements of ESRS 2 MDR-A, the undertaking shall explain if and to what extent its ability to implement the actions depends on the availability and allocation of resources. Ongoing access to finance at an affordable cost of capital can be critical for the implementation of the undertaking’s actions, which include its adjustments to supply/demand changes or its related acquisiti",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 22",
+    "content": "The amounts of OpEx and CapEx required for the implementation of the actions disclosed under paragraph 29 (c) shall be consistent with the key performance indicators (CapEx and OpEx key performance indicators) and, if applicable, the CapEx plan required by Commission Delegated Regulation (EU) 2021/2178. The undertaking shall explain any potential differences between the significant OpEx and CapEx ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 23",
+    "content": "Under paragraph 34 (a), the undertaking may disclose GHG emission reduction targets in intensity value. Intensity targets are formulated as ratios of GHG emissions relative to a unit of physical activity or economic output. Relevant units of activity or output are referred to in ESRS sector-specific standards. In cases where the undertaking has only set a GHG intensity reduction target, it shall n",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 24",
+    "content": "When disclosing the information required under paragraph 34 (b), the undertaking shall specify the share of the target related to each respective GHG emission Scope (1, 2 or 3). The undertaking shall state the method used to calculate Scope 2 GHG emissions included in the target (i.e., either the location-based or market-based method). If the boundary of the GHG emission reduction target diverges ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 25",
+    "content": "When disclosing the information required under paragraph 34(c) on base year and baseline value: (a) the undertaking shall briefly explain how it has ensured that the baseline value against which the progress towards the target is measured is representative in terms of the activities covered and the influences from external factors (e.g., temperature anomalies in a certain year influencing the amou",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 26",
+    "content": "When disclosing the information required under paragraphs 34 (d) and 34 (e), the undertaking shall present the information over the target period with reference to a sector- specific, if available, or a cross-sector emission pathway compatible with limiting global warming to 1.5°C. For this purpose, the undertaking shall calculate a 1.5°C aligned reference target value for Scope 1 and 2 (and, if a",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 27",
+    "content": "The reference target value may be calculated by multiplying the GHG emissions in the base year with either a sector-specific (sectoral decarbonisation methodology) or cross-sector (contraction methodology) emission reduction factor. These emission reduction factors can be derived from different sources. The undertaking should ensure that the source used is based on an emission reduction pathway co",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 28",
+    "content": "The emission reduction factors are subject to further development. Consequently, undertakings are encouraged to only use updated publicly available information. OJ L, 22.12.2023",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 29",
+    "content": "The reference target value is dependent on the base year and baseline emissions of the undertaking’s GHG emission reduction target. As a result, the reference target value for undertakings with a recent base year or from higher baseline emissions may be less challenging to achieve than it will be for undertakings that have already taken ambitious past actions to reduce GHG emissions. Therefore, un",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 30",
+    "content": "When disclosing the information required under paragraph 34 (f), the undertaking shall explain: (a) by reference to its climate change mitigation actions, the decarbonisation levers and their estimated quantitative contributions to the achievement of its GHG emission reduction targets broken down by each Scope (1, 2 and 3);",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 31",
+    "content": "The undertaking may present its GHG emission reduction targets together with its climate change mitigation actions (see paragraph AR 19) as a table or graphical pathway showing developments over time. The following figure and table provide examples combining targets and decarbonisation levers: OJ L, 22.12.2023",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 32",
+    "content": "When preparing the information on energy consumption required under paragraph 35, the undertaking shall: (a) only report energy consumed from processes owned or controlled by the undertaking applying the same perimeter applied for reporting GHG Scopes 1 and 2 emissions; (b) exclude feedstocks and fuels that are not combusted for energy purposes. The undertaking that consumes fuel",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 33",
+    "content": "The information required under paragraph 37 (a) is applicable if the undertaking is operating in at least one high climate impact sector. The information required under paragraph 38 (a) to (e). shall also include energy from fossil sources consumed in operations that are not in high climate impact sectors. AR 34. The information on Energy consumption and mix may be presented using the following ta",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 34",
+    "content": "The information on Energy consumption and mix may be presented using the following tabular format for high climate impact sectors and for all other sector by omitting rows (1) to (5). Energy consumption and mix Comparative",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 35",
+    "content": "The total energy consumption with a distinction between fossil, nuclear and renewable energy consumption may be presented graphically in the sustainability statement showing developments over time (e.g., through a pie or bar chart). Energy intensity based on net revenue",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 36",
+    "content": "When preparing the information on energy intensity required under paragraph 40, the undertaking shall: (a) calculate the energy intensity ratio using the following formula: (b) express the total energy consumption in MWh and the net revenue in monetary units (e.g., Euros); (c) the numerator and denominator shall only consist of the proportion of the total final energy consumption (in",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 37",
+    "content": "The quantitative information may be presented in the following table. Energy intensity per net revenue Comparative",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 38",
+    "content": "The reconciliation of net revenue from activities in high climate impact sectors to the relevant financial statements line item or disclosure (as required by paragraph 43) may be presented either: (a) by a cross-reference to the related line item or disclosure in the financial statements; or (b) If the net revenue cannot be directly cross-referenced to a line item or disclosure in the financial st",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 39",
+    "content": "When preparing the information for reporting GHG emissions as required by paragraph 44, the undertaking shall: (a) consider the principles, requirements and guidance provided by the GHG Protocol Corporate Standard (version 2004). The undertaking may consider Commission Recommendation (EU) 2021/2279 (51) or the requirements stipulated by EN ISO 14064-1:2018. If the undertaking already applies the G",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 40",
+    "content": "When preparing the information for reporting GHG emissions from its associates, joint ventures, unconsolidated subsidiaries (investment entities) and contractual arrangements as required by paragraph 50, the undertaking shall consolidate 100% of the GHG emissions of the entities it operationally controls. In practice, this happens when the undertakings holds the license - or permit - to operate th",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 41",
+    "content": "In line with ESRS 1 chapter 3.7, the undertaking shall disaggregate information on its GHG emissions as appropriate. For example, the undertaking may disaggregate its Scope 1, 2, 3, or total GHG emissions by country, operating segments, economic activity, subsidiary, GHG category (CO2, CH4, N2O, HFCs, PFCs, SF6, NF3, and other GHG considered by the undertaking) or source type (stationary combustio",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 42",
+    "content": "An undertaking might have a different reporting period from some or all of the entities in its value chain. In such circumstances, the undertaking is permitted to measure its GHG emissions in accordance with paragraph 44 using information for reporting periods that are different from its own reporting period if that information is obtained from entities in its value chain with reporting periods th",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 43",
+    "content": "When preparing the information on gross Scope 1 GHG emissions required under paragraph 48 (a), the undertaking shall: (a) calculate or measure GHG emissions from stationary combustion, mobile combustion, process emissions and fugitive emissions; and use suitable activity data that include the non-renewable fuel consumption;",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 44",
+    "content": "When preparing the information on the percentage of Scope 1 GHG emissions from regulated emission trading schemes required under paragraph 48 (b), the undertaking shall: (a) consider GHG emissions from the installations it operates that are subject to regulated Emission Trading Schemes (ETS), including the EU-ETS, national ETS and non-EU ETS, if applicable;",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 45",
+    "content": "When preparing the information on gross Scope 2 GHG emissions required under paragraph 49, the undertaking",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 46",
+    "content": "When preparing the information on gross Scope 3 GHG emissions required under paragraph 51, the undertaking",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 47",
+    "content": "When preparing the information on the total GHG emissions required under paragraph 52, the undertaking shall: (a) apply the following formulas to calculate the total GHG emissions: (b) disclose total GHG emissions with a distinction between emissions derived from the location-based and market-based methods applied while measuring the underlying Scope 2 GHG emissions.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 48",
+    "content": "The undertaking shall disclose its total GHG emissions disaggregated by Scopes 1 and 2 and significant Scope 3 in accordance with the table below. Retrospective Milestones and target years",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 49",
+    "content": "To highlight potential transition risks, the undertaking may disclose its total GHG emissions disaggregated by major countries and, if applicable, by operating segments (applying the same segments for the financial statements as required by the accounting standards, i.e., IFRS 8 Operating Segments or local GAAP). Scope 3 GHG emissions may be excluded from these breakdowns by country if the related",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 50",
+    "content": "The Scope 3 GHG emissions may also be presented by according to the indirect emission categories defined in EN ISO 14064-1:2018. AR 51. If it is material for the undertaking's Scope 3 emissions, it shall disclose the GHG emissions from purchased cloud computing and data centre services as a subset of the overarching Scope 3 category “upstream purchased goods",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 51",
+    "content": "If it is material for the undertaking's Scope 3 emissions, it shall disclose the GHG emissions from purchased cloud computing and data centre services as a subset of the overarching Scope 3 category “upstream purchased goods and services”. AR 52. The total GHG emissions disaggregated by Scope 1, 2 and 3 GHG emissions may be graphically presented in the",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 52",
+    "content": "The total GHG emissions disaggregated by Scope 1, 2 and 3 GHG emissions may be graphically presented in the sustainability statement (e.g., as a bar or pie chart) showing the split of GHG emissions across the value chain (Upstream, Own operations, Transport, Downstream). GHG intensity based on net revenue",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 53",
+    "content": "When disclosing the information on GHG intensity based on net revenue required under paragraph 53, the undertaking shall: (a) calculate the GHG intensity ratio by the following formula: (b) express the total GHG emissions in metric tonnes of CO2eq and the net revenue in monetary units (e.g., Euros)",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 54",
+    "content": "The quantitative information may be presented in the following tabular format. GHG intensity per net revenue Comparative",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 55",
+    "content": "The reconciliation of the net revenue used to calculate GHG intensity to the relevant line item or notes in the financial statements (as required by paragraph 55) may be done by either: (a) a cross-reference to the related line item or disclosure in the financial statements; or (b) if the net revenue cannot be directly cross-referenced to a line item or disclosure in the financial statements, by",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 56",
+    "content": "In addition to their GHG emission inventories, undertakings shall provide transparency on how and to what extent they either enhance natural sinks or apply technical solutions to remove GHGs from the atmosphere in their own operations and upstream and downstream value chain. While there are no generally accepted concepts and methodologies for accounting for GHG removals, this Standard aims to incr",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 57",
+    "content": "When disclosing the information on GHG removals and storage from the undertaking’s own operations and its upstream and donwstream value chain required under paragraphs 56 (a) and 58, for each removal and storage activity, the undertaking shall describe: (a) the GHGs concerned;",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 58",
+    "content": "When preparing the information on GHG removals and storage from the undertaking’s own operations and its upstream and donwstream value chain required under paragraphs 56 (a) and 58, the undertaking shall: (a) consider, as far as applicable, the GHG Protocol Corporate Standard (version 2004), Product Standard (version 2011), Agriculture Guidance (version 2014), Land use, land-use change, and forest",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 59",
+    "content": "The undertaking shall disaggregate and separately disclose the GHG removals that occur in its own operations and those that occur in its upstream and downstream value chain. GHG removal activities in the upstream and downstream value chain shall include those that the undertaking is actively supporting, for example, through a cooperation project with a supplier. The undertaking is not expected to ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 60",
+    "content": "The quantitative information on GHG removals may be presented by using the following tabular format.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 61",
+    "content": "Financing GHG emission reduction projects outside the undertaking’s value chain through purchasing carbon credits that fulfil high-quality standards can be a useful contribution towards mitigating climate change. This Standard requires the undertaking to disclose whether it uses carbon credits separately from the GHG emissions (paragraphs 56 (b) and 59) and GHG emission reduction targets (Disclosu",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 62",
+    "content": "When disclosing the information on carbon credits required under paragraphs 56 (b) and 59, the undertaking shall disclose the following disaggregation as applicable: (a) the share (percentage of volume) of reduction projects and removal projects; (b) for carbon credits from removal projects, an explanation whether they are from biogenic or technological",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 63",
+    "content": "When preparing the information on carbon credits required under paragraphs 56 (b) and 59, the undertaking",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 64",
+    "content": "The information on carbon credits cancelled in the reporting year and planned to be cancelled in the future may be presented using the following tabular formats. Carbon credits cancelled in the reporting",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 65",
+    "content": "When disclosing the information required under paragraphs 62 and 63, if applicable, the undertaking shall briefly explain whether and how the carbon prices used in internal carbon pricing schemes are consistent with those used in financial statements. This shall be done in respect of the internal carbon prices used for, (a) the assessment of the useful life and residual value of its assets (intang",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 66",
+    "content": "The information may be presented by using the following table: Types of internal carbon prices Volume at stake",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 67",
+    "content": "Material climate-related physical risks and transition risks may affect the undertaking’s financial position (e.g.,",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 68",
+    "content": "Currently, there is no commonly accepted methodology to assess or measure how material physical risks and transition risks may affect the undertaking’s future financial position, financial, performance and cash flows. Therefore, the disclosure of the financial effects (as required by paragraphs 64, 66 and 67) will depend on the undertaking’s internal methodology and the exercise of significant jud",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 69",
+    "content": "When disclosing the information required under paragraphs 64 (a) and 66, the undertaking shall explain whether",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 70",
+    "content": "When preparing the information on assets at material physical risk that is required to be disclosed under paragraph 66 (a), the undertaking shall: (a) Calculate the assets at material physical risk in terms of monetary amount and as a proportion (percentage) of total assets at the reporting date (i.e., the proportion is an estimate of the carrying value of assets at material",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 71",
+    "content": "When preparing the information required under paragraph 64 (a) and 66 (d), the undertaking may assess and disclose the share of net revenue from business activities at physical risk. This disclosure (a) shall be based on the net revenue in line with the requirements in accounting standards applied for financial statements, i.e., IFRS 15 or local GAAP.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 72",
+    "content": "When disclosing the information required under paragraphs 64 (b) and 67 (a), the undertaking shall explain whether and how: (a) it has assessed the potential effects on future financial performance and position for assets and business activities at material transition risk, including the scope of application, calculation methodology, critical",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 73",
+    "content": "When disclosing the information on assets at material transition risk as required under paragraphs 67 (a) and (b): (a) the undertaking shall at the very least include an estimate of the amount of potentially stranded assets (in monetary amounts and as a proportion/percentage) from the reporting year until 2030 and from 2030 to",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 74",
+    "content": "When disclosing the information on potential liabilities from material transition risks required under paragraph",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 75",
+    "content": "Other approaches and methodologies may be applied to assess how transition risks may affect the future financial position of the undertaking. In any case, the disclosure of anticipated financial effects shall include a description of the methodologies and definitions used by the undertaking. AR 76. When preparing the information required under paragraph 67 (e), the undertaking may assess and discl",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 76",
+    "content": "When preparing the information required under paragraph 67 (e), the undertaking may assess and disclose the share of net revenue from business activities at transition risks. This disclosure: (a) shall be based on the net revenue in line with the requirements in accounting standards applied for financial statements, i.e., IFRS 15 or local GAAP.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 77",
+    "content": "The reconciliation of the significant amount of assets, liabilities, and net revenue (vulnerable to either material physical risks or transition risks) to the relevant line item or disclosure (e.g., in segment reporting) in the financial statements (as required by paragraph 68) may be presented by the undertaking as follows: (a) as a cross-reference to the related line item or disclosure in the fi",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 78",
+    "content": "The undertaking shall ensure the consistency of data and assumptions to assess and report the anticipated financial effects from material physical risks and transition risks in the sustainability statement with the corresponding data and assumptions used for the financial statements (e.g., carbon prices used for assessing impairment of assets, the useful life of assets, estimates and provisions). ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 79",
+    "content": "For potential future effects on liabilities (as required by paragraph 67 (d)), if applicable, the undertaking shall cross- reference the description of the emission trading schemes in the financial statements. Climate-related opportunities AR 80. When disclosing the information under paragraph 69 (a), the undertaking shall explain the nature of the cost",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 80",
+    "content": "When disclosing the information under paragraph 69 (a), the undertaking shall explain the nature of the cost savings (e.g., from reduced energy consumption), the time horizons and the methodology used, including the scope of the assessment, critical assumptions, and limitations, and whether and how scenario analysis was",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 81",
+    "content": "When disclosing the information required under paragraph 69 (b), the undertaking shall explain how it has assessed the market size or any expected changes to net revenue from low-carbon products and services or adaptation solutions including the scope of the assessment, the time horizon, critical assumptions, and limitations and to what extent this market is accessible to the undertaking. The info",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 29",
+    "content": "When the undertaking discloses its participation in an industry or multi-stakeholder initiative as part of its actions to address material negative impacts, the undertaking may disclose how the initiative, and its own involvement, is aiming to address the material impact concerned. It may disclose under ESRS S3-5 the relevant targets set by the initiative and progress towards them.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 30",
+    "content": "When disclosing whether and how the undertaking considers actual and potential impacts on affected communities in decisions to terminate business relationships and whether and how it seeks to address any negative impacts that may result from termination, the undertaking may include examples. AR 31. In disclosing how it tracks the effectiveness of actions to manage material impacts during the repor",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 31",
+    "content": "In disclosing how it tracks the effectiveness of actions to manage material impacts during the reporting period, the undertaking may disclose any lessons learned from the previous and current reporting periods. AR 32. Processes used to track the effectiveness of actions can include internal or external auditing or verification, court proceedings and/or related court decisions, impact assessments, ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 32",
+    "content": "Processes used to track the effectiveness of actions can include internal or external auditing or verification, court proceedings and/or related court decisions, impact assessments, measurement systems, stakeholder feedback, grievance mechanisms, external performance ratings, and benchmarking. AR 33. Reporting on effectiveness is aimed at enabling the understanding of the links between actions tak",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 33",
+    "content": "Reporting on effectiveness is aimed at enabling the understanding of the links between actions taken by an undertaking and the effective management of impacts. OJ L, 22.12.2023",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 34",
+    "content": "With regard to initiatives or processes whose primary aim is to deliver positive impacts for affected communities that are based on affected communities’ needs, and with regard to progress in the implementation of such initiatives or processes, the undertaking may disclose: (a) information about whether and how affected communities and legitimate representatives or their credible",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 35",
+    "content": "The undertaking may disclose whether any initiatives or processes whose primary aim is to deliver positive impacts for affected communities are designed also to support the achievement of one or more of the UN Sustainable Development Goals (SDGs). For example, through a commitment to advance UN SDG 5 to “achieve gender equality and empower all women and girls” the undertaking may be taking thought",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 36",
+    "content": "When disclosing the intended or achieved positive outcomes of its actions for affected communities a distinction is to be made between evidence of certain activities having occurred (for example, that x number of women community members have been provided with training on how to become local suppliers to the undertaking) from evidence of actual outcomes for affected communities (for example, that ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 37",
+    "content": "When disclosing whether initiatives or processes also play a role in mitigating material negative impacts, the undertaking may for example consider programmes that aim to improve local infrastructure surrounding an undertaking’s operations, such as improvements in roads leading to a reduction in the number of severe traffic accidents involving community members.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 38",
+    "content": "When disclosing the material risks and opportunities related to the undertaking’s impacts or dependencies on affected communities, the undertaking may consider the following: (a) risks related to the undertaking’s impacts on affected communities may include the reputational or legal exposure, as well as operational risks, where affected communities protest against resettlements or the loss of",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 39",
+    "content": "In disclosing the information in AR 41, the undertaking may consider explanations of risks and opportunities stemming from environmental impacts or dependencies (please refer to AR 31 for further details), including related human rights (or social) impacts. Examples include reputational risks stemming from the impact on the health of communities of unmanaged polluting discharges; or the financial ",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 40",
+    "content": "When disclosing whether dependencies turn into risks, the undertaking shall consider external developments. AR 41. When disclosing policies, action and resources and targets related to the management of material risks and opportunities, in cases where risks and opportunities arise from a material impact, the undertaking may cross- reference its disclosures on policies, actions and resources and ta",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 41",
+    "content": "When disclosing policies, action and resources and targets related to the management of material risks and opportunities, in cases where risks and opportunities arise from a material impact, the undertaking may cross- reference its disclosures on policies, actions and resources and targets in relation to that impact. AR 42. The undertaking shall consider whether and how its processes to manage mat",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 42",
+    "content": "The undertaking shall consider whether and how its processes to manage material risks related to affected communities are integrated into its existing risk management processes. AR 43. When disclosing the resources allocated to the management of material impacts, the undertaking may disclose which internal functions are involved in managing the impacts and what types of action they take to address",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 43",
+    "content": "When disclosing the resources allocated to the management of material impacts, the undertaking may disclose which internal functions are involved in managing the impacts and what types of action they take to address negative and advance positive impacts. Metrics and targets",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 44",
+    "content": "When disclosing information about targets in accordance with paragraph 38, the undertaking may disclose: (a) the intended outcomes to be achieved in the lives of affected communities, being as specific as possible; (b) the stability of the targets over time in terms of definitions and methodologies to enable comparability over time; (c) the standards or commitments which the targets are based on (",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 45",
+    "content": "Targets related to material risks and opportunities may be the same as or distinct from targets related to material impacts. For example, a target to fully restore livelihoods of affected communities following resettlement could both reduce impacts on those communities and reduce associated risks such as community protests. AR 46. The undertaking may also distinguish between short-, medium- and lo",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 46",
+    "content": "The undertaking may also distinguish between short-, medium- and long-term targets covering the same policy commitment. For example, the undertaking may have as a main objective to employ community members at a local mining site, with the long-term goal of staffing 100% locally by 2025, and with the short-term objective of adding x percent of local employees every year up and until 2025.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  },
+  {
+    "topic": "ESRS_E1",
+    "code": "ESRS_E1.AR 47",
+    "content": "When modifying or replacing a target in the reporting period, the undertaking may explain the change by linking it to significant changes in the business model or to broader changes in the accepted standard or legislation from which the target is derived to provide contextual information as per ESRS 2 BP-2 Disclosures in relation to specific circumstances.",
+    "level": "mandatory",
+    "size": "all",
+    "jurisdiction": "EU"
+  }
+]
