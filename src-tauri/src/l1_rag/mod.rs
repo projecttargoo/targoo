@@ -16,6 +16,51 @@ pub struct EsrsDocument {
     pub applicable_company_size: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct EsrsJsonRecord {
+    pub topic: String,
+    pub code: String,
+    pub content: String,
+    pub level: String,
+    pub size: String,
+    pub jurisdiction: String,
+}
+
+pub fn load_esrs_from_json(app_handle: &AppHandle) -> Result<(), String> {
+    let conn = get_db_connection(app_handle).map_err(|e| e.to_string())?;
+
+    let base_path = std::env::current_dir().map_err(|e| e.to_string())?;
+    let esrs_path = if base_path.ends_with("src-tauri") {
+        base_path.join("data").join("esrs")
+    } else {
+        base_path.join("src-tauri").join("data").join("esrs")
+    };
+
+    if !esrs_path.exists() {
+        return Ok(());
+    }
+
+    let entries = std::fs::read_dir(esrs_path).map_err(|e| e.to_string())?;
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
+            let json_str = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+            let records: Vec<EsrsJsonRecord> = serde_json::from_str(&json_str).map_err(|e| e.to_string())?;
+            
+            for record in records {
+                conn.execute(
+                    "INSERT OR IGNORE INTO esrs_knowledge (topic, standard_code, content, language, requirement_level, applicable_company_size) 
+                     VALUES (?, ?, ?, 'en', ?, ?)",
+                    [record.topic, record.code, record.content, record.level, record.size],
+                ).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
     pub results: Vec<EsrsDocument>,

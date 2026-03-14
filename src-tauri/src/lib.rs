@@ -24,6 +24,7 @@ pub fn run() {
         .setup(|app| {
             l6_audit::init_audit_db(app.handle())?;
             l1_rag::populate_esrs_database(app.handle())?;
+            l1_rag::load_esrs_from_json(app.handle())?;
 
             // Try to initialize Gemma engine if model exists
             let app_handle = app.handle().clone();

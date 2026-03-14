@@ -129,7 +129,7 @@ pub fn init_audit_db(app_handle: &AppHandle) -> Result<()> {
     // Seed esrs_knowledge
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM esrs_knowledge", [], |row| row.get(0))?;
     if count == 0 {
-        let kb_json = include_str!("../../data/esrs_kb.json");
+        let kb_json = include_str!("../../data/esrs/esrs_kb.json");
         let kb_data: serde_json::Value = serde_json::from_str(kb_json).expect("failed to parse esrs_kb.json");
         if let Some(array) = kb_data.as_array() {
             for item in array {
