@@ -4,12 +4,16 @@ use std::sync::Mutex;
 use llama_cpp::{LlamaModel, LlamaParams, SessionParams, standard_sampler::StandardSampler};
 use crate::l6_audit::get_db_connection;
 
+mod esrs_data;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct EsrsDocument {
     pub id: i32,
     pub topic: String,
-    pub paragraph_number: String,
+    pub standard_code: String,
     pub content: String,
+    pub requirement_level: String,
+    pub applicable_company_size: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -54,19 +58,43 @@ pub fn ask_gemma(engine: &GemmaEngine, question: &str, esrs_context: &str) -> Re
     Ok(response)
 }
 
+pub fn populate_esrs_database(app_handle: &AppHandle) -> Result<(), String> {
+    let conn = get_db_connection(app_handle).map_err(|e| e.to_string())?;
+    
+    // Check if already populated (using a simple count)
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM esrs_knowledge", [], |row| row.get(0)).unwrap_or(0);
+    if count > 100 { 
+        return Ok(());
+    }
+
+    let data = esrs_data::get_esrs_paragraphs();
+
+    for (topic, code, content, level, size) in data {
+        conn.execute(
+            "INSERT OR IGNORE INTO esrs_knowledge (topic, standard_code, content, language, requirement_level, applicable_company_size) 
+             VALUES (?, ?, ?, 'en', ?, ?)",
+            [topic, code, content, level, size],
+        ).map_err(|e| e.to_string())?;
+    }
+    
+    Ok(())
+}
+
 pub fn get_search_results(app_handle: AppHandle, query: String) -> Result<Vec<EsrsDocument>, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
 
     let mut stmt = conn
-        .prepare("SELECT rowid, topic, paragraph, content FROM esrs_knowledge WHERE esrs_knowledge MATCH ? LIMIT 5")
+        .prepare("SELECT rowid, topic, standard_code, content, requirement_level, applicable_company_size FROM esrs_knowledge WHERE esrs_knowledge MATCH ? LIMIT 10")
         .map_err(|e| e.to_string())?;
 
     let results = stmt.query_map([query], |row| {
         Ok(EsrsDocument {
             id: row.get(0)?,
             topic: row.get(1)?,
-            paragraph_number: row.get(2)?,
+            standard_code: row.get(2)?,
             content: row.get(3)?,
+            requirement_level: row.get(4)?,
+            applicable_company_size: row.get(5)?,
         })
     }).map_err(|e| e.to_string())?
     .filter_map(|r| r.ok())
@@ -77,7 +105,10 @@ pub fn get_search_results(app_handle: AppHandle, query: String) -> Result<Vec<Es
 
 #[command]
 pub fn search_esrs(app_handle: AppHandle, query: String) -> Result<String, String> {
-    let results = get_search_results(app_handle, query)?;
+    let results = match get_search_results(app_handle, query) {
+        Ok(res) => res,
+        Err(e) => return Err(e),
+    };
     let search_result = SearchResult { results };
     serde_json::to_string(&search_result).map_err(|e| e.to_string())
 }
@@ -88,13 +119,16 @@ pub async fn ask_ai(
     question: String,
     engine_state: State<'_, Mutex<Option<GemmaEngine>>>
 ) -> Result<String, String> {
-    let results = get_search_results(app_handle, question.clone())?;
+    let results = match get_search_results(app_handle, question.clone()) {
+        Ok(res) => res,
+        Err(e) => return Err(e),
+    };
     
     let context = if results.is_empty() {
         "No specific ESRS paragraph found. Answer based on general ESRS knowledge if possible.".to_string()
     } else {
         results.iter()
-            .map(|doc| format!("[{}] {}", doc.paragraph_number, doc.content))
+            .map(|doc| format!("[{}] {}", doc.standard_code, doc.content))
             .collect::<Vec<_>>()
             .join("\n\n")
     };

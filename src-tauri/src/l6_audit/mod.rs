@@ -74,7 +74,7 @@ pub fn init_audit_db(app_handle: &AppHandle) -> Result<()> {
 
     // Create FTS5 knowledge table
     conn.execute(
-        "CREATE VIRTUAL TABLE IF NOT EXISTS esrs_knowledge USING fts5(topic, paragraph, content, language)",
+        "CREATE VIRTUAL TABLE IF NOT EXISTS esrs_knowledge USING fts5(topic, standard_code, content, language, requirement_level, applicable_company_size)",
         [],
     )?;
 
