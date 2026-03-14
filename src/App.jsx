@@ -709,14 +709,78 @@ export default function App() {
                     <div style={{ gridColumn: 'span 8' }}><Card title="Pillar Performance"><ProgressBar label="Environmental" value={demoData.scores.environmental} color="#34C759" trend="up" /><ProgressBar label="Social" value={demoData.scores.social} color="#007AFF" trend="down" /><ProgressBar label="Governance" value={demoData.scores.governance} color="#AF52DE" trend="up" /></Card></div>
                   </>
                 )}
-                <div style={{ gridColumn: 'span 12' }}>
-                  <Card title="ESRS Gap Analysis Matrix" style={{ padding: 0, overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead><tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>ID</th><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>Topic</th><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>Status</th></tr></thead>
-                      <tbody>{gapData.map(topic => (<tr key={topic.id} style={{ borderBottom: '1px solid #F5F5F7' }}><td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B' }}>{topic.id}</td><td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td><td style={{ padding: '16px 24px' }}><StatusBadge status={topic.status} /></td></tr>))}</tbody>
-                    </table>
-                  </Card>
-                </div>
+                
+                {activeNav === 'reports' ? (
+                  <div style={{ gridColumn: 'span 12' }}>
+                    <Card title="Report Generation">
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px', textAlign: 'center' }}>
+                        <div style={{ width: '80px', height: '80px', backgroundColor: '#F5F5F7', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
+                          <FileText size={40} color="#007AFF" />
+                        </div>
+                        <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '12px' }}>Professional CSRD Report</h2>
+                        <p style={{ color: '#86868B', maxWidth: '400px', marginBottom: '32px' }}>
+                          Generate a comprehensive sustainability report compliant with ESRS standards, including executive summary and gap analysis.
+                        </p>
+                        
+                        {reportPath ? (
+                          <div style={{ backgroundColor: '#E1F7E3', padding: '16px 24px', borderRadius: '16px', border: '1px solid #34C759', marginBottom: '24px', textAlign: 'left', width: '100%', maxWidth: '500px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                              <CheckCircle2 size={20} color="#34C759" />
+                              <span style={{ fontWeight: '700', color: '#1A5C3A' }}>Report generated successfully!</span>
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#2E7D32', wordBreak: 'break-all' }}>Path: {reportPath}</div>
+                          </div>
+                        ) : null}
+
+                        <button 
+                          onClick={async () => {
+                            setIsGeneratingReport(true);
+                            try {
+                              const path = await invoke('generate_report', { 
+                                companyName: activeClient.name, 
+                                language: 'en' 
+                              });
+                              setReportPath(path);
+                            } catch (e) {
+                              console.error(e);
+                              alert("Failed to generate report: " + e);
+                            } finally {
+                              setIsGeneratingReport(false);
+                            }
+                          }}
+                          disabled={isGeneratingReport}
+                          style={{ 
+                            backgroundColor: '#007AFF', 
+                            color: 'white', 
+                            border: 'none', 
+                            borderRadius: '12px', 
+                            padding: '12px 32px', 
+                            fontSize: '16px', 
+                            fontWeight: '700', 
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            boxShadow: '0 4px 12px rgba(0,122,255,0.2)',
+                            opacity: isGeneratingReport ? 0.7 : 1
+                          }}
+                        >
+                          {isGeneratingReport ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
+                          {isGeneratingReport ? 'Generating...' : 'Generate Word Report (.docx)'}
+                        </button>
+                      </div>
+                    </Card>
+                  </div>
+                ) : (
+                  <div style={{ gridColumn: 'span 12' }}>
+                    <Card title="ESRS Gap Analysis Matrix" style={{ padding: 0, overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead><tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>ID</th><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>Topic</th><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>Status</th></tr></thead>
+                        <tbody>{gapData.map(topic => (<tr key={topic.id} style={{ borderBottom: '1px solid #F5F5F7' }}><td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B' }}>{topic.id}</td><td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td><td style={{ padding: '16px 24px' }}><StatusBadge status={topic.status} /></td></tr>))}</tbody>
+                      </table>
+                    </Card>
+                  </div>
+                )}
               </div>
             )}
           </div>
