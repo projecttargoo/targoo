@@ -49,6 +49,7 @@ pub fn run() {
             license::validate_license,
             l1_rag::search_esrs,
             l1_rag::ask_ai,
+            l1_rag::analyze_imported_data,
             l2_gap_analysis::gap_analysis,
             l3_report::generate_report,
             l4_data_processor::process_excel,

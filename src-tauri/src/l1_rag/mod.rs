@@ -158,19 +158,103 @@ pub fn search_esrs(app_handle: AppHandle, query: String) -> Result<String, Strin
     serde_json::to_string(&search_result).map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AnalysisResult {
+    pub compliant: Vec<String>,
+    pub missing: Vec<String>,
+    pub warnings: Vec<String>,
+    pub proactive_message: String,
+}
+
+#[command]
+pub async fn analyze_imported_data(
+    app_handle: AppHandle,
+    engine_state: State<'_, Mutex<Option<GemmaEngine>>>
+) -> Result<AnalysisResult, String> {
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    
+    // 1. Read imported data
+    let mut stmt = conn.prepare("SELECT category, metric, value, unit FROM imported_data").map_err(|e| e.to_string())?;
+    let imported_rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, Option<String>>(3)?))
+    }).map_err(|e| e.to_string())?;
+
+    let mut imported_metrics = Vec::new();
+    for row in imported_rows {
+        let (cat, metric, val, unit) = row.map_err(|e| e.to_string())?;
+        imported_metrics.push(format!("{}: {} ({} {})", cat, metric, val, unit.unwrap_or_default()));
+    }
+
+    // 2. Simple Rule-based Checks (Pre-AI)
+    let mut compliant = Vec::new();
+    let mut missing = Vec::new();
+    let mut warnings = Vec::new();
+
+    let has_scope1 = imported_metrics.iter().any(|m| m.to_lowercase().contains("scope 1") || m.to_lowercase().contains("fuel"));
+    let has_scope2 = imported_metrics.iter().any(|m| m.to_lowercase().contains("scope 2") || m.to_lowercase().contains("electricity"));
+    let has_scope3 = imported_metrics.iter().any(|m| m.to_lowercase().contains("scope 3"));
+    let has_energy = imported_metrics.iter().any(|m| m.to_lowercase().contains("energy") || m.to_lowercase().contains("kwh"));
+
+    if has_scope1 { compliant.push("Scope 1 emissions found - ESRS E1.44 compliant".to_string()); }
+    else { missing.push("Missing Scope 1 data - ESRS E1.44 mandatory".to_string()); }
+
+    if has_scope2 { compliant.push("Scope 2 emissions found - ESRS E1.44 compliant".to_string()); }
+    else { missing.push("Missing Scope 2 data - ESRS E1.44 mandatory".to_string()); }
+
+    if has_scope3 { compliant.push("Scope 3 data detected".to_string()); }
+    else { warnings.push("Missing Scope 3 data - ESRS E1.46 requires all 15 categories".to_string()); }
+
+    if has_energy { compliant.push("Energy consumption data found - ESRS E1.35 compliant".to_string()); }
+    else { missing.push("Energy consumption data incomplete - ESRS E1.35 mandatory".to_string()); }
+
+    // 3. AI Proactive Message
+    let engine_lock = engine_state.lock().map_err(|e| e.to_string())?;
+    let proactive_message = if let Some(engine) = engine_lock.as_ref() {
+        let context = format!(
+            "Company has imported the following ESG data:\n{}\n\nMandatory ESRS E1 requirements include Scope 1, 2, 3 emissions and energy consumption.",
+            imported_metrics.join("\n")
+        );
+        let question = "Analyze the imported data against ESRS E1 requirements. Identify what is missing or compliant. Be proactive and reference exact ESRS paragraphs.";
+        ask_gemma(engine, question, &context)?
+    } else {
+        "AI Engine not ready for deep analysis. Using rule-based results only.".to_string()
+    };
+
+    Ok(AnalysisResult {
+        compliant,
+        missing,
+        warnings,
+        proactive_message,
+    })
+}
+
 #[command]
 pub async fn ask_ai(
     app_handle: AppHandle,
     question: String,
     engine_state: State<'_, Mutex<Option<GemmaEngine>>>
 ) -> Result<String, String> {
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    
+    // Fetch imported data context
+    let mut stmt = conn.prepare("SELECT category, metric, value, unit FROM imported_data LIMIT 50").map_err(|e| e.to_string())?;
+    let imported_rows = stmt.query_map([], |row| {
+        Ok(format!("{}: {} {} {}", row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, Option<String>>(3)?.unwrap_or_default()))
+    }).map_err(|e| e.to_string())?;
+    
+    let mut imported_context = String::new();
+    for row in imported_rows {
+        imported_context.push_str(&row.map_err(|e| e.to_string())?);
+        imported_context.push('\n');
+    }
+
     let results = match get_search_results(app_handle, question.clone()) {
         Ok(res) => res,
         Err(e) => return Err(e),
     };
     
-    let context = if results.is_empty() {
-        "No specific ESRS paragraph found. Answer based on general ESRS knowledge if possible.".to_string()
+    let esrs_context = if results.is_empty() {
+        "No specific ESRS paragraph found.".to_string()
     } else {
         results.iter()
             .map(|doc| format!("[{}] {}", doc.standard_code, doc.content))
@@ -178,13 +262,18 @@ pub async fn ask_ai(
             .join("\n\n")
     };
 
+    let full_context = format!(
+        "Imported Company Data:\n{}\n\nRelevant ESRS Knowledge:\n{}",
+        imported_context, esrs_context
+    );
+
     let engine_lock = engine_state.lock().map_err(|e| e.to_string())?;
     let engine = engine_lock.as_ref().ok_or("AI Engine not initialized. Please wait for model download.")?;
 
-    let ai_response = ask_gemma(engine, &question, &context)?;
+    let ai_response = ask_gemma(engine, &question, &full_context)?;
 
     let mut final_response = ai_response;
-    final_response.push_str("\n\n---\n*Note: This response is generated by Gemma 3 ESG Engine using local RAG.*");
+    final_response.push_str("\n\n---\n*Note: This response is generated by Gemma 3 ESG Engine using local RAG and imported data context.*");
 
     Ok(final_response)
 }
