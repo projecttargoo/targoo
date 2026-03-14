@@ -1,0 +1,162 @@
+[
+{
+"topic": "HGB Germany - Pflicht zur nichtfinanziellen Erklärung",
+"code": "§289b Abs. 1 HGB",
+"content": "Große, kapitalmarktorientierte Kapitalgesellschaften mit mehr als 500 Arbeitnehmern müssen ihren Lagebericht um eine nichtfinanzielle Erklärung (NFE) erweitern. Unter CSRD weitet sich dies schrittweise auf alle großen Kapitalgesellschaften aus.",
+"level": "mandatory",
+"size": "large, >500 employees (PIE)",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Konzernbefreiung",
+"code": "§289b Abs. 2 HGB",
+"content": "Eine Kapitalgesellschaft ist von der Pflicht zur Aufstellung einer nichtfinanziellen Erklärung befreit, wenn sie in den Konzernlagebericht eines Mutterunternehmens einbezogen wird, der die gesetzlichen Voraussetzungen erfüllt.",
+"level": "conditional",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Geschäftsmodell",
+"code": "§289c Abs. 1 HGB",
+"content": "Die nichtfinanzielle Erklärung muss eine kurze Beschreibung des Geschäftsmodells der Kapitalgesellschaft enthalten, um den Kontext für die nichtfinanziellen Aspekte zu schaffen.",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Umweltbelange",
+"code": "§289c Abs. 2 Nr. 1 HGB",
+"content": "Angaben zu Umweltbelangen, insbesondere zu Treibhausgasemissionen, Wasserverbrauch, Luftverschmutzung, Nutzung von erneuerbaren und nicht erneuerbaren Energien oder dem Schutz der biologischen Vielfalt.",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Arbeitnehmerbelange",
+"code": "§289c Abs. 2 Nr. 2 HGB",
+"content": "Angaben zu Arbeitnehmerbelangen, wie Maßnahmen zur Gewährleistung der Geschlechtergleichstellung, Arbeitsbedingungen, Umsetzung der grundlegenden Übereinkommen der IAO, Achtung der Rechte der Arbeitnehmer und Gesundheitsschutz.",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Sozialbelange",
+"code": "§289c Abs. 2 Nr. 3 HGB",
+"content": "Angaben zu Sozialbelangen, insbesondere zum Dialog auf kommunaler oder regionaler Ebene oder zu den zur Sicherstellung des Schutzes und der Entwicklung lokaler Gemeinschaften ergriffenen Maßnahmen.",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Menschenrechte",
+"code": "§289c Abs. 2 Nr. 4 HGB",
+"content": "Angaben zur Achtung der Menschenrechte, insbesondere Maßnahmen zur Verhinderung von Menschenrechtsverletzungen entlang der Lieferkette.",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Korruptionsbekämpfung",
+"code": "§289c Abs. 2 Nr. 5 HGB",
+"content": "Angaben zur Bekämpfung von Korruption und Bestechung sowie die diesbezüglich ergriffenen Compliance-Maßnahmen und Richtlinien.",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Doppelte Wesentlichkeit",
+"code": "§289c Abs. 3 HGB",
+"content": "Berichtspflicht über Aspekte, die sowohl für das Verständnis des Geschäftsverlaufs, des Geschäftsergebnisses und der Lage der Kapitalgesellschaft erforderlich sind (Financial Materiality), als auch solche, die für das Verständnis der Auswirkungen der Tätigkeit der Kapitalgesellschaft auf die genannten Belange erforderlich sind (Impact Materiality).",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Risikomanagement",
+"code": "§289c Abs. 3 Nr. 3-4 HGB",
+"content": "Angaben zu den wesentlichen Risiken, die mit der Geschäftstätigkeit, den Geschäftsbeziehungen, Produkten und Dienstleistungen verknüpft sind und sehr wahrscheinlich schwerwiegende negative Auswirkungen auf die nichtfinanziellen Belange haben (Handhabung dieser Risiken).",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Inhalt: Nichtfinanzielle KPIs",
+"code": "§289c Abs. 3 Nr. 5 HGB",
+"content": "Angaben zu den für die Geschäftstätigkeit bedeutsamsten nichtfinanziellen Leistungsindikatoren (KPIs).",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Nutzung von Rahmenwerken",
+"code": "§289d HGB",
+"content": "Die Kapitalgesellschaft kann für die Erstellung der nichtfinanziellen Erklärung nationale, europäische oder internationale Rahmenwerke (z.B. DNK, GRI) nutzen. Im Bericht ist anzugeben, welches Rahmenwerk genutzt wurde.",
+"level": "optional",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "HGB Germany - Prüfung durch Aufsichtsrat",
+"code": "§289e HGB",
+"content": "Der Aufsichtsrat hat die nichtfinanzielle Erklärung zu prüfen. Eine externe inhaltliche Prüfung ist nach altem HGB-Recht freiwillig, wird aber durch das CSRD-Umsetzungsgesetz verpflichtend (Assurance).",
+"level": "mandatory",
+"size": "all",
+"jurisdiction": "DE"
+},
+{
+"topic": "CSRD-Umsetzungsgesetz 2024 - Erweiterter Anwendungsbereich",
+"code": "CSRD-UmsG (Referentenentwurf)",
+"content": "Ab dem Geschäftsjahr 2025 (Bericht 2026) müssen alle großen Kapitalgesellschaften und haftungsbeschränkten Personenhandelsgesellschaften (Bilanzsumme >25 Mio. €, Umsatzerlöse >50 Mio. €, Arbeitnehmer >250 - zwei von drei Kriterien) einen Nachhaltigkeitsbericht erstellen.",
+"level": "mandatory",
+"size": "large",
+"jurisdiction": "DE"
+},
+{
+"topic": "CSRD-Umsetzungsgesetz 2024 - Lagebericht-Integration",
+"code": "CSRD-UmsG (Referentenentwurf)",
+"content": "Die Nachhaltigkeitsberichterstattung muss zwingend in einem klar erkennbaren, separaten Abschnitt des (Konzern-)Lageberichts erfolgen. Die Veröffentlichung als separater Nachhaltigkeitsbericht (wie bisher unter NFRD/HGB zulässig) ist nicht mehr erlaubt.",
+"level": "mandatory",
+"size": "all in scope",
+"jurisdiction": "DE"
+},
+{
+"topic": "CSRD-Umsetzungsgesetz 2024 - ESRS Pflicht",
+"code": "CSRD-UmsG (Referentenentwurf)",
+"content": "Die Berichterstattung muss nach den verbindlichen European Sustainability Reporting Standards (ESRS) erfolgen. Frei wählbare Rahmenwerke nach §289d HGB entfallen für CSRD-pflichtige Unternehmen.",
+"level": "mandatory",
+"size": "all in scope",
+"jurisdiction": "DE"
+},
+{
+"topic": "CSRD-Umsetzungsgesetz 2024 - Digitale Formatierung",
+"code": "CSRD-UmsG (Referentenentwurf)",
+"content": "Der Nachhaltigkeitsbericht ist im elektronischen Meldeformat (ESEF/XHTML) aufzustellen und mit digitalen Tags (iXBRL) zu versehen, um die maschinelle Lesbarkeit sicherzustellen.",
+"level": "mandatory",
+"size": "all in scope",
+"jurisdiction": "DE"
+},
+{
+"topic": "CSRD-Umsetzungsgesetz 2024 - Externe Prüfung",
+"code": "CSRD-UmsG (Referentenentwurf)",
+"content": "Einführung einer zwingenden externen Prüfung der Nachhaltigkeitsberichterstattung durch einen Wirtschaftsprüfer, zunächst mit begrenzter Prüfungssicherheit (Limited Assurance), später mit hinreichender Prüfungssicherheit (Reasonable Assurance).",
+"level": "mandatory",
+"size": "all in scope",
+"jurisdiction": "DE"
+},
+{
+"topic": "BaFin - Umgang mit Nachhaltigkeitsrisiken",
+"code": "BaFin-Merkblatt",
+"content": "Beaufsichtigte Unternehmen (Banken, Versicherungen, KVG) müssen ESG-Risiken (physische und transitorische Klimarisiken) in ihr Risikomanagement integrieren und dokumentieren. Dies beeinflusst direkt die Risikoberichterstattung nach HGB.",
+"level": "mandatory",
+"size": "financial institutions",
+"jurisdiction": "DE"
+},
+{
+"topic": "Deutscher Nachhaltigkeitskodex (DNK) - Anwendung",
+"code": "DNK Rahmenwerk",
+"content": "Der DNK bietet 20 Kriterien (u.a. Strategie, Prozessmanagement, Umwelt, Gesellschaft) zur Erfüllung der Berichtspflicht nach § 289b ff. HGB. Er wird oft von mittelständischen Unternehmen als Brücke zur CSRD-Konformität genutzt.",
+"level": "optional",
+"size": "SME / large",
+"jurisdiction": "DE"
+}
+]

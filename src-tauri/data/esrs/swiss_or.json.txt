@@ -1,0 +1,130 @@
+[
+{
+"topic": "Swiss ESG Law - Anwendungsbereich (Scope)",
+"code": "Art. 964a OR",
+"content": "Gesellschaften des öffentlichen Interesses (börsenkotiert oder von der FINMA beaufsichtigt), die zusammen mit den von ihnen kontrollierten Unternehmen im In- und Ausland in zwei aufeinanderfolgenden Geschäftsjahren mindestens 500 Vollzeitstellen aufweisen und eine Bilanzsumme von 20 Millionen Franken oder einen Umsatzerlös von 40 Millionen Franken überschreiten, müssen einen Bericht über nichtfinanzielle Belange erstellen.",
+"level": "mandatory",
+"size": "large PIE, >500 employees",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss ESG Law - Inhalt der Berichterstattung",
+"code": "Art. 964b Abs. 1 OR",
+"content": "Der Bericht über nichtfinanzielle Belange muss Umweltbelange (insbesondere CO2-Ziele), Sozialbelange, Arbeitnehmerbelange, die Achtung der Menschenrechte sowie die Bekämpfung der Korruption abdecken.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss ESG Law - Doppelte Wesentlichkeit (Double Materiality)",
+"code": "Art. 964b Abs. 1 OR",
+"content": "Die Berichterstattung muss Angaben enthalten, die für das Verständnis des Geschäftsverlaufs, des Geschäftsergebnisses und der Lage des Unternehmens sowie für das Verständnis der Auswirkungen seiner Tätigkeit auf die nichtfinanziellen Belange erforderlich sind.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss ESG Law - Comply or Explain",
+"code": "Art. 964b Abs. 2 OR",
+"content": "Verfolgt das Unternehmen in Bezug auf die geforderten nichtfinanziellen Belange kein Konzept, so muss es dies im Bericht klar und begründet erklären (Comply-or-Explain-Prinzip).",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss ESG Law - Nutzung internationaler Regelwerke (CSRD Equivalence)",
+"code": "Art. 964b Abs. 3 OR",
+"content": "Die Berichterstattung kann sich auf nationale, europäische (z.B. ESRS/CSRD) oder internationale Regelwerke (z.B. GRI, OECD) stützen. Das angewandte Regelwerk ist im Bericht zu nennen. Dies ermöglicht Schweizer Unternehmen, die europäische CSRD zur Erfüllung des Schweizer Rechts zu nutzen.",
+"level": "optional",
+"size": "all within scope",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss ESG Law - Billigung durch Verwaltungsrat und Generalversammlung",
+"code": "Art. 964c Abs. 1 OR",
+"content": "Der Bericht über nichtfinanzielle Belange ist durch das oberste Leitungs- oder Verwaltungsorgan (Verwaltungsrat) zu billigen und dem obersten Organ (Generalversammlung der Aktionäre) zur ordentlichen Genehmigung vorzulegen.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss ESG Law - Veröffentlichung und Aufbewahrung",
+"code": "Art. 964c Abs. 2 OR",
+"content": "Der Bericht muss elektronisch in einer für Menschen lesbaren Form veröffentlicht werden und nach seiner Publikation während mindestens zehn Jahren öffentlich zugänglich bleiben.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss ESG Law - Konzernberichterstattung und Befreiung",
+"code": "Art. 964c Abs. 3 OR",
+"content": "Unternehmen sind von der eigenen Berichterstattungspflicht befreit, wenn sie von einem anderen Unternehmen kontrolliert werden, das einen gleichwertigen Bericht (z.B. nach EU-CSRD) auf konsolidierter Ebene für den gesamten Konzern erstellt.",
+"level": "conditional",
+"size": "subsidiaries",
+"jurisdiction": "CH"
+},
+{
+"topic": "Verordnung über die Klimaberichterstattung (VKaB)",
+"code": "VKaB / Art. 964b OR",
+"content": "Präzisiert die Berichterstattung über Klimabelange für grosse Unternehmen. Die Berichterstattung muss sich an den Empfehlungen der Task Force on Climate-related Financial Disclosures (TCFD) orientieren, einschliesslich der Offenlegung von Scope 1, 2 und 3 Treibhausgasemissionen sowie eines Transitionsplans.",
+"level": "mandatory",
+"size": "large PIE, >500 employees",
+"jurisdiction": "CH"
+},
+{
+"topic": "Sorgfaltspflichten - Konfliktmineralien",
+"code": "Art. 964j OR",
+"content": "Unternehmen, die Mineralien oder Metalle aus Konflikt- und Hochrisikogebieten in die Schweiz einführen oder hier bearbeiten (Zinn, Tantal, Wolfram, Gold), müssen besondere Sorgfaltspflichten in der Lieferkette einhalten und darüber Bericht erstatten.",
+"level": "mandatory",
+"size": "importers/processors of conflict minerals",
+"jurisdiction": "CH"
+},
+{
+"topic": "Sorgfaltspflichten - Kinderarbeit",
+"code": "Art. 964j OR",
+"content": "Unternehmen müssen Due-Diligence-Prüfungen durchführen und einen Bericht erstellen, wenn ein begründeter Verdacht besteht, dass Produkte oder Dienstleistungen, die sie anbieten, unter Einsatz von Kinderarbeit hergestellt wurden.",
+"level": "mandatory",
+"size": "all with child labour risks",
+"jurisdiction": "CH"
+},
+{
+"topic": "Strafbestimmungen",
+"code": "Art. 325ter StGB",
+"content": "Wer in den Berichten über nichtfinanzielle Belange, Konfliktmineralien oder Kinderarbeit falsche Angaben macht oder die Berichterstattungs- und Aufbewahrungspflichten verletzt, wird mit Busse bis zu 100'000 Franken bestraft (persönliche strafrechtliche Haftung des Verwaltungsrats).",
+"level": "mandatory",
+"size": "individuals (Board/Management)",
+"jurisdiction": "CH"
+},
+{
+"topic": "FINMA ESG Requirements",
+"code": "FINMA-Rundschreiben 2016/01",
+"content": "Die Eidgenössische Finanzmarktaufsicht (FINMA) verlangt von grossen Banken und Versicherungen (Kategorien 1 und 2) die systematische Offenlegung von wesentlichen klimabezogenen Finanzrisiken, basierend auf der TCFD-Methodik.",
+"level": "mandatory",
+"size": "large financial institutions",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss Climate Scores",
+"code": "Bundesrat Framework",
+"content": "Ein vom Bundesrat initiiertes, freiwilliges Transparenz-Framework für Finanzanlagen, das Anlegern vergleichbare Informationen liefert, inwieweit Finanzinvestitionen auf das Pariser Klimaabkommen ausgerichtet sind (z.B. Netto-Null-Ziele, globale Erwärmungspotenziale).",
+"level": "optional",
+"size": "financial products/funds",
+"jurisdiction": "CH"
+},
+{
+"topic": "Swiss Code of Best Practice for Corporate Governance",
+"code": "economiesuisse Code",
+"content": "Empfiehlt, dass der Verwaltungsrat die Nachhaltigkeitsstrategie (ESG) definiert, entsprechende Ziele in das Risikomanagement integriert und eine transparente, nachvollziehbare Nachhaltigkeitsberichterstattung für die Stakeholder sicherstellt.",
+"level": "optional",
+"size": "listed companies",
+"jurisdiction": "CH"
+},
+{
+"topic": "Executive Compensation & ESG (Vergütung)",
+"code": "Art. 732 ff. OR (ehemals VegüV)",
+"content": "Aufgrund der in das OR überführten Bestimmungen gegen übermässige Vergütungen (VegüV) stimmt die Generalversammlung über die Vorstandsvergütung ab. Best Practice in der Schweiz verknüpft variable Vergütungselemente zunehmend mit dem Erreichen quantifizierbarer ESG- und Nachhaltigkeitsziele.",
+"level": "best practice",
+"size": "listed companies",
+"jurisdiction": "CH"
+}
+]

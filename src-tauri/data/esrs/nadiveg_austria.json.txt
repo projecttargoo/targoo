@@ -1,0 +1,130 @@
+[
+{
+"topic": "NaDiVeG Austria - Pflicht zur nichtfinanziellen Erklärung",
+"code": "§ 243b Abs. 1 UGB",
+"content": "Große Kapitalgesellschaften, die Unternehmen von öffentlichem Interesse sind und im Jahresdurchschnitt mehr als 500 Arbeitnehmer beschäftigen, müssen eine nichtfinanzielle Erklärung in den Lagebericht aufnehmen.",
+"level": "mandatory",
+"size": "large PIE, >500 employees",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Inhalt: Geschäftsmodell",
+"code": "§ 243b Abs. 2 Z 1 UGB",
+"content": "Die nichtfinanzielle Erklärung hat eine kurze Beschreibung des Geschäftsmodells der Gesellschaft zu enthalten.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Inhalt: Kernbelange",
+"code": "§ 243b Abs. 2 UGB",
+"content": "Es sind Angaben zu machen, die für das Verständnis des Geschäftsverlaufs, des Geschäftsergebnisses, der Lage der Gesellschaft sowie der Auswirkungen ihrer Tätigkeit auf Umwelt-, Sozial- und Arbeitnehmerbelange, die Achtung der Menschenrechte und die Bekämpfung von Korruption und Bestechung erforderlich sind.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Inhalt: Konzepte und Due Diligence",
+"code": "§ 243b Abs. 2 Z 2 UGB",
+"content": "Die Erklärung muss eine Beschreibung der von der Gesellschaft verfolgten Konzepte in Bezug auf die nichtfinanziellen Belange enthalten, einschließlich der angewandten Due-Diligence-Prozesse.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Inhalt: Wesentliche Risiken",
+"code": "§ 243b Abs. 2 Z 4 UGB",
+"content": "Beschreibung der wesentlichen Risiken, die mit der Geschäftstätigkeit der Gesellschaft verknüpft sind und die sehr wahrscheinlich schwerwiegende negative Auswirkungen auf die Belange haben, sowie die Handhabung dieser Risiken.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Inhalt: Leistungsindikatoren (KPIs)",
+"code": "§ 243b Abs. 2 Z 5 UGB",
+"content": "Die Gesellschaft muss die für die Geschäftstätigkeit bedeutsamsten nichtfinanziellen Leistungsindikatoren angeben.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Comply or Explain",
+"code": "§ 243b Abs. 3 UGB",
+"content": "Verfolgt die Gesellschaft in Bezug auf einen oder mehrere der genannten Belange kein Konzept, so hat sie dies in der nichtfinanziellen Erklärung klar und begründet zu erklären.",
+"level": "mandatory",
+"size": "all within scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Konsolidierte nichtfinanzielle Erklärung (Konzernebene)",
+"code": "§ 267a UGB",
+"content": "Mutterunternehmen, die große Kapitalgesellschaften und Unternehmen von öffentlichem Interesse sind und auf konsolidierter Basis mehr als 500 Arbeitnehmer beschäftigen, müssen eine konsolidierte nichtfinanzielle Erklärung für den Konzern aufstellen.",
+"level": "mandatory",
+"size": "large group PIE, >500 employees",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Konzernbefreiung (Tochterunternehmen)",
+"code": "§ 243b Abs. 7 UGB",
+"content": "Tochterunternehmen sind von der Pflicht zur Erstellung einer nichtfinanziellen Erklärung befreit, wenn sie und ihre Tochterunternehmen in den konsolidierten Lagebericht eines Mutterunternehmens einbezogen werden, der die Anforderungen nach EU-Recht erfüllt.",
+"level": "conditional",
+"size": "subsidiaries",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Nutzung von Rahmenwerken",
+"code": "§ 243b Abs. 4 UGB",
+"content": "Für die Erstellung der Erklärung können nationale, unionsbasierte oder internationale Rahmenwerke (wie GRI, EMAS, UN Global Compact oder anerkannte nationale Kodizes) genutzt werden. Das angewandte Rahmenwerk ist im Bericht anzugeben.",
+"level": "optional",
+"size": "all within scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG CSRD Novelle 2024 - Ausweitung des Anwendungsbereichs",
+"code": "CSRD-Umsetzung AT (UGB Novelle)",
+"content": "Die Berichtspflicht wird schrittweise auf alle großen Kapitalgesellschaften (unabhängig von der Kapitalmarktorientierung) und später auf kapitalmarktorientierte kleine und mittelgroße Unternehmen (KMU) ausgeweitet.",
+"level": "mandatory",
+"size": "large companies & listed SMEs",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG CSRD Novelle 2024 - Verpflichtende ESRS",
+"code": "CSRD-Umsetzung AT (UGB Novelle)",
+"content": "Der Nachhaltigkeitsbericht muss zwingend nach den European Sustainability Reporting Standards (ESRS) erstellt werden und als eigener Abschnitt im Lagebericht integriert sein. Die Wahlfreiheit der Rahmenwerke entfällt.",
+"level": "mandatory",
+"size": "all under CSRD scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG CSRD Novelle 2024 - Externe Prüfung",
+"code": "CSRD-Umsetzung AT (UGB Novelle)",
+"content": "Es wird eine verpflichtende externe Prüfung der Nachhaltigkeitsberichterstattung durch einen Abschlussprüfer eingeführt (zunächst Limited Assurance, künftig Reasonable Assurance).",
+"level": "mandatory",
+"size": "all under CSRD scope",
+"jurisdiction": "AT"
+},
+{
+"topic": "FMA Reporting Requirements - Nachhaltigkeitsrisiken",
+"code": "FMA-Leitfaden",
+"content": "Die österreichische Finanzmarktaufsicht (FMA) fordert von beaufsichtigten Unternehmen die systematische Integration von Nachhaltigkeitsrisiken (physische und transitorische Klimarisiken) in Strategie, Governance und Risikomanagement sowie transparente Offenlegung in den Berichten.",
+"level": "mandatory",
+"size": "financial sector entities",
+"jurisdiction": "AT"
+},
+{
+"topic": "Austrian Enforcement - Zwangsstrafen",
+"code": "§ 283 UGB",
+"content": "Bei Nichtoffenlegung, verspäteter oder mangelhafter Veröffentlichung des Jahresabschlusses und des zugehörigen Lageberichts (inklusive der nichtfinanziellen Erklärung) verhängt das zuständige Firmenbuchgericht Zwangsstrafen ab 700 Euro bis zu 3.600 Euro, die sich bei andauernder Säumnis kumulativ erhöhen.",
+"level": "mandatory",
+"size": "all reporting entities",
+"jurisdiction": "AT"
+},
+{
+"topic": "NaDiVeG Austria - Diversitätskonzept",
+"code": "§ 243c Abs. 2 UGB",
+"content": "Große Aktiengesellschaften, deren Aktien zum Handel auf einem geregelten Markt zugelassen sind, müssen im Corporate Governance-Bericht das Diversitätskonzept beschreiben, das in Bezug auf die Zusammensetzung von Vorstand und Aufsichtsrat angewendet wird (z. B. Alter, Geschlecht, Bildungs- und Berufshintergrund).",
+"level": "mandatory",
+"size": "large listed companies",
+"jurisdiction": "AT"
+}
+]
