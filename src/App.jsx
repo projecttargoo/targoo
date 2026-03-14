@@ -135,6 +135,11 @@ export default function App() {
   const [animatedScore, setAnimatedScore] = useState(0);
   const [tourStep, setTourStep] = useState(0);
   
+  // Import State
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  
   // Onboarding State
   const [clients, setClients] = useState([]);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -175,11 +180,33 @@ export default function App() {
       else { current += 1; setAnimatedScore(current); }
     }, 20);
 
+    const unlistenDrop = listen('tauri://drag-drop', async (event) => {
+      if (event.payload.paths && event.payload.paths.length > 0) {
+        handleFileDrop(event.payload.paths);
+      }
+    });
+
     return () => {
       clearInterval(interval);
       unlisten.then(f => f());
+      unlistenDrop.then(f => f());
     };
   }, []);
+
+  const handleFileDrop = async (paths) => {
+    setIsImporting(true);
+    try {
+      const result = await invoke('import_files', { filePaths: paths });
+      setImportResult(result);
+      setShowImportModal(true);
+    } catch (e) {
+      console.error("Import failed", e);
+      setImportResult({ imported_count: 0, errors: [e.toString()], categories_found: [] });
+      setShowImportModal(true);
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const startModelDownload = async () => {
     setModelStatus('downloading');
@@ -507,6 +534,57 @@ export default function App() {
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       
+      {/* Sanity Check Modal */}
+      {showImportModal && importResult && (
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: 'white', width: '480px', borderRadius: '24px', padding: '40px', textAlign: 'left', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', border: '1px solid #E5E5E5' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1D1D1F', margin: 0 }}>Data Import Check</h2>
+              <button onClick={() => setShowImportModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#86868B' }}><X size={24} /></button>
+            </div>
+            
+            <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {importResult.categories_found.length > 0 && (
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Categories Found</div>
+                  {importResult.categories_found.map(cat => (
+                    <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#F5F5F7', borderRadius: '10px', marginBottom: '4px' }}>
+                      <CheckCircle2 size={16} color="#34C759" />
+                      <span style={{ fontSize: '14px', fontWeight: '500' }}>{cat}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {importResult.errors.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Warnings & Errors</div>
+                  {importResult.errors.map((err, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'start', gap: '8px', padding: '12px', backgroundColor: '#FFF4D6', borderRadius: '10px', marginBottom: '4px', border: '1px solid rgba(255,159,10,0.2)' }}>
+                      <Info size={16} color="#FF9F0A" style={{ marginTop: '2px', flexShrink: 0 }} />
+                      <span style={{ fontSize: '13px', color: '#1D1D1F', lineHeight: '1.4' }}>{err}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {importResult.imported_count === 0 && importResult.errors.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#86868B' }}>No relevant ESG data found in files.</div>
+              )}
+            </div>
+
+            <button 
+              onClick={() => { setShowImportModal(false); runGapAnalysis(); }}
+              style={{ width: '100%', height: '52px', backgroundColor: '#34C759', color: 'white', border: 'none', borderRadius: '16px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(52,199,89,0.2)' }}
+              onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              Continue to Analysis
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Onboarding & Tour Overlays */}
       {onboardingStep > 0 && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -578,9 +656,12 @@ export default function App() {
 
       <div style={s.layout}>
         <aside style={s.sidebar}>
-          <div style={{ padding: '0 12px 24px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>t</div>
-            <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F' }}>targoo</span>
+          <div style={{ padding: '0 12px 24px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>t</div>
+              <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F' }}>targoo</span>
+            </div>
+            {isImporting && <Loader2 className="animate-spin" size={16} color="#007AFF" />}
           </div>
           <nav style={{ marginBottom: '32px' }}>
             {['Dashboard', 'Gap Analysis', 'Reports', 'Settings'].map((item) => {
