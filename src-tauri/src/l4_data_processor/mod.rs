@@ -7,6 +7,7 @@ use crate::l6_audit::get_db_connection;
 pub mod esrs_mapper;
 pub mod pdf_parser;
 pub mod xml_parser;
+pub mod excel_cleaner;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImportedRecord {
