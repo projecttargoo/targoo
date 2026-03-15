@@ -7,6 +7,7 @@ mod l3_report;
 mod l4_data_processor;
 mod l5_prediction;
 mod l6_audit;
+mod l7_materiality;
 mod license;
 mod model_downloader;
 
@@ -23,6 +24,7 @@ pub fn run() {
         .manage(Mutex::new(None::<l1_rag::GemmaEngine>))
         .setup(|app| {
             l6_audit::init_audit_db(app.handle())?;
+            l7_materiality::init_materiality_db(app.handle())?;
             l1_rag::populate_esrs_database(app.handle())?;
             l1_rag::load_esrs_from_json(app.handle())?;
 
@@ -59,6 +61,9 @@ pub fn run() {
             l4_data_processor::import_files,
             l4_data_processor::esrs_mapper::map_to_esrs,
             l5_prediction::generate_predictions,
+            l7_materiality::get_materiality_topics,
+            l7_materiality::update_materiality_score,
+            l7_materiality::get_materiality_matrix,
             model_downloader::check_model,
             model_downloader::download_model
         ])
