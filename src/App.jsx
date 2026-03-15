@@ -432,12 +432,123 @@ export default function App() {
             <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Last updated: March 2025 · {activeClient.country} · ESRS Set 1</p>
           </div>
 
+          {/* Next Actions & Status Row */}
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+            {/* NEXT ACTIONS panel */}
+            <div style={{ 
+              flex: 1, 
+              backgroundColor: '#fff7ed', 
+              borderRadius: '16px', 
+              padding: '20px', 
+              border: '1px solid #ffedd5' 
+            }}>
+              <h3 style={{ fontSize: '12px', fontWeight: 'bold', color: '#9a3412', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 0, marginBottom: '12px' }}>⚠️ Next Actions</h3>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {[
+                  "ESRS E3 Water missing → Upload water consumption data",
+                  "Scope 3 incomplete → Generate supplier request",
+                  "3 standards critical → Open Gap Analysis"
+                ].map((action, i) => (
+                  <li key={i} style={{ fontSize: '13px', color: '#c2410c', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500' }}>
+                    <span style={{ fontSize: '14px' }}>⚠</span> {action}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* CSRD COMPLIANCE STATUS card */}
+            <div style={{ ...styles.card, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  borderRadius: '50%', 
+                  border: '4px solid #fef3c7', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  fontSize: '20px',
+                  backgroundColor: '#fffbeb'
+                }}>🟡</div>
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0f172a' }}>In Progress</div>
+                  <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>8 standards compliant · 3 critical gaps</div>
+                  <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Deadline: Jan 2025</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Countdown & Data Quality Row */}
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', alignItems: 'center' }}>
+            {/* Deadline Countdown */}
+            <div style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '16px', padding: '16px', border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>CSRD Filing Deadline</span>
+                <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#e11d48' }}>312 days remaining</span>
+              </div>
+              <div style={{ height: '8px', backgroundColor: '#f1f5f9', borderRadius: '9999px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: '65%', backgroundColor: '#10b981', borderRadius: '9999px' }} />
+              </div>
+            </div>
+
+            {/* Data Quality */}
+            <div style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '16px', padding: '16px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-around' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Completeness</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#0f172a' }}>82%</div>
+              </div>
+              <div style={{ width: '1px', backgroundColor: '#f1f5f9' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '2px' }}>Missing datasets</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#e11d48' }}>4</div>
+              </div>
+            </div>
+          </div>
+
           {/* KPI Cards */}
           <div style={styles.kpiRow}>
             <KPICard icon="📈" label="ESG Score" value="74" sub="Target: 80 by 2025" trend="+4.2%" delay={0} />
             <KPICard icon="🌿" label="Carbon Footprint" value="198t" sub="Scope 1 & 2 only" trend="-12%" delay={100} />
             <KPICard icon="⚡" label="Energy Intensity" value="12.5k" sub="kWh per ton product" trend="+2.1%" delay={200} />
             <KPICard icon="👥" label="Workforce" value="340" sub="12% growth YoY" delay={300} />
+          </div>
+
+          {/* Quick Actions Row */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+            <button style={{ 
+              flex: 1, 
+              padding: '12px', 
+              borderRadius: '12px', 
+              backgroundColor: '#10b981', 
+              color: 'white', 
+              border: 'none', 
+              fontWeight: '600', 
+              fontSize: '14px', 
+              cursor: 'pointer' 
+            }}>Generate CSRD Report</button>
+            <button style={{ 
+              flex: 1, 
+              padding: '12px', 
+              borderRadius: '12px', 
+              backgroundColor: '#3b82f6', 
+              color: 'white', 
+              border: 'none', 
+              fontWeight: '600', 
+              fontSize: '14px', 
+              cursor: 'pointer' 
+            }}>Run Gap Analysis</button>
+            <button style={{ 
+              flex: 1, 
+              padding: '12px', 
+              borderRadius: '12px', 
+              backgroundColor: '#94a3b8', 
+              color: 'white', 
+              border: 'none', 
+              fontWeight: '600', 
+              fontSize: '14px', 
+              cursor: 'pointer' 
+            }}>Export Word</button>
           </div>
 
           {/* Charts Row */}
