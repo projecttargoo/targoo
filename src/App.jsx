@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { demoData } from './demoData';
+import targooLogo from './assets/targoo-logo.png';
 import { 
   LayoutGrid, 
   BarChart2, 
@@ -175,8 +176,7 @@ export default function App() {
     checkLicenseStatus();
     const savedClients = localStorage.getItem('targoo_clients');
     if (savedClients) { setClients(JSON.parse(savedClients)); }
-    else if (localStorage.getItem('demo_completed') === 'true') { setOnboardingStep(1); }
-    if (!localStorage.getItem('demo_completed')) { startTour(); }
+    
     const target = demoData.scores.total;
     let current = 0;
     const interval = setInterval(() => {
@@ -729,17 +729,20 @@ export default function App() {
         <aside style={s.sidebar}>
           <div style={{ padding: '0 12px 24px 12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-              <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>t</div>
+              <img src={targooLogo} alt="Targoo" style={{height: '32px'}} />
               <span style={{ fontSize: '18px', fontWeight: '800', color: '#1D1D1F', letterSpacing: '-0.5px' }}>targoo</span>
             </div>
-            <span style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', marginLeft: '38px', marginTop: '-4px' }}>ESG Advisor</span>
+            <span style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', marginLeft: '42px', marginTop: '-4px' }}>ESG Advisor</span>
           </div>
           <nav style={{ marginBottom: '32px' }}>
             {['Dashboard', 'Gap Analysis', 'Reports', 'Settings'].map((item) => {
               const key = item.toLowerCase();
               const Icon = key === 'dashboard' ? LayoutGrid : key.includes('gap') ? BarChart2 : key.includes('rep') ? FileText : Settings;
               return (
-                <div key={item} style={s.navItem(activeNav === key)} onClick={() => setActiveNav(key)}>
+                <div key={item} style={s.navItem(activeNav === key)} onClick={() => {
+                  setActiveNav(key);
+                  if (key.includes('gap')) { runGapAnalysis(); }
+                }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Icon size={18} strokeWidth={2} style={{ opacity: activeNav === key ? 1 : 0.7 }} />
                     {item}
