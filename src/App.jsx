@@ -302,10 +302,10 @@ export default function App() {
     <div className="flex h-screen w-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       
       {/* LEFT SIDEBAR */}
-      <aside className="w-[260px] bg-white border-r border-gray-100 flex flex-col z-20">
+      <aside className="w-[260px] min-w-[260px] bg-white border-r border-gray-100 flex flex-col z-20">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-1">
-            <img src={targooLogo} alt="Targoo" className="h-8 w-auto" />
+            <img src="/src/assets/targoo-logo.png" style={{height: '36px', width: 'auto'}} alt="Targoo" />
             <span className="text-lg font-black tracking-tighter">targoo</span>
           </div>
           <div className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] ml-1">ESG Advisor</div>
@@ -585,7 +585,7 @@ export default function App() {
       </main>
 
       {/* RIGHT SIDEBAR (AI COMPASS) */}
-      <aside className="w-[300px] bg-white border-l border-gray-100 flex flex-col z-20">
+      <aside className="w-[300px] min-w-[300px] bg-white border-l border-gray-100 flex flex-col z-20">
         <header className="p-6 border-b border-gray-100 bg-white">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
