@@ -310,7 +310,7 @@ export default function App() {
   };
 
   const navItems = [
-    { id: "dashboard", icon: "⬛", label: "Dashboard" },
+    { id: "dashboard", icon: "🏠", label: "Dashboard" },
     { id: "gap", icon: "📊", label: "Gap Analysis" },
     { id: "reports", icon: "📄", label: "Reports" },
     { id: "settings", icon: "⚙️", label: "Settings" },
@@ -324,18 +324,7 @@ export default function App() {
         {/* Logo */}
         <div style={{ padding: '20px', borderBottom: '1px solid #f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '12px',
-              backgroundColor: '#059669',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-            }}>
-              <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '14px' }}>T</span>
-            </div>
+            <img src="./assets/targoo-logo.png" style={{height: '32px', width: 'auto', objectFit: 'contain'}} alt="targoo" />
             <div>
               <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '14px', lineHeight: '1' }}>targoo</div>
               <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>ESG Advisor</div>
