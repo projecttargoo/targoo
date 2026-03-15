@@ -1,5 +1,4 @@
 use tauri::{AppHandle, Manager, Runtime, Emitter};
-use std::path::PathBuf;
 use std::fs;
 use std::io::Write;
 use sha2::{Sha256, Digest};

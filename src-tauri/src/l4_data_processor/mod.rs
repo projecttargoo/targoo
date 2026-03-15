@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use tauri::{command, AppHandle};
 use crate::l6_audit::get_db_connection;
 
+pub mod esrs_mapper;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImportedRecord {
     pub source_file: String,
@@ -88,7 +90,7 @@ fn parse_excel(file_path: &str, errors: &mut Vec<String>) -> Vec<ImportedRecord>
                     continue;
                 }
 
-                for (row_idx, row) in rows.enumerate() {
+                for (_row_idx, row) in rows.enumerate() {
                     let value = row.get(val_idx.unwrap()).map(|c| c.to_string()).unwrap_or_default();
                     if value.is_empty() { continue; }
 

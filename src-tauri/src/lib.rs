@@ -57,6 +57,7 @@ pub fn run() {
             l4_data_processor::calculate_emissions,
             l4_data_processor::get_translations,
             l4_data_processor::import_files,
+            l4_data_processor::esrs_mapper::map_to_esrs,
             l5_prediction::generate_predictions,
             model_downloader::check_model,
             model_downloader::download_model
