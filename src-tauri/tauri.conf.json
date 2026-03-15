@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "targoo",
+  "productName": "Targoo",
   "version": "0.1.0",
   "identifier": "com.targoo.advisor",
   "build": {
@@ -24,8 +24,7 @@
   "bundle": {
     "active": true,
     "targets": [
-      "nsis",
-      "msi"
+      "nsis"
     ],
     "publisher": "Targoo Software",
     "copyright": "2025 Targoo Software",
@@ -40,11 +39,10 @@
           "German"
         ],
         "displayLanguageSelector": false,
-        "installerIcon": "icons/icon.png",
+        "installerIcon": "icons/icon.ico",
         "headerImage": "icons/icon.png",
         "sidebarImage": "icons/icon.png"
       },
-      "wix": null,
       "webviewInstallMode": {
         "type": "downloadBootstrapper",
         "silent": true
