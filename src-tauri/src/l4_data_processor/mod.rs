@@ -5,6 +5,7 @@ use tauri::{command, AppHandle};
 use crate::l6_audit::get_db_connection;
 
 pub mod esrs_mapper;
+pub mod pdf_parser;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ImportedRecord {
