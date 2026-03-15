@@ -8,6 +8,7 @@ mod l4_data_processor;
 mod l5_prediction;
 mod l6_audit;
 mod l7_materiality;
+mod l8_workspace;
 mod license;
 mod model_downloader;
 
@@ -22,9 +23,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(Mutex::new(None::<l1_rag::GemmaEngine>))
+        .manage(l8_workspace::WorkspaceState {
+            active_project_id: Mutex::new(None),
+        })
         .setup(|app| {
             l6_audit::init_audit_db(app.handle())?;
             l7_materiality::init_materiality_db(app.handle())?;
+            l8_workspace::init_workspace_db(app.handle())?;
             l1_rag::populate_esrs_database(app.handle())?;
             l1_rag::load_esrs_from_json(app.handle())?;
 
@@ -67,6 +72,11 @@ pub fn run() {
             l7_materiality::get_materiality_topics,
             l7_materiality::update_materiality_score,
             l7_materiality::get_materiality_matrix,
+            l8_workspace::create_client,
+            l8_workspace::get_clients,
+            l8_workspace::create_project,
+            l8_workspace::get_projects,
+            l8_workspace::set_active_project,
             model_downloader::check_model,
             model_downloader::download_model
         ])
