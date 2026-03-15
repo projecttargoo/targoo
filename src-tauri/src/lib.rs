@@ -61,6 +61,7 @@ pub fn run() {
             l4_data_processor::import_files,
             l4_data_processor::esrs_mapper::map_to_esrs,
             l4_data_processor::pdf_parser::import_pdf,
+            l4_data_processor::xml_parser::import_xml,
             l5_prediction::generate_predictions,
             l7_materiality::get_materiality_topics,
             l7_materiality::update_materiality_score,

@@ -36,6 +36,7 @@ futures-util = "0.3"
 llama_cpp = "0.3"
 pdf-extract = "0.7"
 regex = "1"
+quick-xml = "0.36"
 
 
 

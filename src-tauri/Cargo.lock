@@ -3290,6 +3290,15 @@ dependencies = [
 
 [[package]]
 name = "quick-xml"
+version = "0.36.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7649a7b4df05aed9ea7ec6f628c67c9953a43869b8bc50929569b2999d443fe"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "quick-xml"
 version = "0.38.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b66c2058c55a409d601666cffe35f04333cf1013010882cec174a7467cd4e21c"
@@ -4345,6 +4354,7 @@ dependencies = [
  "futures-util",
  "llama_cpp",
  "pdf-extract",
+ "quick-xml 0.36.2",
  "regex",
  "reqwest 0.12.28",
  "rusqlite",
