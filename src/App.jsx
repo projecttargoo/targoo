@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { demoData } from './demoData';
@@ -35,7 +35,13 @@ import {
   Database,
   Info,
   Lock,
-  Download
+  Download,
+  Compass,
+  TrendingUp,
+  Leaf,
+  AlertTriangle,
+  Trash2,
+  PlusCircle
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -44,75 +50,114 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  ReferenceLine,
+  AreaChart,
+  Area
 } from 'recharts';
 
-// --- Components ---
+// --- Styled Components / Helpers ---
 
-const Card = ({ children, title, style, id }) => (
-  <div id={id} className="premium-card" style={{
-    backgroundColor: '#FFFFFF',
-    borderRadius: '16px',
-    border: '1px solid #E5E5E5',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-    padding: '24px',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'all 0.3s ease',
-    ...style
-  }}>
-    {title && (
-      <h3 style={{ margin: '0 0 16px 0', fontSize: '15px', fontWeight: '600', color: '#1D1D1F' }}>{title}</h3>
-    )}
-    {children}
-  </div>
-);
-
-const Skeleton = ({ width, height, borderRadius = '8px' }) => (
-  <div className="skeleton" style={{ width, height, borderRadius, marginBottom: '8px' }} />
-);
-
-const CircularProgress = ({ value, animatedValue, size = 160, strokeWidth = 12 }) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (animatedValue / 100) * circumference;
+const Card = ({ children, className = "", delay = 0 }) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), delay);
+    return () => clearTimeout(timer);
+  }, [delay]);
 
   return (
-    <div style={{ position: 'relative', width: size, height: size, margin: '0 auto' }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={radius} stroke="#F5F5F7" strokeWidth={strokeWidth} fill="none" />
-        <circle cx={size / 2} cy={size / 2} r={radius} stroke="#007AFF" strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.5s ease-out' }} />
-      </svg>
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: '42px', fontWeight: '700', color: '#1D1D1F', letterSpacing: '-1px' }}>{Math.floor(animatedValue)}</span>
-        <span style={{ fontSize: '13px', fontWeight: '500', color: '#86868B', marginTop: '-4px' }}>ESG SCORE</span>
-      </div>
+    <div className={`bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-all duration-500 transform ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} ${className}`}>
+      {children}
     </div>
   );
 };
 
-const ProgressBar = ({ label, value, color, trend }) => (
-  <div style={{ marginBottom: '16px' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', alignItems: 'center' }}>
-      <span style={{ fontSize: '13px', fontWeight: '500', color: '#1D1D1F' }}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {trend === 'up' ? <ArrowUp size={12} color="#34C759" /> : <ArrowDown size={12} color="#FF3B30" />}
-        <span style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>{value}%</span>
+const KPICard = ({ title, value, sub, icon: Icon, color, trend, delay }) => (
+  <Card className="flex flex-col h-full" delay={delay}>
+    <div className="flex justify-between items-start mb-2">
+      <div className={`p-2 rounded-lg ${color} bg-opacity-10 text-${color.split('-')[1]}-600`}>
+        <Icon size={20} />
       </div>
+      {trend && (
+        <div className="flex items-center text-xs font-semibold text-emerald-600">
+          <TrendingUp size={14} className="mr-1" />
+          {trend}
+        </div>
+      )}
     </div>
-    <div style={{ width: '100%', height: '8px', backgroundColor: '#F5F5F7', borderRadius: '4px', overflow: 'hidden' }}>
-      <div style={{ width: `${value}%`, height: '100%', backgroundColor: color, borderRadius: '4px', transition: 'width 1.5s ease-in-out' }} />
-    </div>
-  </div>
+    <div className="text-2xl font-bold text-gray-900">{value}</div>
+    <div className="text-xs font-medium text-gray-400 mt-1 uppercase tracking-wider">{title}</div>
+    <div className="text-[10px] text-gray-500 mt-2">{sub}</div>
+  </Card>
 );
 
-const StatusBadge = ({ status }) => {
-  const colors = { green: { bg: '#E1F7E3', dot: '#34C759' }, yellow: { bg: '#FFF4D6', dot: '#FF9F0A' }, red: { bg: '#FFEBEB', dot: '#FF3B30' } };
-  const c = colors[status] || colors.yellow;
+const ESGRing = ({ scores }) => {
+  const [hovered, setHovered] = useState(null);
+  const size = 180;
+  const center = size / 2;
+  const radius = 70;
+  const strokeWidth = 14;
+  const circumference = 2 * Math.PI * radius;
+  
+  const segments = [
+    { label: 'Environmental', value: scores.environmental, color: '#10b981', key: 'E' },
+    { label: 'Social', value: scores.social, color: '#3b82f6', key: 'S' },
+    { label: 'Governance', value: scores.governance, color: '#8b5cf6', key: 'G' }
+  ];
+
   return (
-    <div style={{ backgroundColor: c.bg, height: '24px', padding: '0 10px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(0,0,0,0.02)' }}>
-      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: c.dot }} />
-      <span style={{ fontSize: '11px', fontWeight: '600', color: '#1D1D1F', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{status}</span>
+    <div className="relative flex flex-col items-center justify-center py-4">
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle cx={center} cy={center} r={radius} fill="none" stroke="#f3f4f6" strokeWidth={strokeWidth} />
+        {segments.map((s, i) => {
+          const offset = circumference - (s.value / 100) * circumference;
+          return (
+            <circle 
+              key={s.key}
+              cx={center} cy={center} r={radius} fill="none" 
+              stroke={s.color} strokeWidth={strokeWidth} strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              className="transition-all duration-1000 ease-out cursor-pointer hover:opacity-80"
+              onMouseEnter={() => setHovered(s)}
+              onMouseLeave={() => setHovered(null)}
+              style={{ filter: hovered && hovered.key !== s.key ? 'grayscale(0.5) opacity(0.3)' : 'none' }}
+            />
+          );
+        })}
+      </svg>
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+        <div className="text-3xl font-extrabold text-gray-900">{scores.total}</div>
+        <div className="text-[10px] font-bold text-gray-400 uppercase">ESG SCORE</div>
+      </div>
+      {hovered && (
+        <div className="absolute -bottom-2 bg-gray-900 text-white text-[10px] px-2 py-1 rounded shadow-lg animate-in fade-in zoom-in duration-200">
+          {hovered.label}: {hovered.value}%
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CustomProgressBar = ({ label, value, color, delay }) => {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const timer = setTimeout(() => setWidth(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return (
+    <div className="mb-4">
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-xs font-semibold text-gray-700">{label}</span>
+        <span className="text-xs font-bold text-gray-900">{value}%</span>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${color} rounded-full transition-all duration-1000 ease-out`}
+          style={{ width: `${width}%` }}
+        />
+      </div>
     </div>
   );
 };
@@ -120,773 +165,501 @@ const StatusBadge = ({ status }) => {
 // --- Main App Component ---
 
 export default function App() {
-  const [modelStatus, setModelStatus] = useState('checking'); // checking, not_found, downloading, ready
+  const [modelStatus, setModelStatus] = useState('checking');
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [activeNav, setActiveNav] = useState('dashboard');
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatHistory] = useState(demoData.aiHistory);
+  const [chatMessages, setChatHistory] = useState([]);
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [clients, setClients] = useState([]);
+  const [activeClient, setActiveClient] = useState(null);
   const [gapData, setGapData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  const [reportPath, setReportPath] = useState(null);
   const [license, setLicense] = useState(demoData.license);
-  const [isDragActive, setIsDragActive] = useState(false);
-  const [droppedFile, setDroppedFile] = useState(null);
-  const [animatedScore, setAnimatedScore] = useState(0);
-  const [tourStep, setTourStep] = useState(0);
-  
-  // UI States
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
-  const [showPricingModal, setShowPricingModal] = useState(false);
-  
-  // Import State
-  const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState(null);
-  const [showImportModal, setShowImportModal] = useState(false);
-  
-  // Onboarding State
-  const [clients, setClients] = useState([]);
-  const [onboardingStep, setOnboardingStep] = useState(0);
-  const [newClient, setNewClient] = useState({ name: '', industry: 'Manufacturing', country: 'DE', employees: '51-200' });
-  const [onboardingProgress, setOnboardingProgress] = useState(0);
-
-  // Settings State
-  const [activeSettingsTab, setActiveSettingsTab] = useState('account');
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
     const init = async () => {
       const status = await invoke('check_model');
       setModelStatus(status);
-      
-      if (status === 'not_found') {
-        startModelDownload();
-      }
+      if (status === 'not_found') startModelDownload();
     };
-
     init();
 
-    const unlisten = listen('download_progress', (event) => {
+    const unlistenProgress = listen('download_progress', (event) => {
       setDownloadProgress(event.payload);
-      if (event.payload >= 100) {
-        setTimeout(() => setModelStatus('ready'), 2000);
-      }
+      if (event.payload >= 100) setTimeout(() => setModelStatus('ready'), 1500);
     });
 
-    checkLicenseStatus();
     const savedClients = localStorage.getItem('targoo_clients');
-    if (savedClients) { setClients(JSON.parse(savedClients)); }
-    
-    const target = demoData.scores.total;
-    let current = 0;
-    const interval = setInterval(() => {
-      if (current >= target) { clearInterval(interval); }
-      else { current += 1; setAnimatedScore(current); }
-    }, 20);
+    if (savedClients) {
+      const parsed = JSON.parse(savedClients);
+      setClients(parsed);
+      setActiveClient(parsed[0]);
+    } else {
+      setClients([demoData.company]);
+      setActiveClient(demoData.company);
+    }
 
-    const unlistenDrop = listen('tauri://drag-drop', async (event) => {
-      if (event.payload.paths && event.payload.paths.length > 0) {
-        handleFileDrop(event.payload.paths);
-      }
-    });
+    // Proactive greeting
+    setTimeout(() => {
+      setChatHistory([demoData.aiHistory[0]]);
+    }, 1000);
 
     return () => {
-      clearInterval(interval);
-      unlisten.then(f => f());
-      unlistenDrop.then(f => f());
+      unlistenProgress.then(f => f());
     };
   }, []);
 
-  const handleFileDrop = async (paths) => {
-    setIsImporting(true);
-    try {
-      const result = await invoke('import_files', { filePaths: paths });
-      setImportResult(result);
-      setShowImportModal(true);
-    } catch (e) {
-      console.error("Import failed", e);
-      setImportResult({ imported_count: 0, errors: [e.toString()], categories_found: [] });
-      setShowImportModal(true);
-    } finally {
-      setIsImporting(false);
-    }
-  };
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
   const startModelDownload = async () => {
     setModelStatus('downloading');
-    try {
-      await invoke('download_model');
-    } catch (e) {
-      console.error("Download failed", e);
-      setModelStatus('not_found');
-    }
-  };
-
-  const startTour = () => {
-    setTourStep(1);
-    setTimeout(() => { setTourStep(2); setActiveNav('gap analysis'); }, 3000);
-    setTimeout(() => { setTourStep(3); }, 12000);
-    setTimeout(() => { setTourStep(4); }, 20000);
-    setTimeout(() => { setTourStep(5); }, 28000);
-    setTimeout(() => { setTourStep(0); localStorage.setItem('demo_completed', 'true'); if (clients.length === 0) setOnboardingStep(1); }, 35000);
-  };
-
-  const skipTour = () => { setTourStep(0); localStorage.setItem('demo_completed', 'true'); if (clients.length === 0) setOnboardingStep(1); };
-
-  const checkLicenseStatus = async () => {
-    try {
-      const response = await invoke('get_license_state');
-      setLicense(JSON.parse(response));
-    } catch (e) {}
-  };
-
-  const runGapAnalysis = async () => {
-    setIsLoading(true);
-    try {
-      const response = await invoke('gap_analysis', { input: { company_size: newClient.employees, sector: newClient.industry, country: newClient.country } });
-      const parsed = JSON.parse(response);
-      const topics = Object.entries(parsed.topics).map(([name, status], idx) => ({ id: `E${idx + 1}`, name, status, action: "Analysis pending", hours: 0 }));
-      setGapData(topics);
-    } catch (e) { setGapData(demoData.gapMatrix); }
-    finally { setIsLoading(false); }
-  };
-
-  const handleOnboardingContinue = () => {
-    if (onboardingStep === 1) { if (!newClient.name) return; setOnboardingStep(2); }
-    else if (onboardingStep === 2) { setOnboardingStep(3); startOnboardingAnalysis(); }
-  };
-
-  const startOnboardingAnalysis = () => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 2; setOnboardingProgress(progress);
-      if (progress >= 100) { clearInterval(interval); finishOnboarding(); }
-    }, 50);
-  };
-
-  const finishOnboarding = () => {
-    const client = { ...newClient, status: 'Active', lastUpdated: 'Just now' };
-    const updatedClients = [client];
-    setClients(updatedClients);
-    localStorage.setItem('targoo_clients', JSON.stringify(updatedClients));
-    runGapAnalysis();
-    setTimeout(() => setOnboardingStep(0), 500);
-  };
-
-  const handleGenerateReport = async () => {
-    if (!disclaimerAccepted) return;
-    
-    // Trigger pricing modal if it's a trial and limit reached
-    if (license.usage_count >= 3) {
-      setShowPricingModal(true);
-      return;
-    }
-
-    setIsGeneratingReport(true);
-    try {
-      const path = await invoke('generate_report', { 
-        companyName: activeClient.name, 
-        language: 'en' 
-      });
-      setReportPath(path);
-      checkLicenseStatus(); // Refresh usage count
-    } catch (e) {
-      console.error(e);
-      alert("Failed to generate report: " + e);
-    } finally {
-      setIsGeneratingReport(false);
-    }
+    try { await invoke('download_model'); }
+    catch (e) { setModelStatus('not_found'); }
   };
 
   const handleSendChat = async () => {
     if (!chatInput.trim()) return;
     const userMessage = { id: Date.now(), sender: 'user', text: chatInput };
     setChatHistory(prev => [...prev, userMessage]);
-    const input = chatInput; setChatInput(''); setIsAiTyping(true);
+    setChatInput('');
+    setIsAiTyping(true);
     try {
-      const response = await invoke('ask_ai', { question: input });
+      const response = await invoke('ask_ai', { question: chatInput });
       const parts = response.split('---');
-      setChatHistory(prev => [...prev, { id: Date.now()+1, sender: 'ai', text: parts[0].trim(), citations: parts[1]?.trim() || '' }]);
-    } catch (e) { setChatHistory(prev => [...prev, { id: Date.now()+1, sender: 'ai', text: "Error processing request." }]); }
-    finally { setIsAiTyping(false); }
+      setChatHistory(prev => [...prev, { 
+        id: Date.now() + 1, 
+        sender: 'ai', 
+        text: parts[0].trim(), 
+        citations: parts[1]?.trim() || '' 
+      }]);
+    } catch (e) {
+      setChatHistory(prev => [...prev, { id: Date.now() + 1, sender: 'ai', text: "Engine offline. Please check model status." }]);
+    } finally {
+      setIsAiTyping(false);
+    }
   };
 
-  const s = {
-    layout: { display: 'grid', gridTemplateColumns: '240px 1fr 320px', height: '100vh', width: '100vw', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif', backgroundColor: '#FFFFFF', overflow: 'hidden' },
-    sidebar: { backgroundColor: '#F5F5F7', borderRight: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column', padding: '20px 16px' },
-    center: { backgroundColor: '#FFFFFF', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-    centerContent: { flex: 1, overflowY: 'auto', padding: '32px', display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px', alignContent: 'start' },
-    rightPanel: { backgroundColor: '#FFFFFF', borderLeft: '1px solid #E5E5E5', display: 'flex', flexDirection: 'column' },
-    navItem: (isActive) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: isActive ? '600' : '400', color: isActive ? '#1D1D1F' : '#424245', backgroundColor: isActive ? 'rgba(0,0,0,0.05)' : 'transparent', marginBottom: '4px', transition: 'all 0.2s ease' }),
-    header: { height: '72px', borderBottom: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', background: 'linear-gradient(to bottom, #FFFFFF, #F8F8F8)', position: 'sticky', top: 0, zIndex: 10 },
-    settingsPanel: { display: 'flex', height: '100%', overflow: 'hidden' },
-    settingsSidebar: { width: '220px', borderRight: '1px solid #E5E5E5', padding: '20px 12px', backgroundColor: '#FDFDFD' },
-    settingsContent: { flex: 1, padding: '40px 60px', overflowY: 'auto' },
-    settingsGroup: { marginBottom: '32px' },
-    settingsLabel: { display: 'block', fontSize: '12px', fontWeight: '700', color: '#1D1D1F', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' },
-    settingsRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #F5F5F7' }
+  const runGapAnalysis = async () => {
+    setIsLoading(true);
+    try {
+      const response = await invoke('gap_analysis', { input: { 
+        company_size: activeClient?.employees || '150', 
+        sector: activeClient?.sector || 'Manufacturing', 
+        country: 'DE' 
+      } });
+      const parsed = JSON.parse(response);
+      const topics = Object.entries(parsed.topics).map(([name, status], idx) => ({ 
+        id: `E${idx + 1}`, name, status, action: "Analysis pending" 
+      }));
+      setGapData(topics);
+    } catch (e) {
+      setGapData(demoData.gapMatrix);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const activeClient = clients[0] || { ...demoData.company, name: "Hans GmbH Demo" };
+  const clearChat = () => setChatHistory([demoData.aiHistory[0]]);
 
   if (modelStatus === 'checking') {
     return (
-      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
-        <Loader2 className="animate-spin" size={32} color="#007AFF" />
+      <div className="w-screen h-screen flex flex-col items-center justify-center bg-white">
+        <div className="w-16 h-16 relative">
+          <div className="absolute inset-0 border-4 border-emerald-100 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
+        </div>
+        <div className="mt-4 text-emerald-800 font-medium tracking-tight">Initializing Targoo Engine...</div>
       </div>
     );
   }
 
   if (modelStatus === 'not_found' || modelStatus === 'downloading') {
-    const isDone = downloadProgress >= 100;
     return (
-      <div style={{ 
-        width: '100vw', 
-        height: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        backgroundColor: '#FFFFFF',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif'
-      }}>
-        <div style={{ 
-          width: '100px', 
-          height: '100px', 
-          background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', 
-          borderRadius: '24px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          color: 'white', 
-          fontWeight: '800', 
-          fontSize: '48px', 
-          marginBottom: '40px',
-          boxShadow: '0 20px 40px rgba(46,125,50,0.15)'
-        }}>t</div>
-        
-        <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1D1D1F', marginBottom: '8px' }}>
-          {isDone ? 'AI Engine Ready' : 'Setting up AI Engine'}
-          {isDone && <CheckCircle2 size={24} color="#34C759" style={{ marginLeft: '12px', display: 'inline-block', verticalAlign: 'middle' }} />}
-        </h2>
-        
-        <p style={{ fontSize: '17px', color: '#86868B', marginBottom: '48px' }}>
-          {isDone ? 'Starting your ESG advisor workspace...' : 'Downloading Gemma 3 1B ESG Model (800MB)'}
-        </p>
-
-        {!isDone && (
-          <div style={{ width: '320px' }}>
-            <div style={{ width: '100%', height: '6px', backgroundColor: '#F5F5F7', borderRadius: '3px', overflow: 'hidden', marginBottom: '16px' }}>
-              <div style={{ 
-                width: `${downloadProgress}%`, 
-                height: '100%', 
-                backgroundColor: '#007AFF', 
-                borderRadius: '3px', 
-                transition: 'width 0.3s ease-out' 
-              }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>{Math.floor(downloadProgress)}% complete</span>
-              <span style={{ fontSize: '13px', color: '#86868B' }}>
-                {downloadProgress > 0 ? `${Math.ceil((100 - downloadProgress) * 0.5)}s remaining` : 'Calculating...'}
-              </span>
-            </div>
-            <p style={{ fontSize: '12px', color: '#AEAEB2', textAlign: 'center', marginTop: '32px' }}>This only happens once</p>
+      <div className="w-screen h-screen flex flex-col items-center justify-center bg-gray-50 font-sans">
+        <div className="w-20 h-20 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-200 mb-8 transform hover:scale-105 transition-transform duration-500">
+          <span className="text-white text-5xl font-black">t</span>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Setting up CSRD Core</h2>
+        <p className="text-gray-500 mb-8 max-w-xs text-center">Downloading local ESG knowledge base (Gemma 3 1B). No cloud data leak.</p>
+        <div className="w-64">
+          <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden mb-3">
+            <div className="h-full bg-emerald-500 transition-all duration-300 ease-out" style={{ width: `${downloadProgress}%` }} />
           </div>
-        )}
+          <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <span>{Math.floor(downloadProgress)}% COMPLETE</span>
+            <span>PROCEEDING...</span>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const renderSettings = () => (
-    <div style={s.settingsPanel}>
-      <aside style={s.settingsSidebar}>
-        {[
-          { id: 'account', label: 'Account & License', icon: CreditCard },
-          { id: 'branding', label: 'Branding', icon: Palette },
-          { id: 'language', label: 'Language', icon: Languages },
-          { id: 'reports', label: 'Report Settings', icon: FileCog },
-          { id: 'privacy', label: 'Data & Privacy', icon: Database },
-          { id: 'about', label: 'About', icon: Info }
-        ].map(item => (
-          <div 
-            key={item.id} 
-            onClick={() => setActiveSettingsTab(item.id)}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', marginBottom: '4px',
-              backgroundColor: activeSettingsTab === item.id ? '#007AFF' : 'transparent',
-              color: activeSettingsTab === item.id ? 'white' : '#1D1D1F',
-              fontWeight: activeSettingsTab === item.id ? '600' : '400',
-              transition: 'all 0.2s'
-            }}
-          >
-            <item.icon size={16} />
-            {item.label}
-          </div>
-        ))}
-      </aside>
-      
-      <div style={s.settingsContent}>
-        {activeSettingsTab === 'account' && (
-          <div className="onboarding-step">
-            <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>Account & License</h2>
-            <p style={{ color: '#86868B', marginBottom: '32px' }}>Manage your subscription and advisor engine limits.</p>
-            
-            <Card style={{ marginBottom: '24px', background: 'linear-gradient(135deg, #F5F5F7, #FFFFFF)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: '#007AFF', textTransform: 'uppercase', marginBottom: '4px' }}>Current Plan</div>
-                  <div style={{ fontSize: '20px', fontWeight: '700' }}>Trial Version</div>
-                </div>
-                <StatusBadge status="yellow" />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#86868B' }}>Time remaining</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600' }}>{license.days_remaining} Days</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#86868B' }}>Reports generated</div>
-                  <div style={{ fontSize: '16px', fontWeight: '600' }}>{license.usage_count} / 5</div>
-                </div>
-              </div>
-            </Card>
-            
-            <button style={{ width: '100%', height: '56px', backgroundColor: '#34C759', color: 'white', border: 'none', borderRadius: '16px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 4px 15px rgba(52,199,89,0.3)' }}>
-              Upgrade to Pro — €399 / mo <Zap size={18} fill="white" />
-            </button>
-          </div>
-        )}
-
-        {activeSettingsTab === 'branding' && (
-          <div className="onboarding-step">
-            <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>Branding</h2>
-            <div style={{ position: 'relative', opacity: 0.6, pointerEvents: 'none' }}>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-                <div style={{ backgroundColor: '#1D1D1F', color: 'white', padding: '12px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
-                  <Lock size={16} /> Pro Feature Only
-                </div>
-              </div>
-              <p style={{ color: '#86868B', marginBottom: '32px' }}>Customize report headers and company logos.</p>
-              <div style={s.settingsGroup}>
-                <label style={s.settingsLabel}>Company Logo</label>
-                <div style={{ width: '80px', height: '80px', border: '2px dashed #E5E5E5', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Palette size={24} color="#86868B" />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeSettingsTab === 'language' && (
-          <div className="onboarding-step">
-            <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>Language</h2>
-            <p style={{ color: '#86868B', marginBottom: '32px' }}>Set your preferred UI and report language.</p>
-            <div style={s.settingsGroup}>
-              <label style={s.settingsLabel}>App Interface</label>
-              <select style={{ width: '100%', height: '44px', padding: '0 12px', borderRadius: '10px', border: '1px solid #E5E5E5', outline: 'none', backgroundColor: 'white' }}>
-                <option>English</option>
-                <option>Deutsch</option>
-                <option>Français</option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {activeSettingsTab === 'reports' && (
-          <div className="onboarding-step">
-            <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>Report Settings</h2>
-            <p style={{ color: '#86868B', marginBottom: '32px' }}>Configure how your ESRS reports are generated.</p>
-            <div style={s.settingsGroup}>
-              <label style={s.settingsLabel}>Default Report Language</label>
-              <select style={{ width: '100%', height: '44px', padding: '0 12px', borderRadius: '10px', border: '1px solid #E5E5E5', outline: 'none', backgroundColor: 'white' }}>
-                <option>English</option>
-                <option>Deutsch</option>
-              </select>
-            </div>
-            <div style={s.settingsRow}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: '600' }}>Include Executive Summary</div>
-                <div style={{ fontSize: '12px', color: '#86868B' }}>Add a high-level overview for management.</div>
-              </div>
-              <input type="checkbox" defaultChecked style={{ width: '20px', height: '20px', accentColor: '#007AFF' }} />
-            </div>
-            <div style={s.settingsRow}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: '600' }}>Detailed Methodology</div>
-                <div style={{ fontSize: '12px', color: '#86868B' }}>Show L1-L6 engine process details.</div>
-              </div>
-              <input type="checkbox" style={{ width: '20px', height: '20px', accentColor: '#007AFF' }} />
-            </div>
-          </div>
-        )}
-
-        {activeSettingsTab === 'privacy' && (
-          <div className="onboarding-step">
-            <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>Data & Privacy</h2>
-            <p style={{ color: '#86868B', marginBottom: '32px' }}>Your data security is our highest priority.</p>
-            <Card style={{ backgroundColor: '#F9F9FB', border: 'none', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <ShieldCheck size={24} color="#34C759" />
-                <div style={{ fontSize: '15px', fontWeight: '600' }}>Local-First Architecture</div>
-              </div>
-              <p style={{ fontSize: '13px', color: '#424245', lineHeight: '1.5' }}>All ESG metrics, client data, and audit logs are stored exclusively on this machine. No data is sent to the cloud for processing.</p>
-            </Card>
-            <div style={s.settingsRow}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: '600' }}>Export Audit Log</div>
-                <div style={{ fontSize: '12px', color: '#86868B' }}>Download CSV of all session activities.</div>
-              </div>
-              <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', border: '1px solid #E5E5E5', background: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                <Download size={14} /> Export
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeSettingsTab === 'about' && (
-          <div className="onboarding-step" style={{ textAlign: 'center', paddingTop: '40px' }}>
-            <div style={{ width: '100px', height: '100px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '48px', margin: '0 auto 24px', boxShadow: '0 15px 40px rgba(46,125,50,0.2)' }}>t</div>
-            <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '4px' }}>targoo advisor engine</h2>
-            <div style={{ fontSize: '14px', color: '#86868B', marginBottom: '40px' }}>Version 0.1.0 (Alpha Build)</div>
-            <div style={{ maxWidth: '400px', margin: '0 auto', fontSize: '12px', color: '#86868B', lineHeight: '1.6' }}>
-              Designed for professional sustainability advisors. ESRS & CSRD compliance engine powered by SQLite FTS5 and local RAG technology.
-              <br/><br/>
-              © 2026 targoo GmbH. All rights reserved.
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+    <div className="flex h-screen w-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       
-      {/* Pricing Modal */}
-      {showPricingModal && (
-        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(15px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ backgroundColor: 'white', width: '800px', borderRadius: '32px', padding: '48px', textAlign: 'center', boxShadow: '0 30px 100px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)', position: 'relative' }}>
-            <button onClick={() => setShowPricingModal(false)} style={{ position: 'absolute', right: '24px', top: '24px', border: 'none', background: 'none', cursor: 'pointer', color: '#86868B' }}><X size={24} /></button>
-            <h2 style={{ fontSize: '32px', fontWeight: '800', color: '#1D1D1F', marginBottom: '12px' }}>Choose your Targoo Plan</h2>
-            <p style={{ fontSize: '18px', color: '#86868B', marginBottom: '40px' }}>You've reached the limit of your trial exports. Upgrade to continue.</p>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
-              {[
-                { name: 'SOLO', price: '399', desc: '1 device, max 3 clients', color: '#F5F5F7' },
-                { name: 'BOUTIQUE', price: '799', desc: '3 devices, max 10 clients', color: '#007AFF', popular: true },
-                { name: 'POWERHOUSE', price: '1499', desc: '10 devices, unlimited clients', color: '#F5F5F7' }
-              ].map(plan => (
-                <div key={plan.name} style={{ 
-                  backgroundColor: plan.color === '#007AFF' ? '#007AFF' : '#FFFFFF', 
-                  color: plan.color === '#007AFF' ? 'white' : '#1D1D1F',
-                  padding: '32px 24px', 
-                  borderRadius: '24px', 
-                  border: plan.color === '#007AFF' ? 'none' : '1px solid #E5E5E5',
-                  boxShadow: plan.popular ? '0 10px 30px rgba(0,122,255,0.3)' : 'none',
-                  position: 'relative',
-                  transform: plan.popular ? 'scale(1.05)' : 'scale(1)'
-                }}>
-                  {plan.popular && <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#34C759', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '11px', fontWeight: '800' }}>MOST POPULAR</div>}
-                  <div style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', opacity: 0.8 }}>{plan.name}</div>
-                  <div style={{ fontSize: '36px', fontWeight: '800', marginBottom: '4px' }}>€{plan.price}</div>
-                  <div style={{ fontSize: '12px', marginBottom: '24px', opacity: 0.7 }}>per month / billed yearly</div>
-                  <p style={{ fontSize: '13px', marginBottom: '32px', minHeight: '40px' }}>{plan.desc}</p>
-                  <button style={{ 
-                    width: '100%', padding: '12px', borderRadius: '12px', border: 'none', 
-                    backgroundColor: plan.color === '#007AFF' ? 'white' : '#007AFF',
-                    color: plan.color === '#007AFF' ? '#007AFF' : 'white',
-                    fontWeight: '700', cursor: 'pointer'
-                  }}>Get Started</button>
-                </div>
-              ))}
-            </div>
+      {/* LEFT SIDEBAR */}
+      <aside className="w-[260px] bg-white border-r border-gray-100 flex flex-col z-20">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-1">
+            <img src={targooLogo} alt="Targoo" className="h-8 w-auto" />
+            <span className="text-lg font-black tracking-tighter">targoo</span>
           </div>
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] ml-1">ESG Advisor</div>
         </div>
-      )}
 
-      {/* Sanity Check Modal */}
-      {showImportModal && importResult && (
-        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ backgroundColor: 'white', width: '480px', borderRadius: '24px', padding: '40px', textAlign: 'left', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', border: '1px solid #E5E5E5' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1D1D1F', margin: 0 }}>Data Import Check</h2>
-              <button onClick={() => setShowImportModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#86868B' }}><X size={24} /></button>
-            </div>
-            
-            <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {importResult.categories_found.length > 0 && (
-                <div style={{ marginBottom: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Categories Found</div>
-                  {importResult.categories_found.map(cat => (
-                    <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#F5F5F7', borderRadius: '10px', marginBottom: '4px' }}>
-                      <CheckCircle2 size={16} color="#34C759" />
-                      <span style={{ fontSize: '14px', fontWeight: '500' }}>{cat}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {importResult.errors.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Warnings & Errors</div>
-                  {importResult.errors.map((err, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'start', gap: '8px', padding: '12px', backgroundColor: '#FFF4D6', borderRadius: '10px', marginBottom: '4px', border: '1px solid rgba(255,159,10,0.2)' }}>
-                      <Info size={16} color="#FF9F0A" style={{ marginTop: '2px', flexShrink: 0 }} />
-                      <span style={{ fontSize: '13px', color: '#1D1D1F', lineHeight: '1.4' }}>{err}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {importResult.imported_count === 0 && importResult.errors.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '20px', color: '#86868B' }}>No relevant ESG data found in files.</div>
-              )}
-            </div>
-
-            <button 
-              onClick={() => { setShowImportModal(false); runGapAnalysis(); }}
-              style={{ width: '100%', height: '52px', backgroundColor: '#34C759', color: 'white', border: 'none', borderRadius: '16px', fontSize: '16px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(52,199,89,0.2)' }}
-              onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-              onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+        <nav className="flex-1 px-3 space-y-1">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
+            { id: 'gap-analysis', label: 'Gap Analysis', icon: BarChart2 },
+            { id: 'reports', label: 'Reports', icon: FileText },
+            { id: 'settings', label: 'Settings', icon: Settings },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveNav(item.id);
+                if (item.id === 'gap-analysis') runGapAnalysis();
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                activeNav === item.id 
+                  ? 'bg-emerald-50 text-emerald-700 font-semibold shadow-sm' 
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              }`}
             >
-              Continue to Analysis
+              <item.icon size={18} className={activeNav === item.id ? 'text-emerald-600' : 'text-gray-400 group-hover:text-gray-600'} />
+              <span className="text-sm">{item.label}</span>
+            </button>
+          ))}
+
+          <div className="pt-8 pb-2 px-3 flex justify-between items-center">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Clients</span>
+            <button className="text-emerald-600 hover:bg-emerald-50 p-1 rounded-md transition-colors">
+              <PlusCircle size={16} />
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Onboarding & Tour Overlays */}
-      {onboardingStep > 0 && (
-        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ backgroundColor: 'white', width: '480px', borderRadius: '24px', padding: '40px', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ width: '56px', height: '56px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '28px', margin: '0 auto 24px' }}>t</div>
-            {onboardingStep === 1 && (
-              <div className="onboarding-step">
-                <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1D1D1F', marginBottom: '8px' }}>Add your first client</h2>
-                <p style={{ fontSize: '15px', color: '#86868B', marginBottom: '32px' }}>Let's set up the advisor engine for your project.</p>
-                <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div className="input-group">
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1D1D1F', marginBottom: '6px' }}>Company Name</label>
-                    <div style={{ position: 'relative' }}>
-                      <Building2 size={16} color="#86868B" style={{ position: 'absolute', left: '12px', top: '12px' }} />
-                      <input type="text" value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} placeholder="e.g. Müller GmbH" style={{ width: '100%', height: '40px', padding: '0 12px 0 40px', borderRadius: '10px', border: '1px solid #E5E5E5', fontSize: '14px', outline: 'none' }} />
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1D1D1F', marginBottom: '6px' }}>Industry</label>
-                      <select value={newClient.industry} onChange={e => setNewClient({...newClient, industry: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '10px', border: '1px solid #E5E5E5', fontSize: '14px', outline: 'none', backgroundColor: 'white' }}>
-                        {['Manufacturing', 'Food', 'Energy', 'Transport', 'Agriculture', 'Other'].map(i => <option key={i}>{i}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1D1D1F', marginBottom: '6px' }}>Country</label>
-                      <select value={newClient.country} onChange={e => setNewClient({...newClient, country: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '10px', border: '1px solid #E5E5E5', fontSize: '14px', outline: 'none', backgroundColor: 'white' }}>
-                        {['DE', 'AT', 'CH', 'NL', 'UK', 'US'].map(c => <option key={c}>{c}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#1D1D1F', marginBottom: '6px' }}>Employee Count</label>
-                    <select value={newClient.employees} onChange={e => setNewClient({...newClient, employees: e.target.value})} style={{ width: '100%', height: '40px', padding: '0 12px', borderRadius: '10px', border: '1px solid #E5E5E5', fontSize: '14px', outline: 'none', backgroundColor: 'white' }}>
-                      {['1-50', '51-200', '201-500', '500+'].map(e => <option key={e}>{e}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-            {onboardingStep === 2 && (
-              <div className="onboarding-step">
-                <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1D1D1F', marginBottom: '8px' }}>Upload ESG data</h2>
-                <p style={{ fontSize: '15px', color: '#86868B', marginBottom: '32px' }}>Import energy, waste or social metrics to start analysis.</p>
-                <div style={{ height: '160px', border: '2px dashed #E5E5E5', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9F9FB', marginBottom: '24px' }}>
-                  <FileUp size={32} color="#007AFF" style={{ marginBottom: '12px' }} />
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F' }}>Drop Excel, CSV or PDF here</span>
-                </div>
-                <button onClick={() => setOnboardingStep(3)} style={{ border: 'none', background: 'none', color: '#007AFF', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Skip for now</button>
-              </div>
-            )}
-            {onboardingStep === 3 && (
-              <div className="onboarding-step">
-                <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1D1D1F', marginBottom: '8px' }}>Running gap analysis</h2>
-                <p style={{ fontSize: '15px', color: '#86868B', marginBottom: '40px' }}>Our L2 engine is mapping ESRS topics to {newClient.name}.</p>
-                <div style={{ width: '100%', height: '8px', backgroundColor: '#F5F5F7', borderRadius: '4px', overflow: 'hidden', marginBottom: '12px' }}>
-                  <div style={{ width: `${onboardingProgress}%`, height: '100%', backgroundColor: '#34C759', transition: 'width 0.1s linear' }} />
-                </div>
-              </div>
-            )}
-            <div style={{ marginTop: '40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <button disabled={onboardingStep === 3} onClick={() => onboardingStep > 1 && setOnboardingStep(onboardingStep-1)} style={{ visibility: onboardingStep === 1 ? 'hidden' : 'visible', display: 'flex', alignItems: 'center', gap: '6px', border: 'none', background: 'none', color: '#86868B', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}><ChevronLeft size={18} /> Back</button>
-              <div style={{ display: 'flex', gap: '8px' }}>{[1,2,3].map(i => <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: onboardingStep === i ? '#007AFF' : '#E5E5E5' }} />)}</div>
-              <button disabled={onboardingStep === 3} onClick={handleOnboardingContinue} style={{ backgroundColor: '#34C759', color: 'white', border: 'none', borderRadius: '12px', padding: '10px 24px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>{onboardingStep === 2 ? 'Start Analysis' : 'Continue'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div style={s.layout}>
-        <aside style={s.sidebar}>
-          <div style={{ padding: '0 12px 24px 12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-              <img src={targooLogo} alt="Targoo" style={{height: '32px'}} />
-              <span style={{ fontSize: '18px', fontWeight: '800', color: '#1D1D1F', letterSpacing: '-0.5px' }}>targoo</span>
-            </div>
-            <span style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', marginLeft: '42px', marginTop: '-4px' }}>ESG Advisor</span>
-          </div>
-          <nav style={{ marginBottom: '32px' }}>
-            {['Dashboard', 'Gap Analysis', 'Reports', 'Settings'].map((item) => {
-              const key = item.toLowerCase();
-              const Icon = key === 'dashboard' ? LayoutGrid : key.includes('gap') ? BarChart2 : key.includes('rep') ? FileText : Settings;
-              return (
-                <div key={item} style={s.navItem(activeNav === key)} onClick={() => {
-                  setActiveNav(key);
-                  if (key.includes('gap')) { runGapAnalysis(); }
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Icon size={18} strokeWidth={2} style={{ opacity: activeNav === key ? 1 : 0.7 }} />
-                    {item}
-                  </div>
-                </div>
-              );
-            })}
-          </nav>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          
+          <div className="space-y-1">
             {clients.map(client => (
-              <div key={client.name} style={{ padding: '12px', borderRadius: '12px', backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', marginBottom: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34C759' }} />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: '600' }}>{client.name}</div>
-                    <div style={{ fontSize: '11px', color: '#86868B' }}>{client.industry}</div>
-                  </div>
+              <button 
+                key={client.name}
+                onClick={() => setActiveClient(client)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
+                  activeClient?.name === client.name 
+                    ? 'bg-gray-50 text-gray-900 font-medium' 
+                    : 'text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full ${client.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                  {client.name}
                 </div>
-              </div>
+                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
             ))}
           </div>
-        </aside>
+        </nav>
 
-        <main style={s.center}>
-          <header style={s.header}>
-            <h1 style={{ fontSize: '20px', fontWeight: '700' }}>{activeNav === 'settings' ? 'Settings' : activeClient.name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              {(isLoading || isGeneratingReport) && <Loader2 className="animate-spin text-blue-500" size={20} />}
-            </div>
-          </header>
-
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {activeNav === 'settings' ? renderSettings() : (
-              <div style={s.centerContent}>
-                {activeNav === 'dashboard' && (
-                  <>
-                    <div style={{ gridColumn: 'span 4' }}><Card title="Overall ESG Score"><CircularProgress value={demoData.scores.total} animatedValue={animatedScore} /></Card></div>
-                    <div style={{ gridColumn: 'span 8' }}><Card title="Pillar Performance"><ProgressBar label="Environmental" value={demoData.scores.environmental} color="#34C759" trend="up" /><ProgressBar label="Social" value={demoData.scores.social} color="#007AFF" trend="down" /><ProgressBar label="Governance" value={demoData.scores.governance} color="#AF52DE" trend="up" /></Card></div>
-                  </>
-                )}
-                
-                {activeNav === 'reports' ? (
-                  <div style={{ gridColumn: 'span 12' }}>
-                    <Card title="Report Generation">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px', textAlign: 'center' }}>
-                        <div style={{ width: '80px', height: '80px', backgroundColor: '#F5F5F7', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px' }}>
-                          <FileText size={40} color="#007AFF" />
-                        </div>
-                        <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '12px' }}>Professional CSRD Report</h2>
-                        <p style={{ color: '#86868B', maxWidth: '400px', marginBottom: '32px' }}>
-                          Generate a comprehensive sustainability report compliant with ESRS standards, including executive summary and gap analysis.
-                        </p>
-                        
-                        <div style={{ 
-                          maxWidth: '500px', 
-                          backgroundColor: '#F9F9FB', 
-                          padding: '16px', 
-                          borderRadius: '16px', 
-                          marginBottom: '32px',
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '12px',
-                          textAlign: 'left',
-                          border: '1px solid #E5E5E5'
-                        }}>
-                          <input 
-                            type="checkbox" 
-                            id="disclaimer"
-                            checked={disclaimerAccepted}
-                            onChange={(e) => setDisclaimerAccepted(e.target.checked)}
-                            style={{ width: '20px', height: '20px', marginTop: '2px', accentColor: '#007AFF', flexShrink: 0 }} 
-                          />
-                          <label htmlFor="disclaimer" style={{ fontSize: '13px', color: '#424245', lineHeight: '1.5', cursor: 'pointer' }}>
-                            I acknowledge that Targoo is an automated data processing tool, not a substitute for certified legal/ESG advice.
-                          </label>
-                        </div>
-
-                        {reportPath ? (
-                          <div style={{ backgroundColor: '#E1F7E3', padding: '16px 24px', borderRadius: '16px', border: '1px solid #34C759', marginBottom: '24px', textAlign: 'left', width: '100%', maxWidth: '500px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                              <CheckCircle2 size={20} color="#34C759" />
-                              <span style={{ fontWeight: '700', color: '#1A5C3A' }}>Report generated successfully!</span>
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#2E7D32', wordBreak: 'break-all' }}>Path: {reportPath}</div>
-                          </div>
-                        ) : null}
-
-                        <button 
-                          onClick={handleGenerateReport}
-                          disabled={isGeneratingReport || !disclaimerAccepted}
-                          style={{ 
-                            backgroundColor: disclaimerAccepted ? '#007AFF' : '#AEAEB2', 
-                            color: 'white', 
-                            border: 'none', 
-                            borderRadius: '12px', 
-                            padding: '12px 32px', 
-                            fontSize: '16px', 
-                            fontWeight: '700', 
-                            cursor: disclaimerAccepted ? 'pointer' : 'not-allowed',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            boxShadow: disclaimerAccepted ? '0 4px 12px rgba(0,122,255,0.2)' : 'none',
-                            opacity: isGeneratingReport ? 0.7 : 1,
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          {isGeneratingReport ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
-                          {isGeneratingReport ? 'Generating...' : 'Generate Word Report (.docx)'}
-                        </button>
-                      </div>
-                    </Card>
-                  </div>
-                ) : (
-                  <div style={{ gridColumn: 'span 12' }}>
-                    <Card title="ESRS Gap Analysis Matrix" style={{ padding: 0, overflow: 'hidden' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead><tr style={{ borderBottom: '1px solid #E5E5E5', backgroundColor: '#FAFAFA' }}><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>ID</th><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>Topic</th><th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '11px', fontWeight: '700', color: '#86868B', textTransform: 'uppercase' }}>Status</th></tr></thead>
-                        <tbody>{gapData.map(topic => (<tr key={topic.id} style={{ borderBottom: '1px solid #F5F5F7' }}><td style={{ padding: '16px 24px', fontSize: '13px', color: '#86868B' }}>{topic.id}</td><td style={{ padding: '16px 24px', fontSize: '13px', color: '#1D1D1F', fontWeight: '500' }}>{topic.name}</td><td style={{ padding: '16px 24px' }}><StatusBadge status={topic.status} /></td></tr>))}</tbody>
-                      </table>
-                    </Card>
-                  </div>
-                )}
+        {/* Drag & Drop Zone */}
+        <div className="p-4 mt-auto">
+          <div className="group relative border-2 border-dashed border-gray-200 rounded-xl p-6 transition-all duration-300 hover:border-emerald-400 hover:bg-emerald-50 hover:bg-opacity-30 cursor-pointer overflow-hidden animate-pulse hover:animate-none">
+            <div className="flex flex-col items-center text-center">
+              <FileUp className="text-gray-400 group-hover:text-emerald-500 group-hover:animate-bounce mb-2 transition-colors" size={24} />
+              <div className="text-xs font-bold text-gray-600 mb-1">Drop files here</div>
+              <div className="text-[9px] text-gray-400 leading-tight">
+                Excel .xlsx • CSV • PDF<br/>XML • SAP IDoc
               </div>
-            )}
+            </div>
+            {/* Pulse Ring */}
+            <div className="absolute inset-0 bg-emerald-400 opacity-0 group-hover:animate-ping rounded-xl pointer-events-none" />
           </div>
-        </main>
+        </div>
+      </aside>
 
-        <aside style={s.rightPanel}>
-          <div style={{ height: '72px', borderBottom: '1px solid #E5E5E5', display: 'flex', alignItems: 'center', padding: '0 20px', background: 'linear-gradient(to bottom, #FFFFFF, #F8F8F8)' }}><MessageSquare size={18} style={{ marginRight: '10px' }} /><span style={{ fontSize: '15px', fontWeight: '700' }}>Advisor AI</span></div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: '#FAFAFA' }}>
-            {chatMessages.map(msg => (<div key={msg.id} style={{ alignSelf: msg.sender === 'ai' ? 'flex-start' : 'flex-end', maxWidth: '90%', backgroundColor: msg.sender === 'ai' ? '#FFFFFF' : '#007AFF', color: msg.sender === 'ai' ? '#1D1D1F' : '#FFFFFF', padding: '12px 16px', borderRadius: '16px', borderTopLeftRadius: msg.sender === 'ai' ? '4px' : '16px', border: msg.sender === 'ai' ? '1px solid #E5E5E5' : 'none', borderLeft: msg.sender === 'ai' ? '4px solid #34C759' : 'none', fontSize: '13px', lineHeight: '1.5' }}>{msg.text}</div>))}
+      {/* CENTER CONTENT */}
+      <main className="flex-1 flex flex-col h-full bg-gray-50 overflow-hidden">
+        <header className="h-16 px-8 flex items-center justify-between border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-none">{activeClient?.name || "Hans GmbH Demo"}</h1>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">CSRD Reporting 2024</p>
           </div>
-          <div style={{ padding: '20px', backgroundColor: '#FFFFFF', borderTop: '1px solid #E5E5E5' }}><div style={{ position: 'relative' }}><input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendChat()} placeholder="Ask about compliance..." style={{ width: '100%', padding: '12px 40px 12px 16px', borderRadius: '24px', border: '1px solid #E5E5E5', fontSize: '13px', outline: 'none', backgroundColor: '#F5F5F7' }} /><button onClick={handleSendChat} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none' }}><Send size={16} color="#007AFF" /></button></div></div>
-        </aside>
-      </div>
-      
+          <div className="flex items-center gap-4">
+            {isLoading && <Loader2 className="animate-spin text-emerald-600" size={18} />}
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs">PH</div>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-8 scroll-smooth">
+          {activeNav === 'dashboard' && (
+            <div className="max-w-6xl mx-auto space-y-6">
+              
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <KPICard 
+                  title="ESG Score" value="74" trend="+4.2%" 
+                  sub="Target: 80 by 2025" icon={TrendingUp} color="bg-emerald-500" delay={0} 
+                />
+                <KPICard 
+                  title="Carbon Footprint" value="198t" trend="-12%" 
+                  sub="Scope 1 & 2 only" icon={Leaf} color="bg-blue-500" delay={100} 
+                />
+                <KPICard 
+                  title="Energy Intensity" value="12.5k" trend="+2.1%" 
+                  sub="kWh per ton product" icon={Zap} color="bg-yellow-500" delay={200} 
+                />
+                <KPICard 
+                  title="Workforce" value="340" 
+                  sub="12% growth YoY" icon={Users} color="bg-purple-500" delay={300} 
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Main Chart */}
+                <Card className="lg:col-span-8 p-6" delay={400}>
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">CO2 Emissions Trend</h3>
+                      <p className="text-xs text-gray-500">Dec 2023 - Dec 2024 (Monthly)</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded text-[10px] font-bold text-gray-600">
+                        <Leaf size={10} className="text-emerald-500" /> MIN: 198t
+                      </div>
+                      <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded text-[10px] font-bold text-gray-600">
+                        <AlertTriangle size={10} className="text-amber-500" /> MAX: 245t
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-[280px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={demoData.co2Trend}>
+                        <defs>
+                          <linearGradient id="colorCo2" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                        <XAxis 
+                          dataKey="month" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{fontSize: 10, fontWeight: 600, fill: '#9ca3af'}} 
+                          dy={10}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{fontSize: 10, fontWeight: 600, fill: '#9ca3af'}} 
+                        />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#111827', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '10px' }}
+                          itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
+                        />
+                        <Area type="monotone" dataKey="co2" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCo2)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+
+                {/* ESG Ring Card */}
+                <Card className="lg:col-span-4 p-6 flex flex-col items-center justify-between" delay={500}>
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-2 self-start">Pillar Analysis</h3>
+                  <ESGRing scores={demoData.scores} />
+                  <div className="w-full mt-4 space-y-2">
+                    <CustomProgressBar label="Environmental" value={demoData.scores.environmental} color="bg-emerald-500" delay={600} />
+                    <CustomProgressBar label="Social" value={demoData.scores.social} color="bg-blue-500" delay={700} />
+                    <CustomProgressBar label="Governance" value={demoData.scores.governance} color="bg-purple-500" delay={800} />
+                  </div>
+                </Card>
+              </div>
+
+              {/* Bottom Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="p-6" delay={600}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <ShieldCheck className="text-emerald-600" size={18} />
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Compliance Status</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-[10px]">CSRD</div>
+                        <div>
+                          <div className="text-xs font-bold">ESRS Data Completeness</div>
+                          <div className="text-[10px] text-gray-500">8 of 10 material topics mapped</div>
+                        </div>
+                      </div>
+                      <div className="text-xs font-bold text-emerald-600">80%</div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-[10px]">L1-6</div>
+                        <div>
+                          <div className="text-xs font-bold">Engine Processing Status</div>
+                          <div className="text-[10px] text-gray-500">Real-time inference ready</div>
+                        </div>
+                      </div>
+                      <CheckCircle2 size={16} className="text-emerald-500" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6" delay={700}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock className="text-amber-500" size={18} />
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Upcoming Tasks</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      { t: "E3 Water Disclosure Verification", d: "Due in 3 days", p: "High" },
+                      { t: "G1 Governance Audit Review", d: "Due in 1 week", p: "Medium" }
+                    ].map((task, i) => (
+                      <div key={i} className="flex items-start gap-3 pb-3 border-b border-gray-50 last:border-0">
+                        <div className={`mt-1 w-1.5 h-1.5 rounded-full ${task.p === 'High' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                        <div>
+                          <div className="text-xs font-semibold">{task.t}</div>
+                          <div className="text-[10px] text-gray-400 font-medium">{task.d}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
+            </div>
+          )}
+
+          {activeNav === 'gap-analysis' && (
+            <div className="max-w-6xl mx-auto">
+              <Card className="p-0 overflow-hidden" delay={0}>
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">ESRS Gap Analysis Matrix</h3>
+                  <button onClick={runGapAnalysis} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors">
+                    <Zap size={14} fill="white" /> Reroute Analysis
+                  </button>
+                </div>
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Standard ID</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Topic / Disclosure Requirement</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Compliance Status</th>
+                      <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Action Required</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {(gapData.length > 0 ? gapData : demoData.gapMatrix).map((row, i) => (
+                      <tr key={row.id} className="hover:bg-gray-50 transition-colors group">
+                        <td className="px-6 py-4 text-xs font-bold text-gray-900">{row.id}</td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs font-medium text-gray-800">{row.name}</div>
+                          <div className="text-[10px] text-gray-400">CSRD / ESRS 1.2 Compliance</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            row.status === 'green' ? 'bg-emerald-100 text-emerald-700' : 
+                            row.status === 'red' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            <div className={`w-1 h-1 rounded-full ${
+                              row.status === 'green' ? 'bg-emerald-500' : 
+                              row.status === 'red' ? 'bg-red-500' : 'bg-amber-500'
+                            }`} />
+                            {row.status}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button className="text-[10px] font-bold text-emerald-600 hover:underline">VIEW REMEDIES</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* RIGHT SIDEBAR (AI COMPASS) */}
+      <aside className="w-[300px] bg-white border-l border-gray-100 flex flex-col z-20">
+        <header className="p-6 border-b border-gray-100 bg-white">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Compass className="text-emerald-600" size={18} />
+              <span className="text-sm font-bold text-gray-900 tracking-tight">CSRD Compass</span>
+            </div>
+            <button onClick={clearChat} className="text-gray-400 hover:text-red-500 transition-colors" title="Clear Chat">
+              <Trash2 size={14} />
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-400 font-medium leading-tight">Your AI-powered ESG navigator</p>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-200">
+          {chatMessages.map((msg, i) => (
+            <div 
+              key={msg.id} 
+              className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+              style={{ animationDelay: `${i * 50}ms` }}
+            >
+              <div className={`max-w-[90%] px-3 py-2 rounded-2xl text-[13px] leading-relaxed shadow-sm ${
+                msg.sender === 'user' 
+                  ? 'bg-emerald-600 text-white rounded-tr-none' 
+                  : 'bg-white border border-gray-100 text-gray-800 rounded-tl-none'
+              }`}>
+                {msg.text}
+              </div>
+              {msg.citations && (
+                <div className="mt-1 flex gap-1 flex-wrap">
+                  {msg.citations.split(',').map((c, idx) => (
+                    <span key={idx} className="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-bold text-gray-500 uppercase tracking-tighter">
+                      {c.trim()}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {isAiTyping && (
+            <div className="flex gap-1.5 p-2 animate-pulse">
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className="p-4 bg-white border-t border-gray-100">
+          <div className="relative">
+            <input 
+              type="text" 
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
+              placeholder="Ask about compliance..."
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-600 transition-all placeholder:text-gray-400 pr-10"
+            />
+            <button 
+              onClick={handleSendChat}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+            >
+              <Send size={14} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
-        .animate-spin { animation: spin 1s linear infinite; }
-        .onboarding-step { animation: fadeInScale 0.4s ease-out; }
-        .skeleton { background-color: #F5F5F7; animation: skeleton-loading 1.5s infinite ease-in-out; }
-        @keyframes skeleton-loading { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #f3f4f6; border-radius: 20px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #e5e7eb; }
       `}} />
     </div>
   );
