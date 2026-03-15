@@ -324,7 +324,7 @@ export default function App() {
         {/* Logo */}
         <div style={{ padding: '20px', borderBottom: '1px solid #f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img src="./assets/targoo-logo.png" style={{height: '32px', width: 'auto', objectFit: 'contain'}} alt="targoo" />
+            <img src="/targoo-logo.png" style={{height: '32px', width: 'auto', objectFit: 'contain'}} alt="targoo" />
             <div>
               <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '14px', lineHeight: '1' }}>targoo</div>
               <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>ESG Advisor</div>
