@@ -322,9 +322,9 @@ export default function App() {
       {/* ── LEFT SIDEBAR ── */}
       <aside style={styles.sidebarLeft}>
         {/* Logo */}
-        <div style={{ padding: '20px', borderBottom: '1px solid #f8fafc' }}>
-          <img src="/targoo-logo.png" style={{height: '48px', width: 'auto', display: 'block', marginBottom: '4px', objectFit: 'contain'}} alt="targoo" />
-          <div style={{ fontSize: '11px', color: '#6b7280' }}>ESG Advisor Engine</div>
+        <div style={{padding: '20px 16px 16px', borderBottom: '1px solid #f1f5f9', textAlign: 'center'}}>
+          <img src="/targoo-logo.png" style={{width: '100%', maxWidth: '180px', height: 'auto', display: 'block', margin: '0 auto 6px auto'}} alt="targoo" />
+          <p style={{fontSize: '10px', color: '#9ca3af', textAlign: 'center', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0}}>ESG Advisor Engine</p>
         </div>
 
         {/* Navigation */}
