@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "targoo advisor engine",
+  "productName": "targoo",
   "version": "0.1.0",
   "identifier": "com.targoo.advisor",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "targoo advisor engine",
+        "title": "Targoo",
         "width": 1200,
         "height": 800
       }
@@ -48,7 +48,8 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/icon.ico",
+      "icons/icon.png"
     ]
   }
 }
