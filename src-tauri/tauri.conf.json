@@ -28,7 +28,10 @@
       "msi"
     ],
     "publisher": "Targoo Software",
-    "copyright": "2026 Targoo Software",
+    "copyright": "2025 Targoo Software",
+    "shortDescription": "AI-powered ESG Advisor for CSRD compliance",
+    "longDescription": "Targoo is an offline-first ESG advisor that helps consultants automate CSRD reporting, gap analysis and Scope 1/2/3 calculations.",
+    "category": "BusinessApplication",
     "windows": {
       "nsis": {
         "installMode": "currentUser",
@@ -36,8 +39,12 @@
           "English",
           "German"
         ],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.png",
+        "headerImage": "icons/icon.png",
+        "sidebarImage": "icons/icon.png"
       },
+      "wix": null,
       "webviewInstallMode": {
         "type": "downloadBootstrapper",
         "silent": true
