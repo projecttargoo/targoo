@@ -135,6 +135,10 @@ export default function App() {
   const [animatedScore, setAnimatedScore] = useState(0);
   const [tourStep, setTourStep] = useState(0);
   
+  // UI States
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  
   // Import State
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
@@ -269,6 +273,31 @@ export default function App() {
     setTimeout(() => setOnboardingStep(0), 500);
   };
 
+  const handleGenerateReport = async () => {
+    if (!disclaimerAccepted) return;
+    
+    // Trigger pricing modal if it's a trial and limit reached
+    if (license.usage_count >= 3) {
+      setShowPricingModal(true);
+      return;
+    }
+
+    setIsGeneratingReport(true);
+    try {
+      const path = await invoke('generate_report', { 
+        companyName: activeClient.name, 
+        language: 'en' 
+      });
+      setReportPath(path);
+      checkLicenseStatus(); // Refresh usage count
+    } catch (e) {
+      console.error(e);
+      alert("Failed to generate report: " + e);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   const handleSendChat = async () => {
     if (!chatInput.trim()) return;
     const userMessage = { id: Date.now(), sender: 'user', text: chatInput };
@@ -298,7 +327,7 @@ export default function App() {
     settingsRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #F5F5F7' }
   };
 
-  const activeClient = clients[0] || demoData.company;
+  const activeClient = clients[0] || { ...demoData.company, name: "Hans GmbH Demo" };
 
   if (modelStatus === 'checking') {
     return (
@@ -534,6 +563,48 @@ export default function App() {
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       
+      {/* Pricing Modal */}
+      {showPricingModal && (
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(15px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: 'white', width: '800px', borderRadius: '32px', padding: '48px', textAlign: 'center', boxShadow: '0 30px 100px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)', position: 'relative' }}>
+            <button onClick={() => setShowPricingModal(false)} style={{ position: 'absolute', right: '24px', top: '24px', border: 'none', background: 'none', cursor: 'pointer', color: '#86868B' }}><X size={24} /></button>
+            <h2 style={{ fontSize: '32px', fontWeight: '800', color: '#1D1D1F', marginBottom: '12px' }}>Choose your Targoo Plan</h2>
+            <p style={{ fontSize: '18px', color: '#86868B', marginBottom: '40px' }}>You've reached the limit of your trial exports. Upgrade to continue.</p>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+              {[
+                { name: 'SOLO', price: '399', desc: '1 device, max 3 clients', color: '#F5F5F7' },
+                { name: 'BOUTIQUE', price: '799', desc: '3 devices, max 10 clients', color: '#007AFF', popular: true },
+                { name: 'POWERHOUSE', price: '1499', desc: '10 devices, unlimited clients', color: '#F5F5F7' }
+              ].map(plan => (
+                <div key={plan.name} style={{ 
+                  backgroundColor: plan.color === '#007AFF' ? '#007AFF' : '#FFFFFF', 
+                  color: plan.color === '#007AFF' ? 'white' : '#1D1D1F',
+                  padding: '32px 24px', 
+                  borderRadius: '24px', 
+                  border: plan.color === '#007AFF' ? 'none' : '1px solid #E5E5E5',
+                  boxShadow: plan.popular ? '0 10px 30px rgba(0,122,255,0.3)' : 'none',
+                  position: 'relative',
+                  transform: plan.popular ? 'scale(1.05)' : 'scale(1)'
+                }}>
+                  {plan.popular && <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#34C759', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '11px', fontWeight: '800' }}>MOST POPULAR</div>}
+                  <div style={{ fontSize: '14px', fontWeight: '800', marginBottom: '16px', opacity: 0.8 }}>{plan.name}</div>
+                  <div style={{ fontSize: '36px', fontWeight: '800', marginBottom: '4px' }}>€{plan.price}</div>
+                  <div style={{ fontSize: '12px', marginBottom: '24px', opacity: 0.7 }}>per month / billed yearly</div>
+                  <p style={{ fontSize: '13px', marginBottom: '32px', minHeight: '40px' }}>{plan.desc}</p>
+                  <button style={{ 
+                    width: '100%', padding: '12px', borderRadius: '12px', border: 'none', 
+                    backgroundColor: plan.color === '#007AFF' ? 'white' : '#007AFF',
+                    color: plan.color === '#007AFF' ? '#007AFF' : 'white',
+                    fontWeight: '700', cursor: 'pointer'
+                  }}>Get Started</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sanity Check Modal */}
       {showImportModal && importResult && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -656,12 +727,12 @@ export default function App() {
 
       <div style={s.layout}>
         <aside style={s.sidebar}>
-          <div style={{ padding: '0 12px 24px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '0 12px 24px 12px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
               <div style={{ width: '28px', height: '28px', background: 'linear-gradient(135deg, #1A5C3A, #2E7D32)', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '16px' }}>t</div>
-              <span style={{ fontSize: '15px', fontWeight: '600', color: '#1D1D1F' }}>targoo</span>
+              <span style={{ fontSize: '18px', fontWeight: '800', color: '#1D1D1F', letterSpacing: '-0.5px' }}>targoo</span>
             </div>
-            {isImporting && <Loader2 className="animate-spin" size={16} color="#007AFF" />}
+            <span style={{ fontSize: '11px', fontWeight: '600', color: '#86868B', marginLeft: '38px', marginTop: '-4px' }}>ESG Advisor</span>
           </div>
           <nav style={{ marginBottom: '32px' }}>
             {['Dashboard', 'Gap Analysis', 'Reports', 'Settings'].map((item) => {
@@ -722,6 +793,30 @@ export default function App() {
                           Generate a comprehensive sustainability report compliant with ESRS standards, including executive summary and gap analysis.
                         </p>
                         
+                        <div style={{ 
+                          maxWidth: '500px', 
+                          backgroundColor: '#F9F9FB', 
+                          padding: '16px', 
+                          borderRadius: '16px', 
+                          marginBottom: '32px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          textAlign: 'left',
+                          border: '1px solid #E5E5E5'
+                        }}>
+                          <input 
+                            type="checkbox" 
+                            id="disclaimer"
+                            checked={disclaimerAccepted}
+                            onChange={(e) => setDisclaimerAccepted(e.target.checked)}
+                            style={{ width: '20px', height: '20px', marginTop: '2px', accentColor: '#007AFF', flexShrink: 0 }} 
+                          />
+                          <label htmlFor="disclaimer" style={{ fontSize: '13px', color: '#424245', lineHeight: '1.5', cursor: 'pointer' }}>
+                            I acknowledge that Targoo is an automated data processing tool, not a substitute for certified legal/ESG advice.
+                          </label>
+                        </div>
+
                         {reportPath ? (
                           <div style={{ backgroundColor: '#E1F7E3', padding: '16px 24px', borderRadius: '16px', border: '1px solid #34C759', marginBottom: '24px', textAlign: 'left', width: '100%', maxWidth: '500px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
@@ -733,36 +828,23 @@ export default function App() {
                         ) : null}
 
                         <button 
-                          onClick={async () => {
-                            setIsGeneratingReport(true);
-                            try {
-                              const path = await invoke('generate_report', { 
-                                companyName: activeClient.name, 
-                                language: 'en' 
-                              });
-                              setReportPath(path);
-                            } catch (e) {
-                              console.error(e);
-                              alert("Failed to generate report: " + e);
-                            } finally {
-                              setIsGeneratingReport(false);
-                            }
-                          }}
-                          disabled={isGeneratingReport}
+                          onClick={handleGenerateReport}
+                          disabled={isGeneratingReport || !disclaimerAccepted}
                           style={{ 
-                            backgroundColor: '#007AFF', 
+                            backgroundColor: disclaimerAccepted ? '#007AFF' : '#AEAEB2', 
                             color: 'white', 
                             border: 'none', 
                             borderRadius: '12px', 
                             padding: '12px 32px', 
                             fontSize: '16px', 
                             fontWeight: '700', 
-                            cursor: 'pointer',
+                            cursor: disclaimerAccepted ? 'pointer' : 'not-allowed',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '10px',
-                            boxShadow: '0 4px 12px rgba(0,122,255,0.2)',
-                            opacity: isGeneratingReport ? 0.7 : 1
+                            boxShadow: disclaimerAccepted ? '0 4px 12px rgba(0,122,255,0.2)' : 'none',
+                            opacity: isGeneratingReport ? 0.7 : 1,
+                            transition: 'all 0.2s'
                           }}
                         >
                           {isGeneratingReport ? <Loader2 className="animate-spin" size={20} /> : <Download size={20} />}
