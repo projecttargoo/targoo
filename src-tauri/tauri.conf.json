@@ -30,7 +30,7 @@
     "copyright": "2025 Targoo Software",
     "shortDescription": "AI-powered ESG Advisor for CSRD compliance",
     "longDescription": "Targoo is an offline-first ESG advisor that helps consultants automate CSRD reporting, gap analysis and Scope 1/2/3 calculations.",
-    "category": "BusinessApplication",
+    "category": "Business",
     "windows": {
       "nsis": {
         "installMode": "currentUser",
