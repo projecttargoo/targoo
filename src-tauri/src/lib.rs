@@ -1,5 +1,6 @@
 use tauri::Manager;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
+use std::sync::atomic::AtomicBool;
 
 mod l1_rag;
 mod l2_gap_analysis;
@@ -25,6 +26,9 @@ pub fn run() {
         .manage(Mutex::new(None::<l1_rag::GemmaEngine>))
         .manage(l8_workspace::WorkspaceState {
             active_project_id: Mutex::new(None),
+        })
+        .manage(l2_gap_analysis::GapAnalysisState {
+            is_running: Arc::new(AtomicBool::new(false)),
         })
         .setup(|app| {
             l6_audit::init_audit_db(app.handle())?;
@@ -58,6 +62,7 @@ pub fn run() {
             l1_rag::ask_ai,
             l1_rag::analyze_imported_data,
             l2_gap_analysis::gap_analysis,
+            l2_gap_analysis::cancel_gap_analysis,
             l3_report::generate_report,
             l4_data_processor::process_excel,
             l4_data_processor::calculate_excel_emissions,
