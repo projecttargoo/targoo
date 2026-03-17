@@ -51,3 +51,11 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: --target x86_64-pc-windows-msvc
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: targoo-windows-x64
+          path: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/
