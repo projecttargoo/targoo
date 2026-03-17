@@ -1,16 +1,22 @@
-name: Build Windows EXE
+name: "Enterprise Build & Release"
 
 on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  release:
     permissions:
       contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest]
 
+    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,16 +40,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build the app
+      - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tagName: v__VERSION__ # Automatically uses version from tauri.conf.json
+          releaseName: "Targoo v__VERSION__"
+          releaseBody: "Enterprise-grade build for Fritz (i3 5005U optimized). Includes SQLx/WAL persistence and neuronpilot core."
+          releaseDraft: true
+          prerelease: false
           args: --target x86_64-pc-windows-msvc
-
-      - name: Upload EXE artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: targoo-windows-x64
-          path: |
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe

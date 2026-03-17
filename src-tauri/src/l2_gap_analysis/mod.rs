@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::{command, AppHandle, Emitter, State};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, Instant};
-use std::thread;
+use std::time::Instant;
+use tokio::time::{sleep, Duration};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GapAnalysis {
@@ -67,7 +67,7 @@ pub async fn gap_analysis(
         }
 
         // 3. Simulated heavy processing (2 seconds per topic as requested)
-        thread::sleep(Duration::from_secs(2));
+        sleep(Duration::from_secs(2)).await;
 
         // 4. Update progress
         let progress = ((i + 1) as f64 / total_topics as f64) * 100.0;
