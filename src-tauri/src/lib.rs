@@ -1,8 +1,8 @@
 use std::sync::{Mutex, Arc};
 use std::sync::atomic::AtomicBool;
 use serde::Serialize;
-use sqlx::{sqlite::SqlitePool, FromRow, sqlite::SqliteConnectOptions};
-use std::str::FromStr;
+use rusqlite::{params, Connection};
+use tauri::{AppHandle, Manager};
 
 mod l1_rag;
 mod l2_gap_analysis;
@@ -15,11 +15,7 @@ mod l8_workspace;
 mod license;
 mod model_downloader;
 
-pub struct DbState {
-    pub pool: SqlitePool,
-}
-
-#[derive(Serialize, FromRow, Debug)]
+#[derive(Serialize, Debug)]
 pub struct ProductionClient {
     pub id: i32,
     pub name: String,
@@ -58,22 +54,47 @@ fn get_dashboard_stats() -> DashboardStats {
     }
 }
 
+fn get_db_connection(app_handle: &AppHandle) -> rusqlite::Result<Connection> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .expect("failed to get app data directory");
+    
+    if !app_data_dir.exists() {
+        std::fs::create_dir_all(&app_data_dir).expect("failed to create app data directory");
+    }
+    
+    let db_path = app_data_dir.join("targoo.db");
+    Connection::open(db_path)
+}
+
 #[tauri::command]
-async fn process_data_file(
+fn process_data_file(
+    app_handle: AppHandle,
     file_path: String,
     client_id: i32,
-    db_state: tauri::State<'_, DbState>,
 ) -> Result<DashboardStats, String> {
     if file_path.is_empty() {
         return Err("No file selected".into());
     }
 
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+
     // Fetch client details to get industry
-    let client = sqlx::query_as::<_, ProductionClient>("SELECT * FROM clients WHERE id = ?")
-        .bind(client_id)
-        .fetch_one(&db_state.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let client = conn.query_row(
+        "SELECT id, name, industry, last_audit, score, carbon FROM clients WHERE id = ?",
+        [client_id],
+        |row| {
+            Ok(ProductionClient {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                industry: row.get(2)?,
+                last_audit: row.get(3)?,
+                score: row.get(4)?,
+                carbon: row.get(5)?,
+            })
+        },
+    ).map_err(|e| e.to_string())?;
 
     // Dynamic Logic: Industry-based ESG & Carbon calculation
     let (calculated_carbon, calculated_score, calculated_energy) = match client.industry.as_str() {
@@ -84,26 +105,15 @@ async fn process_data_file(
     };
 
     // Atomically update client stats and document history
-    let mut tx = db_state.pool.begin().await.map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE clients SET score = ?, carbon = ?, last_audit = ? WHERE id = ?",
+        params![calculated_score as i32, calculated_carbon, "2026-03-17", client_id],
+    ).map_err(|e| e.to_string())?;
 
-    sqlx::query("UPDATE clients SET score = ?, carbon = ?, last_audit = ? WHERE id = ?")
-        .bind(calculated_score as i32)
-        .bind(calculated_carbon)
-        .bind("2026-03-17")
-        .bind(client_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    sqlx::query("INSERT INTO documents (name, size, status) VALUES (?, ?, ?)")
-        .bind(&file_path)
-        .bind("Enterprise Stream")
-        .bind("Verified")
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    tx.commit().await.map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO documents (name, size, status) VALUES (?, ?, ?)",
+        params![&file_path, "Enterprise Stream", "Verified"],
+    ).map_err(|e| e.to_string())?;
 
     Ok(DashboardStats {
         esg_score: calculated_score as u32,
@@ -124,46 +134,69 @@ fn run_materiality_check() -> Vec<MaterialityTopic> {
 }
 
 #[tauri::command]
-async fn add_client(
+fn add_client(
+    app_handle: AppHandle,
     name: String,
     industry: String,
-    state: tauri::State<'_, DbState>,
 ) -> Result<i32, String> {
-    let result = sqlx::query("INSERT INTO clients (name, industry, last_audit, score, carbon) VALUES (?, ?, ?, 0, 0.0)")
-        .bind(name)
-        .bind(industry)
-        .bind("Never")
-        .execute(&state.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "INSERT INTO clients (name, industry, last_audit, score, carbon) VALUES (?, ?, ?, 0, 0.0)",
+        params![name, industry, "Never"],
+    ).map_err(|e| e.to_string())?;
 
-    Ok(result.last_insert_rowid() as i32)
+    Ok(conn.last_insert_rowid() as i32)
 }
 
 #[tauri::command]
-async fn get_enterprise_clients(
-    state: tauri::State<'_, DbState>,
+fn get_enterprise_clients(
+    app_handle: AppHandle,
 ) -> Result<Vec<ProductionClient>, String> {
-    let clients = sqlx::query_as::<_, ProductionClient>("SELECT * FROM clients ORDER BY name ASC")
-        .fetch_all(&state.pool)
-        .await
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    
+    let mut stmt = conn.prepare("SELECT id, name, industry, last_audit, score, carbon FROM clients ORDER BY name ASC")
         .map_err(|e| e.to_string())?;
+    
+    let clients = stmt.query_map([], |row| {
+        Ok(ProductionClient {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            industry: row.get(2)?,
+            last_audit: row.get(3)?,
+            score: row.get(4)?,
+            carbon: row.get(5)?,
+        })
+    }).map_err(|e| e.to_string())?
+    .collect::<rusqlite::Result<Vec<_>>>()
+    .map_err(|e| e.to_string())?;
 
     Ok(clients)
 }
 
 #[tauri::command]
-async fn ask_neuron_pilot(
+fn ask_neuron_pilot(
+    app_handle: AppHandle,
     input: String,
     client_id: i32,
-    state: tauri::State<'_, DbState>,
 ) -> Result<String, String> {
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+
     // Fetch current client context for the chat
-    let client = sqlx::query_as::<_, ProductionClient>("SELECT * FROM clients WHERE id = ?")
-        .bind(client_id)
-        .fetch_one(&state.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+    let client = conn.query_row(
+        "SELECT id, name, industry, last_audit, score, carbon FROM clients WHERE id = ?",
+        [client_id],
+        |row| {
+            Ok(ProductionClient {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                industry: row.get(2)?,
+                last_audit: row.get(3)?,
+                score: row.get(4)?,
+                carbon: row.get(5)?,
+            })
+        },
+    ).map_err(|e| e.to_string())?;
 
     Ok(format!(
         "Analyzing {} in the {} sector. Based on the latest ERP ingestion, your sustainability rating is {}. All Scope 1 indicators are aligned with CSRD standards. (Query: {})",
@@ -173,36 +206,38 @@ async fn ask_neuron_pilot(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let pool = tauri::async_runtime::block_on(async {
-        let options = SqliteConnectOptions::from_str("sqlite:targoo.db")
-            .unwrap()
-            .create_if_missing(true)
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-            .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
-
-        let pool = SqlitePool::connect_with(options).await.expect("Failed to connect to database");
-        
-        // Initial Table creation
-        sqlx::query("CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, industry TEXT NOT NULL, last_audit TEXT NOT NULL)")
-            .execute(&pool).await.expect("Failed to create clients table");
-
-        // Migration: Add columns if they don't exist
-        sqlx::query("ALTER TABLE clients ADD COLUMN score INTEGER DEFAULT 0").execute(&pool).await.ok();
-        sqlx::query("ALTER TABLE clients ADD COLUMN carbon REAL DEFAULT 0.0").execute(&pool).await.ok();
-
-        sqlx::query("CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, size TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
-            .execute(&pool).await.expect("Failed to create documents table");
-
-        pool
-    });
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(DbState { pool })
         .manage(Mutex::new(None::<l1_rag::GemmaEngine>))
         .manage(l8_workspace::WorkspaceState { active_project_id: Mutex::new(None) })
         .manage(l2_gap_analysis::GapAnalysisState { is_running: Arc::new(AtomicBool::new(false)) })
         .setup(|app| {
+            let conn = get_db_connection(app.handle())?;
+            
+            // Initial Table creation
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS clients (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    name TEXT NOT NULL, 
+                    industry TEXT NOT NULL, 
+                    last_audit TEXT NOT NULL,
+                    score INTEGER DEFAULT 0,
+                    carbon REAL DEFAULT 0.0
+                )",
+                [],
+            )?;
+
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS documents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    name TEXT NOT NULL, 
+                    size TEXT NOT NULL, 
+                    status TEXT NOT NULL, 
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )",
+                [],
+            )?;
+
             l6_audit::init_audit_db(app.handle())?;
             l7_materiality::init_materiality_db(app.handle())?;
             l8_workspace::init_workspace_db(app.handle())?;
