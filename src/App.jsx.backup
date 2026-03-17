@@ -1,0 +1,483 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { 
+  LayoutDashboard, Users, Folder, UploadCloud, Scale, Leaf, 
+  ClipboardList, FileText, Search, BookOpen, Settings,
+  Sun, Moon, Send, Activity, ShieldCheck, Database
+} from 'lucide-react';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Label 
+} from 'recharts';
+import logo from './assets/targoo-logo.png';
+
+const themes = {
+  light: {
+    bg: '#f5f5f7',
+    panel: '#ffffff',
+    border: '#e5e7eb',
+    textPrimary: '#111827',
+    textSecondary: '#6b7280',
+    accent: '#007aff',
+    accentHover: 'rgba(0, 122, 255, 0.08)',
+    shadow: '0 1px 3px rgba(0,0,0,0.06)',
+    inputBg: '#f9fafb',
+    chartGreen: '#34c759',
+    chartBlue: '#007aff',
+    chartPurple: '#af52de',
+    chartAmber: '#ff9500',
+    chartRed: '#ff3b30'
+  },
+  dark: {
+    bg: '#0b0b0c',
+    panel: '#121214',
+    border: '#1f1f23',
+    textPrimary: '#f8fafc',
+    textSecondary: '#a1a1aa',
+    accent: '#0a84ff',
+    accentHover: 'rgba(10, 132, 255, 0.12)',
+    shadow: '0 1px 3px rgba(0,0,0,0.5)',
+    inputBg: '#1a1a1e',
+    chartGreen: '#30d158',
+    chartBlue: '#0a84ff',
+    chartPurple: '#bf5af2',
+    chartAmber: '#ff9f0a',
+    chartRed: '#ff453a'
+  }
+};
+
+const globalCss = `
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; }
+  body { overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { cursor: pointer; outline: none; }
+  input, select { outline: none; }
+  input:focus, select:focus { box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3); }
+  .nav-item { transition: all 0.2s ease; border: none; background: transparent; cursor: pointer; text-align: left; }
+  .nav-item:hover { transform: scale(1.02); }
+  .fade-in { animation: fadeIn 0.3s ease-in-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+`;
+
+const manufacturingTypes = ["Food & Beverage", "Automotive", "Electronics", "Textiles", "Chemicals", "Machinery", "Other"];
+
+export default function App() {
+  const [isDark, setIsDark] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const [clients, setClients] = useState([
+    { id: 1, name: "Hans GmbH", industry: "Automotive", score: 78, carbon: 192.5 },
+    { id: 2, name: "Müller & Co", industry: "Chemicals", score: 62, carbon: 410.2 }
+  ]);
+  const [selectedClientId, setSelectedClientId] = useState(1);
+  const [newClient, setNewClient] = useState({ name: '', industry: manufacturingTypes[0] });
+  const [documents, setDocuments] = useState([
+    { id: 1, name: 'oracle_dump_2025.xml', size: '12.4 MB', status: 'Verified' },
+    { id: 2, name: 'sap_export_q1.xlsx', size: '2.4 MB', status: 'Verified' }
+  ]);
+  const [materialityData, setMaterialityData] = useState([]);
+
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState([
+    { role: 'pilot', text: 'Welcome to CSRD Compass AI. I am ready to assist with your ESG compliance analysis.' }
+  ]);
+  const chatEndRef = useRef(null);
+
+  const activeClient = clients.find(c => c.id === selectedClientId) || clients[0] || {};
+  const theme = isDark ? themes.dark : themes.light;
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'materiality' && materialityData.length === 0) runMateriality();
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeTab, chatHistory]);
+
+  const toggleTheme = () => setIsDark(!isDark);
+
+  const fetchClients = async () => {
+    if (!window.__TAURI_INTERNALS__) return;
+    try {
+      const data = await invoke('get_enterprise_clients');
+      if (data && data.length > 0) setClients(data);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSendMessage = useCallback((e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const userMsg = { role: 'user', text: chatInput };
+    setChatHistory(prev => [...prev, userMsg]);
+    setChatInput('');
+    
+    setTimeout(async () => {
+      try {
+        if (window.__TAURI_INTERNALS__) {
+          const response = await invoke('ask_neuron_pilot', { input: userMsg.text, clientId: activeClient.id });
+          setChatHistory(prev => [...prev, { role: 'pilot', text: response }]);
+        } else {
+          setChatHistory(prev => [...prev, { role: 'pilot', text: `Consulting AI engine for ${activeClient.name}...` }]);
+        }
+      } catch (err) {
+        setChatHistory(prev => [...prev, { role: 'pilot', text: `Error: ${err}` }]);
+      }
+    }, 600);
+  }, [chatInput, activeClient.id, activeClient.name]);
+
+  const handleFileUpload = (fileName) => {
+    setIsProcessing(true);
+    setTimeout(async () => {
+      try {
+        if (window.__TAURI_INTERNALS__) {
+          const result = await invoke('process_data_file', { filePath: fileName, clientId: activeClient.id });
+          setClients(prev => prev.map(c => c.id === activeClient.id ? { ...c, score: result.esg_score, carbon: result.carbon_footprint } : c));
+        }
+        setDocuments(prev => [{ id: Date.now(), name: fileName, size: '8.5 MB', status: 'Verified' }, ...prev]);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsProcessing(false);
+      }
+    }, 1500);
+  };
+
+  const handleAddClient = async (e) => {
+    e.preventDefault();
+    if (!newClient.name) return;
+    try {
+      if (window.__TAURI_INTERNALS__) {
+        await invoke('add_client', { name: newClient.name, industry: newClient.industry });
+        fetchClients();
+      } else {
+        const clientObj = { id: Date.now(), name: newClient.name, industry: newClient.industry, score: 45, carbon: 120.0 };
+        setClients(prev => [...prev, clientObj]);
+      }
+      setNewClient({ name: '', industry: manufacturingTypes[0] });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const runMateriality = async () => {
+    setIsProcessing(true);
+    setTimeout(() => {
+      setMaterialityData([
+        { topic_id: 'E1', name: 'Climate Change', score: 90, material: true },
+        { topic_id: 'E2', name: 'Pollution', score: 40, material: false },
+        { topic_id: 'S1', name: 'Own Workforce', score: 75, material: true }
+      ]);
+      setIsProcessing(false);
+    }, 500);
+  };
+
+  const menuItems = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'clients', icon: Users, label: 'Clients' },
+    { id: 'engagements', icon: Folder, label: 'Engagements' },
+    { id: 'intake', icon: UploadCloud, label: 'Data Intake' },
+    { id: 'analysis', icon: Activity, label: 'Analysis' },
+    { id: 'materiality', icon: Scale, label: 'Materiality' },
+    { id: 'emissions', icon: Leaf, label: 'Emissions' },
+    { id: 'esrs', icon: ClipboardList, label: 'ESRS' },
+    { id: 'reports', icon: FileText, label: 'Reports' },
+    { id: 'audit', icon: Search, label: 'Audit Trail' },
+    { id: 'library', icon: BookOpen, label: 'Library' },
+    { id: 'settings', icon: Settings, label: 'Settings' }
+  ];
+
+  const getPageTitle = () => {
+    const item = menuItems.find(m => m.id === activeTab);
+    return item ? item.label : 'Dashboard';
+  };
+
+  const kpis = [
+    { label: 'ESG Score', value: activeClient.score || 0, color: theme.chartGreen, icon: Scale },
+    { label: 'Carbon (t)', value: (activeClient.carbon || 0).toFixed(1), color: theme.chartBlue, icon: Leaf },
+    { label: 'Water Usage', value: '1,240 m³', color: theme.chartAmber, icon: Activity },
+    { label: 'Employees', value: '342', color: theme.textPrimary, icon: Users }
+  ];
+
+  const renderContent = () => {
+    switch(activeTab) {
+      case 'dashboard':
+        return (
+          <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+              {kpis.map(kpi => (
+                <div key={kpi.label} style={{ backgroundColor: theme.panel, padding: '24px', borderRadius: '16px', border: `1px solid ${theme.border}`, boxShadow: theme.shadow, transition: 'all 0.2s ease' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <div style={{ color: theme.textSecondary, fontSize: '13px', fontWeight: '500' }}>{kpi.label}</div>
+                      <kpi.icon size={18} color={theme.textSecondary} strokeWidth={1.5} />
+                   </div>
+                   <div style={{ fontSize: '32px', fontWeight: '600', color: theme.textPrimary, letterSpacing: '-0.5px' }}>{kpi.value}</div>
+                </div>
+              ))}
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.4fr', gap: '24px', height: '360px' }}>
+              <div style={{ backgroundColor: theme.panel, padding: '24px', borderRadius: '16px', border: `1px solid ${theme.border}`, boxShadow: theme.shadow }}>
+                <div style={{ marginBottom: '20px', fontWeight: '600', fontSize: '15px', color: theme.textPrimary }}>Emission Trend</div>
+                <ResponsiveContainer width="100%" height="85%">
+                  <AreaChart data={[{m:'Jan', v:100}, {m:'Feb', v:120}, {m:'Mar', v:activeClient.carbon || 150}]}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.border} opacity={0.5} />
+                    <XAxis dataKey="m" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: theme.textSecondary}} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: theme.textSecondary}} dx={-10} />
+                    <Tooltip contentStyle={{ backgroundColor: theme.panel, borderColor: theme.border, borderRadius: '8px', color: theme.textPrimary }} />
+                    <Area type="monotone" dataKey="v" stroke={theme.accent} fillOpacity={0.15} fill={theme.accent} strokeWidth={3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ backgroundColor: theme.panel, padding: '24px', borderRadius: '16px', border: `1px solid ${theme.border}`, boxShadow: theme.shadow }}>
+                <div style={{ marginBottom: '20px', fontWeight: '600', fontSize: '15px', color: theme.textPrimary }}>Scope Distribution</div>
+                <ResponsiveContainer width="100%" height="85%">
+                  <PieChart>
+                    <Pie data={[{n:'S1', v:25}, {n:'S2', v:20}, {n:'S3', v:55}]} innerRadius={70} outerRadius={90} dataKey="v" stroke="none" paddingAngle={2}>
+                      <Cell fill={theme.chartGreen} /><Cell fill={theme.chartBlue} /><Cell fill={theme.chartPurple} />
+                      <Label content={({ viewBox: { cx, cy } }) => (
+                        <g>
+                          <text x={cx} y={cy - 8} textAnchor="middle" style={{ fontSize: '28px', fontWeight: '600', fill: theme.textPrimary }}>{(activeClient.carbon || 0).toFixed(0)}</text>
+                          <text x={cx} y={cy + 16} textAnchor="middle" style={{ fontSize: '12px', fontWeight: '500', fill: theme.textSecondary }}>tCO2e</text>
+                        </g>
+                      )} />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: theme.panel, borderRadius: '16px', border: `1px solid ${theme.border}`, boxShadow: theme.shadow, overflow: 'hidden' }}>
+              <div style={{ padding: '20px 24px', borderBottom: `1px solid ${theme.border}`, fontWeight: '600', fontSize: '15px', color: theme.textPrimary }}>Evidence Vault</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {documents.map(doc => (
+                    <tr key={doc.id} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                      <td style={{ padding: '16px 24px', fontSize: '14px', color: theme.textPrimary, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <FileText size={16} color={theme.textSecondary} /> {doc.name}
+                      </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                        <span style={{ backgroundColor: `${theme.chartGreen}15`, color: theme.chartGreen, fontSize: '12px', fontWeight: '600', padding: '4px 10px', borderRadius: '12px' }}>{doc.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      case 'clients':
+        return (
+          <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <div style={{ backgroundColor: theme.panel, padding: '32px', borderRadius: '16px', border: `1px solid ${theme.border}`, boxShadow: theme.shadow }}>
+              <h3 style={{ margin: '0 0 24px 0', fontWeight: '600', fontSize: '16px', color: theme.textPrimary }}>Register New Client</h3>
+              <form onSubmit={handleAddClient} style={{ display: 'flex', gap: '20px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: theme.textSecondary, marginBottom: '8px' }}>Company Name</label>
+                  <input value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} placeholder="Acme Corp" style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.inputBg, color: theme.textPrimary, fontSize: '14px' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: theme.textSecondary, marginBottom: '8px' }}>Industry</label>
+                  <select value={newClient.industry} onChange={e => setNewClient({...newClient, industry: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.inputBg, color: theme.textPrimary, fontSize: '14px' }}>
+                    {manufacturingTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <button type="submit" style={{ backgroundColor: theme.accent, color: '#fff', padding: '12px 24px', borderRadius: '8px', border: 'none', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'opacity 0.2s ease' }} onMouseOver={e => e.currentTarget.style.opacity = 0.9} onMouseOut={e => e.currentTarget.style.opacity = 1}>Add Client</button>
+              </form>
+            </div>
+            
+            <div style={{ backgroundColor: theme.panel, borderRadius: '16px', border: `1px solid ${theme.border}`, overflow: 'hidden', boxShadow: theme.shadow }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{ backgroundColor: theme.inputBg }}>
+                  <tr>
+                    <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: '500', color: theme.textSecondary }}>Client</th>
+                    <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: '500', color: theme.textSecondary }}>Industry</th>
+                    <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: '500', color: theme.textSecondary }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clients.map(c => (
+                    <tr key={c.id} style={{ borderBottom: `1px solid ${theme.border}`, backgroundColor: selectedClientId === c.id ? theme.accentHover : 'transparent', transition: 'background-color 0.2s' }}>
+                      <td style={{ padding: '16px 24px', fontWeight: '500', color: theme.textPrimary, fontSize: '14px' }}>{c.name}</td>
+                      <td style={{ padding: '16px 24px', color: theme.textSecondary, fontSize: '14px' }}>{c.industry}</td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                        <button onClick={() => { setSelectedClientId(c.id); setActiveTab('dashboard'); }} style={{ color: theme.accent, background: 'none', border: 'none', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}>View Details</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      case 'materiality':
+        return (
+          <div className="fade-in" style={{ backgroundColor: theme.panel, borderRadius: '16px', border: `1px solid ${theme.border}`, overflow: 'hidden', boxShadow: theme.shadow }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead style={{ backgroundColor: theme.inputBg }}>
+                <tr>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: '500', color: theme.textSecondary }}>ESRS Topic</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: '500', color: theme.textSecondary }}>Impact Score</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: '500', color: theme.textSecondary }}>Assessment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {materialityData.length > 0 ? materialityData.map((t, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${theme.border}` }}>
+                    <td style={{ padding: '16px 24px', color: theme.textPrimary, fontSize: '14px' }}><b>{t.topic_id}</b> {t.name}</td>
+                    <td style={{ padding: '16px 24px', color: theme.textSecondary, fontSize: '14px' }}>{t.score}/100</td>
+                    <td style={{ padding: '16px 24px' }}>
+                      <span style={{ backgroundColor: t.material ? `${theme.chartGreen}15` : `${theme.textSecondary}15`, color: t.material ? theme.chartGreen : theme.textSecondary, fontSize: '12px', fontWeight: '600', padding: '4px 10px', borderRadius: '12px' }}>
+                        {t.material ? 'MATERIAL' : 'NOT MATERIAL'}
+                      </span>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan="3" style={{ padding: '32px', textAlign: 'center', color: theme.textSecondary, fontSize: '14px' }}>Processing data...</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        );
+      case 'intake':
+        return (
+          <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+            <div 
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }} 
+              onDragLeave={() => setIsDragging(false)} 
+              onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileUpload(e.dataTransfer.files[0]?.name || 'data.xml'); }} 
+              style={{ padding: '60px', borderRadius: '24px', border: `2px dashed ${isDragging ? theme.accent : theme.border}`, backgroundColor: isDragging ? theme.accentHover : theme.panel, textAlign: 'center', transition: 'all 0.2s ease', cursor: 'pointer' }}
+            >
+              <Database size={48} color={isDragging ? theme.accent : theme.textSecondary} strokeWidth={1} style={{ marginBottom: '20px', transition: 'color 0.2s ease' }} />
+              <div style={{ fontSize: '18px', fontWeight: '600', color: theme.textPrimary, marginBottom: '8px' }}>Enterprise Data Ingestion</div>
+              <div style={{ fontSize: '14px', color: theme.textSecondary, marginBottom: '24px' }}>Drag and drop ERP exports here or click to browse</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
+                {['SAP .xlsx', 'ORACLE .xml', 'CSV Data'].map(t => <span key={t} style={{ fontSize: '11px', fontWeight: '600', color: theme.textSecondary, backgroundColor: theme.inputBg, padding: '4px 10px', borderRadius: '6px', border: `1px solid ${theme.border}` }}>{t}</span>)}
+              </div>
+              <button onClick={() => handleFileUpload('manual.xml')} style={{ padding: '10px 24px', fontSize: '14px', fontWeight: '600', backgroundColor: theme.panel, color: theme.textPrimary, border: `1px solid ${theme.border}`, borderRadius: '8px', cursor: 'pointer', boxShadow: theme.shadow }}>Browse Files</button>
+            </div>
+          </div>
+        );
+      default:
+        // Premium Empty State
+        return (
+          <div className="fade-in" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: theme.textSecondary }}>
+            {React.createElement(menuItems.find(m => m.id === activeTab)?.icon || Folder, { size: 48, strokeWidth: 1, style: { marginBottom: '20px', opacity: 0.4 } })}
+            <h2 style={{ fontSize: '20px', fontWeight: '600', color: theme.textPrimary, marginBottom: '8px' }}>No Data Available</h2>
+            <p style={{ fontSize: '14px', maxWidth: '300px', textAlign: 'center', lineHeight: '1.5' }}>This module is currently empty. Connect data sources or complete pending tasks to populate this view.</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: theme.bg, color: theme.textPrimary, transition: 'background-color 0.2s ease, color 0.2s ease' }}>
+      <style>{globalCss}</style>
+      
+      {/* SIDEBAR */}
+      <aside style={{ width: '260px', backgroundColor: theme.panel, borderRight: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column', zIndex: 10, transition: 'background-color 0.2s ease, border-color 0.2s ease' }}>
+        <div style={{ padding: '24px 20px', display: 'flex', alignItems: 'center', height: '76px' }}>
+          <img src={logo} alt="Targoo" style={{ height: '28px', objectFit: 'contain' }} />
+        </div>
+        
+        <div style={{ padding: '0 16px 16px 16px' }}>
+          <select value={selectedClientId} onChange={(e) => setSelectedClientId(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.inputBg, color: theme.textPrimary, fontWeight: '500', fontSize: '13px', cursor: 'pointer', transition: 'all 0.2s ease' }}>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+
+        <div style={{ flex: 1, padding: '0 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {menuItems.map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button 
+                key={item.id} 
+                onClick={() => setActiveTab(item.id)} 
+                className="nav-item"
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '12px', width: '100%', 
+                  padding: '8px 12px', borderRadius: '8px', border: 'none', 
+                  backgroundColor: isActive ? theme.accentHover : 'transparent',
+                  color: isActive ? theme.accent : theme.textSecondary,
+                  fontSize: '13px', fontWeight: isActive ? '600' : '500'
+                }}
+              >
+                <Icon size={16} strokeWidth={isActive ? 2 : 1.5} />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        
+        {/* TOP BAR */}
+        <header style={{ height: '76px', backgroundColor: theme.panel, borderBottom: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 40px', zIndex: 5, transition: 'background-color 0.2s ease, border-color 0.2s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <h1 style={{ fontSize: '18px', fontWeight: '600', color: theme.textPrimary, margin: 0 }}>{getPageTitle()}</h1>
+            {isProcessing && <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: theme.accent, fontSize: '12px', fontWeight: '500' }}><Activity size={14} style={{ animation: 'spin 2s linear infinite' }} /> Syncing...</div>}
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div style={{ position: 'relative' }}>
+              <Search size={16} color={theme.textSecondary} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="text" placeholder="Search..." style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '8px', padding: '8px 16px 8px 36px', fontSize: '13px', color: theme.textPrimary, width: '220px', transition: 'all 0.2s ease' }} />
+            </div>
+            <button onClick={toggleTheme} style={{ background: 'none', border: 'none', color: theme.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.2s ease' }}>
+              {isDark ? <Sun size={18} strokeWidth={1.5} /> : <Moon size={18} strokeWidth={1.5} />}
+            </button>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: theme.accent, color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '600' }}>
+              FR
+            </div>
+          </div>
+        </header>
+
+        {/* CONTENT */}
+        <main style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
+          {renderContent()}
+        </main>
+      </div>
+
+      {/* RIGHT AI PANEL */}
+      <aside style={{ width: '340px', backgroundColor: theme.panel, borderLeft: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column', zIndex: 10, transition: 'background-color 0.2s ease, border-color 0.2s ease' }}>
+        <div style={{ height: '76px', padding: '0 24px', borderBottom: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '15px', fontWeight: '600', color: theme.textPrimary }}>CSRD Compass AI</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '500', color: theme.chartGreen }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: theme.chartGreen, boxShadow: `0 0 8px ${theme.chartGreen}60` }} /> Online
+          </div>
+        </div>
+
+        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {chatHistory.map((m, i) => (
+            <div key={i} className="fade-in" style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+              <div style={{ backgroundColor: m.role === 'user' ? theme.accent : theme.inputBg, color: m.role === 'user' ? '#ffffff' : theme.textPrimary, padding: '12px 16px', borderRadius: '18px', borderBottomRightRadius: m.role === 'user' ? '4px' : '18px', borderBottomLeftRadius: m.role === 'pilot' ? '4px' : '18px', fontSize: '14px', lineHeight: '1.5', boxShadow: theme.shadow }}>
+                {m.text}
+              </div>
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+
+        <div style={{ padding: '20px 24px', borderTop: `1px solid ${theme.border}` }}>
+          <form onSubmit={handleSendMessage} style={{ position: 'relative' }}>
+            <input 
+              type="text" 
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Ask Compass..." 
+              style={{ width: '100%', backgroundColor: theme.inputBg, border: `1px solid ${theme.border}`, borderRadius: '24px', padding: '12px 48px 12px 16px', fontSize: '13px', color: theme.textPrimary, transition: 'all 0.2s ease' }} 
+            />
+            <button type="submit" style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', backgroundColor: theme.accent, color: '#ffffff', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 2px 6px ${theme.accent}60`, transition: 'all 0.2s ease' }}>
+              <Send size={14} strokeWidth={2} style={{ marginLeft: '-1px' }} />
+            </button>
+          </form>
+        </div>
+      </aside>
+    </div>
+  );
+}

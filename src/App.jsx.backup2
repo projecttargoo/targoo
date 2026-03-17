@@ -1,0 +1,333 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  LayoutDashboard, Users, Database, Activity, Scale, 
+  Leaf, ClipboardList, FileText, Search, Settings, 
+  Send, AlertTriangle, CheckCircle2, Zap, ArrowRight, RefreshCcw
+} from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
+import logo from './assets/targoo-logo.png';
+
+const T = {
+  bg: '#f5f5f7',
+  panel: '#ffffff',
+  border: '#e5e7eb',
+  primary: '#059669',
+  primaryGlow: 'rgba(5,150,105,0.08)',
+  text: '#111827',
+  muted: '#6b7280',
+  red: '#ef4444',
+  amber: '#f59e0b',
+  blue: '#3b82f6',
+  purple: '#8b5cf6',
+  shadow: '0 1px 3px rgba(0,0,0,0.08)',
+};
+
+const menuGroups = [
+  {
+    title: 'Audit OS',
+    items: [
+      { id: 'dashboard', label: 'Mission Control', icon: LayoutDashboard },
+      { id: 'intake', label: 'Data Intake', icon: Database },
+      { id: 'analysis', label: 'Analysis', icon: Activity },
+      { id: 'compliance', icon: Scale, label: 'Compliance' },
+    ]
+  },
+  {
+    title: 'Enterprise',
+    items: [
+      { id: 'emissions', label: 'Emissions', icon: Leaf },
+      { id: 'esrs', label: 'ESRS Library', icon: ClipboardList },
+      { id: 'reports', label: 'Reports', icon: FileText },
+      { id: 'audit', label: 'Audit Trail', icon: Search },
+    ]
+  }
+];
+
+export default function App() {
+  const [s, setS] = useState({
+    activeTab: 'dashboard',
+    clients: [{ id: 1, name: 'Hans GmbH', industry: 'Automotive' }],
+    selectedId: 1,
+    riskFixed: false,
+    importStatus: 'idle',
+    genStep: 0, // 0: idle, 1: validated, 2: structured, 3: ready
+    chat: '',
+  });
+
+  const activeClient = s.clients.find(c => c.id === s.selectedId) || s.clients[0];
+  const progress = s.riskFixed ? 74 : 68;
+
+  const update = useCallback((patch) => setS(v => ({ ...v, ...patch })), []);
+
+  const handleGen = () => {
+    update({ genStep: 1 });
+    setTimeout(() => update({ genStep: 2 }), 800);
+    setTimeout(() => update({ genStep: 3 }), 1600);
+    setTimeout(() => update({ genStep: 0 }), 4000);
+  };
+
+  const navBtn = (item) => {
+    const active = s.activeTab === item.id;
+    return (
+      <button 
+        key={item.id}
+        onClick={() => update({ activeTab: item.id })}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '12px', width: '100%', border: 'none', borderRadius: '8px',
+          padding: '9px 14px', cursor: 'pointer', marginBottom: '4px', transition: 'all 0.2s',
+          background: active ? T.primaryGlow : 'transparent',
+          color: active ? T.primary : T.muted,
+        }}
+      >
+        <item.icon size={18} strokeWidth={1.5} />
+        <span style={{ fontSize: '13px', fontWeight: active ? '700' : '500' }}>{item.label}</span>
+      </button>
+    );
+  };
+
+  const cardStyle = {
+    background: T.panel, border: `1px solid ${T.border}`, borderRadius: '12px',
+    padding: '20px', transition: 'transform 0.2s',
+  };
+
+  return (
+    <div style={{ background: T.bg, color: T.text, height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif' }}>
+      <style>{`
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+      `}</style>
+      
+      {/* TOP BAR */}
+      <div style={{ height: '52px', background: '#f5f5f7',  borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', zIndex: 100 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span style={{ fontSize: '15px', fontWeight: '700' }}>{activeClient.name}</span>
+          <div style={{ background: 'rgba(5,150,105,0.1)', color: T.primary, border: `1px solid ${T.primary}40`, padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '800' }}>
+            🟢 Audit Ready
+          </div>
+        </div>
+        <div style={{ color: T.muted, fontSize: '12px' }}>Last sync: 2 min ago</div>
+        <button onClick={handleGen} style={{ background: T.primary, color: 'white', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>
+          {s.genStep === 0 ? 'Generate Report' : s.genStep === 3 ? '✔ Report Ready' : 'Processing...'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        
+        {/* LEFT SIDEBAR */}
+        <div style={{ width: '240px', background: T.panel, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '32px 16px 24px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <img src={logo} style={{ height: 'auto', width: '180px', display: 'block', marginBottom: '-2px' }} alt="targoo" />
+            <div style={{ 
+              fontSize: '8px', 
+              fontWeight: '900', 
+              color: T.primary, 
+              letterSpacing: '0.45em', 
+              textTransform: 'uppercase', 
+              marginLeft: '3px',
+              opacity: 0.9,
+              lineHeight: '1'
+            }}>Advisor Engine</div>
+          </div>
+          
+          <select 
+            style={{ background: T.panel, color: T.text, border: `1px solid ${T.border}`, borderRadius: '8px', padding: '10px', margin: '0 12px 20px 12px', width: 'calc(100% - 24px)', outline: 'none' }}
+            value={s.selectedId} onChange={(e) => update({ selectedId: Number(e.target.value) })}
+          >
+            {s.clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          <div style={{ flex: 1, padding: '0 12px', overflowY: 'auto' }}>
+            {menuGroups.map(group => (
+              <div key={group.title} style={{ marginBottom: '24px' }}>
+                <div style={{ fontSize: '10px', fontWeight: '800', color: T.muted, textTransform: 'uppercase', padding: '0 14px 10px', letterSpacing: '0.05em' }}>{group.title}</div>
+                {group.items.map(navBtn)}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ padding: '20px', borderTop: `1px solid ${T.border}` }}>
+            <div style={{ fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>Compliance</div>
+            <div style={{ height: '6px', background: T.border, borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${progress}%`, background: T.primary, transition: 'width 0.5s ease' }} />
+            </div>
+            <div style={{ fontSize: '10px', color: T.muted, marginTop: '6px' }}>{progress}% Overall Progress</div>
+          </div>
+        </div>
+
+        {/* CENTER CONTENT */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+            
+            {/* KPI ROW */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+              {[
+                { label: 'ESG Score', val: '74', trend: '+6%', trendUp: true, sub: 'Target: 80 by Q4', color: T.primary, icon: '📈' },
+                { label: 'Carbon (t)', val: '198', trend: '+2%', trendUp: false, sub: 'Scope 1+2 only', color: T.red, icon: '🌍' },
+                { label: 'Energy (MWh)', val: '420', trend: '-4%', trendUp: true, sub: 'vs 438 last year', color: T.blue, icon: '⚡' },
+                { label: 'Workforce', val: '342', trend: '0%', trendUp: null, sub: '12% YoY growth', color: T.purple, icon: '👥' },
+              ].map(k => (
+                <div key={k.label} style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: '16px', padding: '20px', boxShadow: T.shadow, transition: 'transform 0.15s, box-shadow 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.10)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = T.shadow; }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: T.muted }}>{k.label}</span>
+                    <span style={{ fontSize: '18px' }}>{k.icon}</span>
+                  </div>
+                  <div style={{ fontSize: '34px', fontWeight: '700', color: T.text, letterSpacing: '-1px', marginBottom: '8px' }}>{k.val}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', color: T.muted }}>{k.sub}</span>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: k.trendUp === true ? T.primary : k.trendUp === false ? T.red : T.muted, background: k.trendUp === true ? 'rgba(5,150,105,0.08)' : k.trendUp === false ? 'rgba(239,68,68,0.08)' : 'rgba(107,114,128,0.08)', padding: '2px 8px', borderRadius: '20px' }}>{k.trend}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* MAIN DASHBOARD GRID */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+              
+              {/* COMPLIANCE RADIAL */}
+              <div style={cardStyle}>
+                <div style={{ fontWeight: '800', fontSize: '14px', marginBottom: '20px' }}>Audit Readiness</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                  <svg width="100" height="100" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke={T.border} strokeWidth="8" fill="none" />
+                    <circle 
+                      cx="50" cy="50" r="40" stroke={T.primary} strokeWidth="8" fill="none" 
+                      strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * progress) / 100}
+                      strokeLinecap="round" transform="rotate(-90 50 50)" style={{ transition: 'all 1s ease' }}
+                    />
+                    <text x="50" y="55" textAnchor="middle" fill={T.text} fontSize="18" fontWeight="900">{progress}%</text>
+                  </svg>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: T.primary }}>✔ Validated</div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: T.muted, marginTop: '4px' }}>⚠ ESRS E1-5 Pending</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* DATA INGEST */}
+              <div 
+                style={{ ...cardStyle, border: `2px dashed ${s.importStatus === 'done' ? T.primary : T.border}`, background: 'rgba(0,0,0,0.1)', textAlign: 'center', cursor: 'pointer' }}
+                onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); update({ importStatus: 'done' }); }}
+              >
+                {s.importStatus === 'idle' ? (
+                  <>
+                    <RefreshCcw size={24} style={{ color: T.muted, marginBottom: '12px' }} />
+                    <div style={{ fontSize: '13px', fontWeight: '700' }}>Drop SAP/Excel Exports</div>
+                    <div style={{ fontSize: '11px', color: T.muted, marginTop: '4px' }}>Automatic Mapping Active</div>
+                  </>
+                ) : (
+                  <div style={{ color: T.primary, fontSize: '13px', fontWeight: '700' }}>
+                    <CheckCircle2 size={24} style={{ marginBottom: '8px' }} />
+                    <div>SAP Data Mapped to ESRS E1</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* GENERATION STATUS (OVERLAY-LIKE) */}
+            {s.genStep > 0 && (
+              <div style={{ ...cardStyle, background: T.bg, border: `1px solid ${T.primary}`, padding: '24px' }}>
+                <div style={{ fontWeight: '800', marginBottom: '16px' }}>Reporting Flow</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ color: s.genStep >= 1 ? T.primary : T.muted }}>✔ Data Validated</div>
+                  <div style={{ color: s.genStep >= 2 ? T.primary : T.muted }}>✔ ESRS Structured</div>
+                  <div style={{ color: s.genStep >= 3 ? T.primary : T.muted }}>✔ Audit-Ready Report</div>
+                </div>
+              </div>
+            )}
+
+            {/* ESRS STATUS TABLE */}
+            <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: '12px', marginTop: '24px', overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: `1px solid ${T.border}`, fontWeight: '800', fontSize: '13px' }}>ESRS Compliance Overview</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {[
+                    { id: 'E1', name: 'Climate Change', status: 'Partial', color: '#f59e0b' },
+                    { id: 'E2', name: 'Pollution', status: 'Complete', color: '#059669' },
+                    { id: 'E3', name: 'Water & Marine', status: 'Missing', color: '#ef4444' },
+                    { id: 'S1', name: 'Own Workforce', status: 'Partial', color: '#f59e0b' },
+                    { id: 'G1', name: 'Business Conduct', status: 'Complete', color: '#059669' },
+                  ].map(row => (
+                    <tr key={row.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                      <td style={{ padding: '12px 20px', fontSize: '13px', fontWeight: '700', color: T.muted, width: '48px' }}>{row.id}</td>
+                      <td style={{ padding: '12px 20px', fontSize: '13px', color: T.text }}>{row.name}</td>
+                      <td style={{ padding: '12px 20px', textAlign: 'right' }}>
+                        <span style={{ background: `${row.color}18`, color: row.color, fontSize: '11px', fontWeight: '800', padding: '3px 10px', borderRadius: '20px' }}>{row.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* NEXT ACTIONS */}
+            <div style={{ background: T.panel, border: `1px solid ${T.border}`, borderRadius: '12px', marginTop: '24px', padding: '20px' }}>
+              <div style={{ fontWeight: '800', fontSize: '13px', marginBottom: '16px' }}>Next Actions</div>
+              {[
+                { text: 'Upload Scope 3 supplier data', priority: 'High', color: '#ef4444' },
+                { text: 'Complete ESRS E1-3 disclosure', priority: 'High', color: '#ef4444' },
+                { text: 'Review water consumption metrics', priority: 'Medium', color: '#f59e0b' },
+                { text: 'Schedule audit preparation call', priority: 'Low', color: '#059669' },
+              ].map((a, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < 3 ? `1px solid ${T.border}` : 'none' }}>
+                  <div style={{ fontSize: '13px', color: T.text }}>{a.text}</div>
+                  <span style={{ background: `${a.color}18`, color: a.color, fontSize: '11px', fontWeight: '800', padding: '3px 10px', borderRadius: '20px', marginLeft: '12px', whiteSpace: 'nowrap' }}>{a.priority}</span>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        </div>
+
+        {/* RIGHT PANEL */}
+        <div style={{ width: '300px', background: T.panel, borderLeft: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '24px', borderBottom: `1px solid ${T.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: T.blue }}>
+              <Zap size={18} fill={T.blue} />
+              <span style={{ fontWeight: '800', fontSize: '14px' }}>CSRD Compass AI</span>
+            </div>
+          </div>
+
+          <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+            {!s.riskFixed && (
+              <div style={{ background: 'rgba(239,68,68,0.1)', border: `1px solid ${T.red}40`, borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '8px', color: T.red, marginBottom: '8px' }}>
+                  <AlertTriangle size={16} />
+                  <span style={{ fontSize: '13px', fontWeight: '800' }}>Risk detected</span>
+                </div>
+                <div style={{ fontSize: '12px', lineHeight: '1.5', marginBottom: '12px' }}>
+                  Missing mandatory ESRS E1-5 Disclosure. This will block audit finalization.
+                </div>
+                <button 
+                  onClick={() => update({ riskFixed: true })}
+                  style={{ width: '100%', background: T.red, color: 'white', border: 'none', borderRadius: '6px', padding: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                >
+                  Fix Automatically
+                </button>
+              </div>
+            )}
+
+            <div style={{ fontSize: '11px', color: T.muted, textTransform: 'uppercase', fontWeight: '800', marginBottom: '12px', textAlign: 'center' }}>Memory Engine Analysis</div>
+            <div style={{ fontSize: '12px', color: T.muted, lineHeight: '1.6', fontStyle: 'italic' }}>
+              "Based on previous manufacturing audits, Scope 2 verification is the most common failure point. I've flagged 3 anomalies in your current ingestion."
+            </div>
+          </div>
+
+          <div style={{ padding: '20px', borderTop: `1px solid ${T.border}` }}>
+            <div style={{ position: 'relative' }}>
+              <input 
+                placeholder="Ask Compass..." 
+                style={{ width: '100%', background: T.bg, border: `1px solid ${T.border}`, borderRadius: '20px', padding: '10px 40px 10px 16px', color: T.text, fontSize: '13px' }}
+              />
+              <Send size={16} style={{ position: 'absolute', right: '14px', top: '10px', color: T.muted }} />
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
