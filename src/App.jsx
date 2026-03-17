@@ -1,750 +1,741 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Users, FolderKanban, Database, Scale, Leaf, ClipboardList, FileText, Search, BookOpen, Settings, Send, ChevronDown } from 'lucide-react';
-import logo from './assets/targoo-logo.png';
+import React, { useState, useRef, useEffect } from ‘react’;
+import { LayoutDashboard, Users, FolderKanban, Database, Scale, Leaf, ClipboardList, FileText, Search, BookOpen, Settings, Send, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, Zap, RefreshCw, Download, Bell } from ‘lucide-react’;
+import logo from ‘./assets/targoo.png’;
 
 const S = {
-  bg: '#f5f5f7', panel: '#ffffff', border: '#e5e7eb',
-  text: '#111827', muted: '#6b7280', accent: '#007aff',
-  accentBg: 'rgba(0,122,255,0.08)', green: '#34c759',
-  red: '#ff3b30', amber: '#ff9500',
-  shadow: '0 1px 3px rgba(0,0,0,0.06)',
-  radius: '10px', font: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif'
+bg: ‘#f5f5f7’,
+panel: ‘#ffffff’,
+border: ‘#e5e7eb’,
+text: ‘#111827’,
+muted: ‘#6b7280’,
+accent: ‘#007aff’,
+accentBg: ‘rgba(0,122,255,0.08)’,
+green: ‘#34c759’,
+red: ‘#ff3b30’,
+amber: ‘#ff9500’,
+shadow: ‘0 1px 3px rgba(0,0,0,0.06)’,
+shadowMd: ‘0 4px 16px rgba(0,0,0,0.08)’,
+radius: ‘12px’,
+font: ‘-apple-system, BlinkMacSystemFont, “SF Pro Display”, “Helvetica Neue”, sans-serif’
 };
 
 const menuItems = [
-  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { id: 'clients', icon: Users, label: 'Clients' },
-  { id: 'projects', icon: FolderKanban, label: 'Projects' },
-  { id: 'data', icon: Database, label: 'Data Import' },
-  { id: 'materiality', icon: Scale, label: 'Materiality' },
-  { id: 'emissions', icon: Leaf, label: 'Emissions' },
-  { id: 'esrs', icon: ClipboardList, label: 'ESRS Status' },
-  { id: 'reports', icon: FileText, label: 'Reports' },
-  { id: 'audit', icon: Search, label: 'Audit Trail' },
-  { id: 'library', icon: BookOpen, label: 'Library' },
-  { id: 'settings', icon: Settings, label: 'Settings' }
+{ id: ‘dashboard’, icon: LayoutDashboard, label: ‘Dashboard’ },
+{ id: ‘clients’, icon: Users, label: ‘Clients’ },
+{ id: ‘projects’, icon: FolderKanban, label: ‘Engagements’ },
+{ id: ‘data’, icon: Database, label: ‘Data Intake’ },
+{ id: ‘materiality’, icon: Scale, label: ‘Analysis’ },
+{ id: ‘emissions’, icon: Leaf, label: ‘Emissions’ },
+{ id: ‘esrs’, icon: ClipboardList, label: ‘Compliance’ },
+{ id: ‘reports’, icon: FileText, label: ‘Reports’ },
+{ id: ‘audit’, icon: Search, label: ‘Audit Trail’ },
+{ id: ‘library’, icon: BookOpen, label: ‘Library’ },
+{ id: ‘settings’, icon: Settings, label: ‘Settings’ }
+];
+
+const clients = [
+{ id: 1, name: ‘Hans GmbH Demo’, score: 74, status: ‘partial’ },
+{ id: 2, name: ‘Müller & Co’, score: 62, status: ‘risk’ },
+{ id: 3, name: ‘Schweizer AG’, score: 81, status: ‘ready’ }
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState([{ role: 'ai', text: 'Hello! I am your CSRD Compass. How can I help?' }]);
-  const [selectedClientId, setSelectedClientId] = useState(1);
-  const [isDragging, setIsDragging] = useState(false);
-  const [modelReady, setModelReady] = useState(false);
-  const [modelDownloading, setModelDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
+const [activeTab, setActiveTab] = useState(‘dashboard’);
+const [chatInput, setChatInput] = useState(’’);
+const [chatHistory, setChatHistory] = useState([
+{ role: ‘ai’, text: ‘⚠ CSRD Risk Detected: Hans GmbH is missing ESRS E1-3 data. Audit deadline in 298 days. Shall I walk you through the 3-step fix?’ }
+]);
+const [selectedClientId, setSelectedClientId] = useState(1);
+const [isDragging, setIsDragging] = useState(false);
+const [modelReady, setModelReady] = useState(false);
+const [modelDownloading, setModelDownloading] = useState(false);
+const [downloadProgress, setDownloadProgress] = useState(0);
+const [dataImported, setDataImported] = useState(false);
+const [importResults, setImportResults] = useState(null);
+const [incompleteReports] = useState(3);
+const [complianceRisks] = useState(2);
+const chatEndRef = useRef(null);
 
-  const handleFileUpload = (filename) => {
-    const userMsg = { role: 'user', text: `Uploading ${filename}...` };
-    setChatHistory(prev => [...prev, userMsg]);
-    setTimeout(() => {
-      setChatHistory(prev => [...prev, { role: 'ai', text: `File ${filename} received. Processing for Hans GmbH Demo...` }]);
-    }, 800);
-  };
-  
-  const clients = [
-    { id: 1, name: 'Hans GmbH Demo' },
-    { id: 2, name: 'Müller & Co' },
-    { id: 3, name: 'Schweizer AG' }
-  ];
+const activeClient = clients.find(c => c.id === selectedClientId) || clients[0];
 
-  const chatEndRef = useRef(null);
+useEffect(() => {
+chatEndRef.current?.scrollIntoView({ behavior: ‘smooth’ });
+}, [chatHistory]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
+useEffect(() => {
+if (window.**TAURI**) {
+const { invoke, listen } = window.**TAURI**;
+if (invoke) invoke(‘check_model’).then(r => setModelReady(r)).catch(() => {});
+if (listen) {
+listen(‘download_progress’, (e) => {
+setDownloadProgress(Math.round(e.payload));
+if (e.payload >= 100) { setModelReady(true); setModelDownloading(false); }
+});
+}
+}
+}, []);
 
-  useEffect(() => {
-    if (window.__TAURI_INTERNALS__) {
-      const { invoke } = window.__TAURI_INTERNALS__;
-      if (invoke) {
-        invoke('check_model').then(ready => setModelReady(ready)).catch(() => setModelReady(false));
-      }
-      const { listen } = window.__TAURI_INTERNALS__;
-      if (listen) {
-        listen('download_progress', (event) => {
-          setDownloadProgress(Math.round(event.payload));
-          if (event.payload >= 100) { setModelReady(true); setModelDownloading(false); }
-        });
-      }
-    }
-  }, []);
+const handleFileUpload = (filename) => {
+setDataImported(false);
+setImportResults(null);
+setChatHistory(prev => […prev, { role: ‘user’, text: `Uploading ${filename}...` }]);
+setTimeout(() => {
+setDataImported(true);
+setImportResults({
+recognized: [‘SAP data recognized’, ‘Emissions mapped to ESRS E1’, ‘Workforce data detected’],
+warnings: [‘Missing: Scope 3 supplier data’],
+records: 847
+});
+setChatHistory(prev => […prev, {
+role: ‘ai’,
+text: `✔ ${filename} processed. Found 847 ESG data points. Scope 1+2 mapped. ⚠ Scope 3 supplier data missing — this affects ESRS E1.46 compliance. Fix now?`
+}]);
+}, 1200);
+};
 
-  const handleSend = async (e) => {
-    if (e) e.preventDefault();
-    if (!chatInput.trim()) return;
-    const userMsg = { role: 'user', text: chatInput };
-    setChatHistory(prev => [...prev, userMsg]);
-    setChatInput('');
-    setChatHistory(prev => [...prev, { role: 'ai', text: '⏳ Analyzing...' }]);
-    try {
-      if (window.__TAURI_INTERNALS__?.invoke) {
-        const response = await window.__TAURI_INTERNALS__.invoke('ask_ai', { 
-          question: userMsg.text, 
-          clientId: 1 
-        });
-        setChatHistory(prev => [...prev.slice(0,-1), { role: 'ai', text: response }]);
-      } else {
-        setTimeout(() => {
-          setChatHistory(prev => [...prev.slice(0,-1), { role: 'ai', text: `ESRS analysis for "${userMsg.text}": This requires disclosure under ESRS E1. Key metrics include Scope 1, 2, and 3 emissions with paragraph-level citations from the EU taxonomy.` }]);
-        }, 800);
-      }
-    } catch (err) {
-      setChatHistory(prev => [...prev.slice(0,-1), { role: 'ai', text: `⚠ AI Engine not ready. Please download the model first. Error: ${err}` }]);
-    }
-  };
+const handleSend = async (e) => {
+if (e) e.preventDefault();
+if (!chatInput.trim()) return;
+const userMsg = { role: ‘user’, text: chatInput };
+setChatHistory(prev => […prev, userMsg, { role: ‘ai’, text: ‘⏳ Analyzing…’ }]);
+const q = chatInput;
+setChatInput(’’);
+try {
+if (window.**TAURI**?.invoke) {
+const r = await window.**TAURI**.invoke(‘ask_ai’, { question: q, clientId: 1 });
+setChatHistory(prev => […prev.slice(0, -1), { role: ‘ai’, text: r }]);
+} else {
+setTimeout(() => {
+setChatHistory(prev => […prev.slice(0, -1), {
+role: ‘ai’,
+text: `ESRS analysis for "${q}": Based on ESRS E1.44, Scope 1-3 disclosures are mandatory. Current data shows 68% compliance. Recommended action: upload supplier emission data to reach 85%+ threshold.`
+}]);
+}, 900);
+}
+} catch (err) {
+setChatHistory(prev => […prev.slice(0, -1), { role: ‘ai’, text: ‘⚠ AI Engine initializing. Please wait…’ }]);
+}
+};
 
-  const activeItem = menuItems.find(i => i.id === activeTab);
+const statusColor = { ready: S.green, partial: S.amber, risk: S.red };
+const statusLabel = { ready: ‘● Audit Ready’, partial: ‘◐ In Progress’, risk: ‘⚠ Action Required’ };
 
-  return (
-    <div style={{
-      height: '100vh', width: '100vw', display: 'flex', flexDirection: 'row',
-      fontFamily: S.font, background: S.bg, overflow: 'hidden'
-    }}>
-      <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { overflow: hidden; -webkit-font-smoothing: antialiased; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
-      `}</style>
+return (
+<div style={{ height: ‘100vh’, width: ‘100vw’, display: ‘flex’, flexDirection: ‘column’, fontFamily: S.font, background: S.bg, overflow: ‘hidden’ }}>
+<style>{`* { box-sizing: border-box; margin: 0; padding: 0; } body { overflow: hidden; -webkit-font-smoothing: antialiased; } ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; } @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } } @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } } @keyframes drawLine { from { stroke-dashoffset: 700; } to { stroke-dashoffset: 0; } } .nav-btn:hover { background: rgba(0,122,255,0.06) !important; color: #007aff !important; transform: translateX(2px); } .kpi-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 12px 32px rgba(0,0,0,0.10) !important; } .action-btn:hover { opacity: 0.88; transform: scale(0.98); } .row-hover:hover { background: #f9fafb !important; }`}</style>
 
-      {/* SIDEBAR */}
-      <aside style={{
-        width: '320px', background: S.panel, borderRight: `1px solid ${S.border}`,
-        display: 'flex', flexDirection: 'column'
-      }}>
-        <div style={{ padding: '20px 16px 12px 16px', borderBottom: '1px solid #e5e7eb' }}>
-          <img src={logo} alt="Targoo" style={{ width: '140px', height: 'auto', display: 'block', marginBottom: '4px' }} /><div style={{ fontSize: '10px', fontWeight: '700', color: '#6b7280', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>Advisor Engine</div>
-          <select value={selectedClientId} onChange={(e) => setSelectedClientId(Number(e.target.value))} style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', color: '#111827', fontWeight: '500', fontSize: '13px', cursor: 'pointer' }}>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-
-        <nav style={{ flex: 1, overflowY: 'auto', padding: '0 8px', marginTop: '12px' }}>
-          {menuItems.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <NavButton 
-                key={item.id} 
-                item={item} 
-                isActive={isActive} 
-                onClick={() => setActiveTab(item.id)} 
-              />
-            );
-          })}
-        </nav>
-
-        <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb' }}
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileUpload(e.dataTransfer.files[0]?.name || 'data.xml'); }}
-        >
-          <div
-            onClick={() => handleFileUpload('manual.xml')}
-            style={{
-              padding: '24px 16px',
-              borderRadius: '14px',
-              border: `2px dashed ${isDragging ? '#007aff' : '#c7d2fe'}`,
-              background: isDragging ? 'rgba(0,122,255,0.06)' : 'linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%)',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)',
-              transform: isDragging ? 'scale(1.03)' : 'scale(1)',
-              boxShadow: isDragging ? '0 8px 24px rgba(0,122,255,0.15)' : '0 1px 4px rgba(99,102,241,0.08)'
-            }}
-          >
-            <div style={{
-              width: '44px', height: '44px', borderRadius: '12px',
-              background: isDragging ? '#007aff' : 'white',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 12px auto',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-              transition: 'all 0.25s ease'
-            }}>
-              <Database size={20} color={isDragging ? 'white' : '#007aff'} strokeWidth={1.5} />
-            </div>
-            <div style={{ fontSize: '12px', fontWeight: '700', color: isDragging ? '#007aff' : '#374151', marginBottom: '4px', transition: 'color 0.2s' }}>
-              {isDragging ? 'Release to import' : 'Drop ESG files here'}
-            </div>
-            <div style={{ fontSize: '10px', color: '#6b7280', lineHeight: '1.5' }}>
-              SAP · Oracle · CSV · PDF
-            </div>
-            <div style={{ marginTop: '12px', padding: '6px 14px', borderRadius: '20px', background: isDragging ? 'rgba(255,255,255,0.3)' : 'rgba(0,122,255,0.08)', display: 'inline-block' }}>
-              <span style={{ fontSize: '10px', fontWeight: '600', color: '#007aff' }}>Browse files</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* CENTER */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <header style={{
-          height: '52px', background: S.panel, borderBottom: `1px solid ${S.border}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px'
-        }}>
-          <div style={{ fontSize: '16px', fontWeight: 600, color: S.text }}>
-            {activeItem?.label}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <input 
-              placeholder="Search..." 
-              style={{
-                background: S.bg, border: `1px solid ${S.border}`, borderRadius: '20px',
-                padding: '7px 16px', fontSize: '13px', width: '200px', outline: 'none'
-              }}
-            />
-            <div style={{
-              width: '32px', height: '32px', background: S.accent, color: 'white',
-              borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '12px', fontWeight: 700
-            }}>
-              FR
-            </div>
-          </div>
-        </header>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
-          <EmptyState tabId={activeTab} />
-        </div>
-      </main>
-
-      {/* RIGHT PANEL */}
-      <aside style={{
-        width: '320px', background: S.panel, borderLeft: `1px solid ${S.border}`,
-        display: 'flex', flexDirection: 'column'
-      }}>
-        <header style={{ padding: '20px', borderBottom: `1px solid ${S.border}` }}>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: S.text }}>CSRD Compass AI</div>
-          <div style={{ fontSize: '12px', color: S.muted, marginTop: '2px' }}>Compliance Assistant</div>
-          <div style={{ fontSize: '11px', color: S.green, marginTop: '6px' }}>● Online</div>
-        </header>
-
-        <div style={{
-          flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px'
-        }}>
-          {!modelReady && (
-            <div style={{ background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '12px', fontWeight: '700', color: '#ff9500', marginBottom: '6px' }}>⚡ AI Engine Required</div>
-              <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '12px', lineHeight: '1.5' }}>
-                {modelDownloading ? `Downloading Gemma AI... ${downloadProgress}%` : 'Download the offline AI model to enable ESRS analysis.'}
-              </div>
-              {modelDownloading && (
-                <div style={{ height: '4px', background: '#e5e7eb', borderRadius: '2px', marginBottom: '12px' }}>
-                  <div style={{ height: '100%', width: `${downloadProgress}%`, background: '#ff9500', borderRadius: '2px', transition: 'width 0.3s ease' }}/>
-                </div>
-              )}
-              {!modelDownloading && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (window.__TAURI_INTERNALS__?.invoke) {
-                      setModelDownloading(true);
-                      try { await window.__TAURI_INTERNALS__.invoke('download_model'); } catch(e) { setModelDownloading(false); }
-                    }
-                  }}
-                  style={{ background: '#ff9500', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', width: '100%' }}
-                >
-                  Download AI Model (1.2 GB)
-                </button>
-              )}
-            </div>
-          )}
-          {chatHistory.map((msg, i) => (
-            <div key={i} style={{
-              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              maxWidth: '85%', padding: '12px', borderRadius: '12px', fontSize: '13px', lineHeight: 1.5,
-              background: msg.role === 'user' ? S.accent : S.bg,
-              color: msg.role === 'user' ? 'white' : S.text,
-              border: msg.role === 'ai' ? `1px solid ${S.border}` : 'none'
-            }}>
-              {msg.text}
-            </div>
-          ))}
-          <div ref={chatEndRef} />
-        </div>
-
-        <form onSubmit={handleSend} style={{ padding: '16px', borderTop: `1px solid ${S.border}`, position: 'relative' }}>
-          <input 
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            placeholder="Type a message..."
-            style={{
-              width: '100%', background: S.bg, border: `1px solid ${S.border}`,
-              borderRadius: '20px', padding: '10px 44px 10px 16px', fontSize: '13px', outline: 'none'
-            }}
-          />
-          <button 
-            type="submit"
-            style={{
-              position: 'absolute', right: '24px', top: '50%', transform: 'translateY(-50%)',
-              width: '30px', height: '30px', background: S.accent, borderRadius: '50%',
-              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'white'
-            }}
-          >
-            <Send size={14} />
-          </button>
-        </form>
-      </aside>
+```
+  {/* ── ALERT BAR ── */}
+  <div style={{ background: '#fff3cd', borderBottom: '1px solid #ffc107', padding: '8px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <span style={{ fontSize: '12px', fontWeight: '700', color: '#856404' }}>⚠ 2 critical compliance risks detected</span>
+      <span style={{ fontSize: '12px', color: '#856404' }}>Potential fine: <b>€2.4M</b></span>
+      <span style={{ fontSize: '12px', color: '#856404' }}>Deadline: <b>298 days</b></span>
     </div>
-  );
-}
-
-function NavButton({ item, isActive, onClick }) {
-  const [hover, setHover] = useState(false);
-  const Icon = item.icon;
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex', alignItems: 'center', gap: '10px', width: '100%',
-        padding: '8px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-        fontSize: '13px', fontWeight: isActive ? 600 : 500, transition: 'all 0.15s ease',
-        marginBottom: '2px',
-        background: isActive ? S.accentBg : (hover ? '#f0f0f2' : 'transparent'),
-        color: isActive ? S.accent : S.muted
-      }}
-    >
-      <Icon size={16} strokeWidth={1.5} />
-      {item.label}
+    <button className="action-btn" onClick={() => {}} style={{ background: '#dc3545', color: 'white', border: 'none', padding: '5px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.15s' }}>
+      Fix All Compliance Gaps
     </button>
-  );
-}
+  </div>
 
-function EmptyState({ tabId }) {
-  const item = menuItems.find(i => i.id === tabId);
-  const Icon = item?.icon || LayoutDashboard;
-
-  switch (tabId) {
-    case 'dashboard':
-      return (
-        <div style={{display:'flex',flexDirection:'column',gap:'20px',animation:'fadeIn 0.3s ease'}}>
-
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'16px'}}>
-            {[
-              {label:'ESG Score',value:'74',trend:'+6%',up:true,sub:'Target: 80 by Q4',color:'#007aff',bg:'rgba(0,122,255,0.06)',detail:'↑ 4pts vs last quarter',icon:'◎'},
-              {label:'Carbon (t)',value:'198',trend:'+2%',up:false,sub:'Scope 1+2 only',color:'#ff3b30',bg:'rgba(255,59,48,0.06)',detail:'↑ 4t vs last month',icon:'◉'},
-              {label:'Energy MWh',value:'420',trend:'-4%',up:true,sub:'vs 438 last year',color:'#34c759',bg:'rgba(52,199,89,0.06)',detail:'↓ 18 MWh saved',icon:'◈'},
-              {label:'Workforce',value:'342',trend:'0%',up:null,sub:'12% YoY growth',color:'#ff9500',bg:'rgba(255,149,0,0.06)',detail:'↑ 38 new hires',icon:'◇'},
-            ].map((k,i) => {
-              const KPICard = ({k}) => {
-                const [hov, setHov] = React.useState(false);
-                return (
-                  <div
-                    onMouseEnter={()=>setHov(true)}
-                    onMouseLeave={()=>setHov(false)}
-                    style={{
-                      background: hov ? k.bg : '#fff',
-                      borderRadius:'16px',
-                      padding:'22px',
-                      border: hov ? `1px solid ${k.color}40` : '1px solid #e5e7eb',
-                      boxShadow: hov ? `0 8px 32px ${k.color}18, 0 2px 8px rgba(0,0,0,0.06)` : '0 1px 3px rgba(0,0,0,0.06)',
-                      transform: hov ? 'translateY(-3px)' : 'translateY(0)',
-                      transition:'all 0.25s cubic-bezier(0.4,0,0.2,1)',
-                      cursor:'default',
-                      position:'relative',
-                      overflow:'hidden'
-                    }}>
-                    <div style={{
-                      position:'absolute',top:0,right:0,
-                      width:'80px',height:'80px',
-                      background:`radial-gradient(circle at top right, ${k.color}10, transparent 70%)`,
-                      transition:'opacity 0.3s',
-                      opacity: hov ? 1 : 0
-                    }}/>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'14px'}}>
-                      <div style={{fontSize:'11px',fontWeight:'600',color: hov ? k.color : '#9ca3af',textTransform:'uppercase',letterSpacing:'0.07em',transition:'color 0.2s'}}>{k.label}</div>
-                      <span style={{fontSize:'11px',fontWeight:'700',padding:'3px 8px',borderRadius:'20px',color:k.up===true?'#34c759':k.up===false?'#ff3b30':'#9ca3af',background:k.up===true?'rgba(52,199,89,0.1)':k.up===false?'rgba(255,59,48,0.1)':'rgba(156,163,175,0.1)',transition:'all 0.2s'}}>{k.trend}</span>
-                    </div>
-                    <div style={{fontSize:'42px',fontWeight:'700',color: hov ? k.color : '#111827',letterSpacing:'-2px',lineHeight:1,marginBottom:'10px',transition:'color 0.25s'}}>{k.value}</div>
-                    <div style={{fontSize:'11px',color: hov ? k.color+'99' : '#9ca3af',transition:'all 0.2s'}}>{hov ? k.detail : k.sub}</div>
-                  </div>
-                );
-              };
-              return <KPICard key={k.label} k={k} />;
-            })}
-          </div>
-
-          <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:'16px'}}>
-
-            <div style={{background:'#fff',borderRadius:'16px',padding:'24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-              <div style={{fontSize:'13px',fontWeight:'600',color:'#111827',marginBottom:'2px'}}>CO₂ Emission Trend</div>
-              <div style={{fontSize:'11px',color:'#9ca3af',marginBottom:'16px'}}>Jan – Jun 2024 · tCO2e · hover for details</div>
-              {(() => {
-                const pts = [
-                  {x:20,y:100,l:'Jan',v:'248t',m:'Jan 2024'},
-                  {x:90,y:72,l:'Feb',v:'231t',m:'Feb 2024'},
-                  {x:160,y:85,l:'Mar',v:'219t',m:'Mar 2024'},
-                  {x:230,y:55,l:'Apr',v:'205t',m:'Apr 2024'},
-                  {x:300,y:38,l:'May',v:'198t',m:'May 2024'},
-                  {x:370,y:22,l:'Jun',v:'192t',m:'Jun 2024'},
-                ];
-                const [hov, setHov] = React.useState(null);
-                const smoothD = `M20,100 C55,86 90,72 90,72 C125,79 160,85 160,85 C195,70 230,55 230,55 C265,46 300,38 300,38 C335,30 370,22 370,22`;
-                const areaD = smoothD + ' L370,130 L20,130 Z';
-                return (
-                  <svg width="100%" height="150" viewBox="0 0 400 150" style={{overflow:'visible'}}>
-                    <defs>
-                      <linearGradient id="co2Grad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#007aff" stopOpacity="0.12"/>
-                        <stop offset="100%" stopColor="#007aff" stopOpacity="0"/>
-                      </linearGradient>
-                      <style>{`
-                        @keyframes drawCo2 { from{stroke-dashoffset:700} to{stroke-dashoffset:0} }
-                        .co2line { stroke-dasharray:700; stroke-dashoffset:700; animation: drawCo2 1.8s cubic-bezier(0.4,0,0.2,1) forwards; }
-                      `}</style>
-                    </defs>
-                    <path d={areaD} fill="url(#co2Grad)"/>
-                    <path className="co2line" d={smoothD} fill="none" stroke="#007aff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    {pts.map((p,i)=>(
-                      <g key={i} style={{cursor:'pointer'}} onMouseEnter={()=>setHov(p)} onMouseLeave={()=>setHov(null)}>
-                        <circle cx={p.x} cy={p.y} r="16" fill="transparent"/>
-                        <circle cx={p.x} cy={p.y} r={hov===p?6:4} fill={hov===p?'#007aff':'#007aff'} stroke="#fff" strokeWidth="2" style={{transition:'r 0.15s ease'}}/>
-                        <text x={p.x} y="145" textAnchor="middle" fontSize="10" fill="#9ca3af" fontFamily="-apple-system,sans-serif">{p.l}</text>
-                      </g>
-                    ))}
-                    {hov && (
-                      <g>
-                        <rect x={hov.x > 320 ? hov.x-110 : hov.x-20} y={hov.y-44} width="90" height="36" rx="8" fill="#111827"/>
-                        <text x={hov.x > 320 ? hov.x-65 : hov.x+25} y={hov.y-26} textAnchor="middle" fontSize="12" fontWeight="700" fill="white" fontFamily="-apple-system,sans-serif">{hov.v}</text>
-                        <text x={hov.x > 320 ? hov.x-65 : hov.x+25} y={hov.y-13} textAnchor="middle" fontSize="10" fill="#9ca3af" fontFamily="-apple-system,sans-serif">{hov.m}</text>
-                      </g>
-                    )}
-                    <line x1="20" y1="10" x2="20" y2="130" stroke="#f3f4f6" strokeWidth="1"/>
-                    <text x="14" y="28" textAnchor="end" fontSize="9" fill="#d1d5db" fontFamily="-apple-system,sans-serif">250</text>
-                    <text x="14" y="78" textAnchor="end" fontSize="9" fill="#d1d5db" fontFamily="-apple-system,sans-serif">210</text>
-                    <text x="14" y="108" textAnchor="end" fontSize="9" fill="#d1d5db" fontFamily="-apple-system,sans-serif">190</text>
-                  </svg>
-                );
-              })()}
-            </div>
-
-            <div style={{background:'#fff',borderRadius:'16px',padding:'24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-              <div style={{fontSize:'13px',fontWeight:'600',color:'#111827',marginBottom:'4px'}}>Scope Distribution</div>
-              <div style={{fontSize:'11px',color:'#9ca3af',marginBottom:'20px'}}>Total: 192.5 tCO2e</div>
-              {(() => {
-                const scopes = [
-                  {label:'Scope 1',val:25,color:'#007aff',desc:'Direct: 48t'},
-                  {label:'Scope 2',val:20,color:'#34c759',desc:'Energy: 39t'},
-                  {label:'Scope 3',val:55,color:'#af52de',desc:'Chain: 105t'},
-                ];
-                const [hov, setHov] = React.useState(null);
-                const total = 192;
-                const r = 52;
-                const cx = 100, cy = 70;
-                const circ = 2 * Math.PI * r;
-                let offset = 0;
-                const arcs = scopes.map(s => {
-                  const len = (s.val / 100) * circ;
-                  const arc = { ...s, dasharray: circ, dashoffset: circ - len, rotate: (offset / circ) * 360 - 90 };
-                  offset += len;
-                  return arc;
-                });
-                return (
-                  <div>
-                    <svg width="100%" height="150" viewBox="0 0 200 150">
-                      <defs>
-                        <style>{`
-                          @keyframes growArc { from{stroke-dashoffset: 327;} to{stroke-dashoffset: var(--target);} }
-                        `}</style>
-                      </defs>
-                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f3f4f6" strokeWidth="20"/>
-                      {arcs.map((a,i)=>(
-                        <circle key={i} cx={cx} cy={cy} r={r} fill="none"
-                          stroke={hov===i ? a.color : a.color}
-                          strokeWidth={hov===i ? 24 : 20}
-                          strokeDasharray={a.dasharray}
-                          strokeDashoffset={a.dashoffset}
-                          strokeLinecap="butt"
-                          transform={`rotate(${a.rotate} ${cx} ${cy})`}
-                          style={{transition:'stroke-width 0.2s ease, opacity 0.2s ease', opacity: hov!==null && hov!==i ? 0.4 : 1, cursor:'pointer'}}
-                          onMouseEnter={()=>setHov(i)}
-                          onMouseLeave={()=>setHov(null)}
-                        />
-                      ))}
-                      <text x={cx} y={cy-6} textAnchor="middle" fontSize="18" fontWeight="700" fill="#111827" fontFamily="-apple-system,sans-serif">{hov!==null ? scopes[hov].val+'%' : total+'t'}</text>
-                      <text x={cx} y={cy+10} textAnchor="middle" fontSize="10" fill="#9ca3af" fontFamily="-apple-system,sans-serif">{hov!==null ? scopes[hov].desc : 'tCO2e'}</text>
-                    </svg>
-                    <div style={{display:'flex',justifyContent:'space-around',marginTop:'-8px'}}>
-                      {scopes.map((s,i)=>(
-                        <div key={i} style={{display:'flex',alignItems:'center',gap:'5px',cursor:'pointer',opacity:hov!==null&&hov!==i?0.4:1,transition:'opacity 0.2s'}}
-                          onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}>
-                          <div style={{width:'8px',height:'8px',borderRadius:'50%',background:s.color}}/>
-                          <span style={{fontSize:'11px',color:'#6b7280',fontWeight:'500'}}>{s.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}}>
-
-            <div style={{background:'#fff',borderRadius:'16px',padding:'24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-              <div style={{fontSize:'13px',fontWeight:'600',color:'#111827',marginBottom:'20px'}}>Audit Readiness</div>
-              <div style={{display:'flex',alignItems:'center',gap:'24px'}}>
-                <svg width="88" height="88" viewBox="0 0 88 88">
-                  <circle cx="44" cy="44" r="36" stroke="#f3f4f6" strokeWidth="8" fill="none"/>
-                  <circle cx="44" cy="44" r="36" stroke="#34c759" strokeWidth="8" fill="none"
-                    strokeDasharray="226" strokeDashoffset="72" strokeLinecap="round" transform="rotate(-90 44 44)"/>
-                  <text x="44" y="48" textAnchor="middle" fill="#111827" fontSize="15" fontWeight="700" fontFamily="-apple-system,sans-serif">68%</text>
-                </svg>
-                <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                  <div style={{fontSize:'12px',color:'#34c759',fontWeight:'600'}}>✓ Data Validated</div>
-                  <div style={{fontSize:'12px',color:'#ff9500',fontWeight:'500'}}>⚠ ESRS E1-5 Pending</div>
-                  <div style={{fontSize:'12px',color:'#ff3b30',fontWeight:'500'}}>✗ Scope 3 Missing</div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{background:'#fff',borderRadius:'16px',padding:'24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-              <div style={{fontSize:'13px',fontWeight:'600',color:'#111827',marginBottom:'16px'}}>Next Actions</div>
-              {[
-                {text:'Upload Scope 3 data',p:'High',c:'#ff3b30',b:'rgba(255,59,48,0.08)'},
-                {text:'Complete ESRS E1-3',p:'High',c:'#ff3b30',b:'rgba(255,59,48,0.08)'},
-                {text:'Water metrics review',p:'Medium',c:'#ff9500',b:'rgba(255,149,0,0.08)'},
-              ].map((a,i)=>(
-                <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:i<2?'1px solid #f3f4f6':'none'}}>
-                  <span style={{fontSize:'12px',color:'#374151'}}>{a.text}</span>
-                  <span style={{fontSize:'10px',fontWeight:'700',color:a.c,background:a.b,padding:'2px 8px',borderRadius:'20px',whiteSpace:'nowrap',marginLeft:'8px'}}>{a.p}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{background:'#fff',borderRadius:'16px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)',overflow:'hidden'}}>
-            <div style={{padding:'16px 20px',borderBottom:'1px solid #e5e7eb',fontSize:'13px',fontWeight:'600',color:'#111827'}}>ESRS Compliance Overview</div>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <tbody>
-                {[
-                  {id:'E1',name:'Climate Change',status:'Partial',sc:'#ff9500',sb:'rgba(255,149,0,0.08)'},
-                  {id:'E2',name:'Pollution',status:'Complete',sc:'#34c759',sb:'rgba(52,199,89,0.08)'},
-                  {id:'E3',name:'Water & Marine',status:'Missing',sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'},
-                  {id:'S1',name:'Own Workforce',status:'Partial',sc:'#ff9500',sb:'rgba(255,149,0,0.08)'},
-                  {id:'G1',name:'Business Conduct',status:'Complete',sc:'#34c759',sb:'rgba(52,199,89,0.08)'},
-                ].map((r,i,a)=>(
-                  <tr key={r.id} style={{borderBottom:i<a.length-1?'1px solid #f3f4f6':'none',transition:'background 0.15s'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='#f9fafb'}
-                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                    <td style={{padding:'12px 20px',width:'48px',fontSize:'12px',fontWeight:'700',color:'#6b7280'}}>{r.id}</td>
-                    <td style={{padding:'13px 20px',fontSize:'13px',color:'#111827'}}>{r.name}</td>
-                    <td style={{padding:'12px 20px',textAlign:'right'}}>
-                      <span style={{fontSize:'11px',fontWeight:'600',color:r.sc,background:r.sb,padding:'3px 10px',borderRadius:'20px'}}>{r.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-      );
-
-    case 'clients':
-      return (
-        <div style={{display:'flex',flexDirection:'column',gap:'20px',animation:'fadeIn 0.3s ease'}}>
-          <div style={{background:'#fff',borderRadius:'12px',padding:'24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-            <div style={{fontSize:'13px',fontWeight:'600',color:'#111827',marginBottom:'16px'}}>Register New Client</div>
-            <div style={{display:'flex',gap:'12px'}}>
-              <input placeholder="Company name" style={{flex:1,padding:'9px 14px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'13px',color:'#111827',background:'#f5f5f7',outline:'none'}}/>
-              <select style={{flex:1,padding:'9px 14px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'13px',color:'#111827',background:'#f5f5f7',outline:'none'}}>
-                {['Automotive','Chemicals','Electronics','Food & Beverage','Machinery'].map(i=><option key={i}>{i}</option>)}
-              </select>
-              <button style={{background:'#007aff',color:'white',border:'none',padding:'9px 20px',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:'pointer'}}>Add Client</button>
-            </div>
-          </div>
-          <div style={{background:'#fff',borderRadius:'12px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)',overflow:'hidden'}}>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{borderBottom:'1px solid #e5e7eb',background:'#f9fafb'}}>
-                  <th style={{padding:'12px 20px',textAlign:'left',fontSize:'11px',fontWeight:'600',color:'#6b7280'}}>CLIENT</th>
-                  <th style={{padding:'12px 20px',textAlign:'left',fontSize:'11px',fontWeight:'600',color:'#6b7280'}}>INDUSTRY</th>
-                  <th style={{padding:'12px 20px',textAlign:'left',fontSize:'11px',fontWeight:'600',color:'#6b7280'}}>ESG SCORE</th>
-                  <th style={{padding:'12px 20px',textAlign:'right',fontSize:'11px',fontWeight:'600',color:'#6b7280'}}>ACTION</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[{n:'Hans GmbH Demo',i:'Automotive',s:74},{n:'Müller & Co',i:'Chemicals',s:62},{n:'Schweizer AG',i:'Electronics',s:81}].map((c,idx)=>(
-                  <tr key={idx} style={{borderBottom:'1px solid #f3f4f6',transition:'background 0.15s'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='#f9fafb'}
-                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                    <td style={{padding:'14px 20px',fontSize:'13px',fontWeight:'600',color:'#111827'}}>{c.n}</td>
-                    <td style={{padding:'14px 20px',fontSize:'13px',color:'#6b7280'}}>{c.i}</td>
-                    <td style={{padding:'14px 20px'}}>
-                      <span style={{fontSize:'13px',fontWeight:'600',color:c.s>=75?'#34c759':c.s>=60?'#ff9500':'#ff3b30'}}>{c.s}</span>
-                    </td>
-                    <td style={{padding:'14px 20px',textAlign:'right'}}>
-                      <button style={{background:'none',border:'none',color:'#007aff',fontSize:'13px',fontWeight:'600',cursor:'pointer'}}>View →</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      );
-
-    case 'data':
-      return (
-        <div style={{display:'flex',flexDirection:'column',gap:'20px',animation:'fadeIn 0.3s ease'}}>
-          <div style={{background:'#fff',borderRadius:'12px',padding:'48px',border:'2px dashed #e5e7eb',textAlign:'center',cursor:'pointer',transition:'all 0.2s ease'}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor='#007aff';e.currentTarget.style.background='rgba(0,122,255,0.02)'}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor='#e5e7eb';e.currentTarget.style.background='#fff'}}>
-            <Database size={40} color="#6b7280" strokeWidth={1.2} style={{marginBottom:'16px'}}/>
-            <div style={{fontSize:'16px',fontWeight:'600',color:'#111827',marginBottom:'8px'}}>Drop ESG Data Files Here</div>
-            <div style={{fontSize:'13px',color:'#6b7280',marginBottom:'20px'}}>SAP exports, Oracle XML, Excel, CSV, PDF supported</div>
-            <button style={{background:'#007aff',color:'white',border:'none',padding:'10px 24px',borderRadius:'8px',fontSize:'13px',fontWeight:'600',cursor:'pointer'}}>Browse Files</button>
-          </div>
-          <div style={{background:'#fff',borderRadius:'12px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)',overflow:'hidden'}}>
-            <div style={{padding:'16px 20px',borderBottom:'1px solid #e5e7eb',fontSize:'13px',fontWeight:'600',color:'#111827'}}>Recent Imports</div>
-            {[{n:'oracle_dump_2025.xml',s:'12.4 MB',t:'Verified'},{n:'sap_export_q1.xlsx',s:'2.4 MB',t:'Verified'},{n:'employees_2024.csv',s:'0.8 MB',t:'Verified'}].map((f,i)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px',borderBottom:i<2?'1px solid #f3f4f6':'none',transition:'background 0.15s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='#f9fafb'}
-                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                <div>
-                  <div style={{fontSize:'13px',fontWeight:'500',color:'#111827'}}>{f.n}</div>
-                  <div style={{fontSize:'11px',color:'#6b7280',marginTop:'2px'}}>{f.s}</div>
-                </div>
-                <span style={{fontSize:'11px',fontWeight:'600',color:'#34c759',background:'rgba(52,199,89,0.08)',padding:'3px 10px',borderRadius:'20px'}}>{f.t}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-
-    case 'esrs':
-      return (
-        <div style={{display:'flex',flexDirection:'column',gap:'20px',animation:'fadeIn 0.3s ease'}}>
-          <div style={{background:'#fff',borderRadius:'12px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)',overflow:'hidden'}}>
-            <div style={{padding:'16px 20px',borderBottom:'1px solid #e5e7eb',fontSize:'13px',fontWeight:'600',color:'#111827'}}>ESRS Compliance Tracker</div>
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead>
-                <tr style={{background:'#f9fafb',borderBottom:'1px solid #e5e7eb'}}>
-                  <th style={{padding:'11px 20px',textAlign:'left',fontSize:'11px',fontWeight:'600',color:'#6b7280'}}>STANDARD</th>
-                  <th style={{padding:'11px 20px',textAlign:'left',fontSize:'11px',fontWeight:'600',color:'#6b7280'}}>TOPIC</th>
-                  <th style={{padding:'11px 20px',textAlign:'left',fontSize:'11px',fontWeight:'600',color:'#6b7280'}}>STATUS</th>
-                  <th style={{padding:'11px 20px',textAlign:'right',fontSize:'11px',fontWeight:'600',color:'#6b7280'}}>GAP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  {id:'E1',t:'Climate Change',s:'Partial',g:true,sc:'#ff9500',sb:'rgba(255,149,0,0.08)'},
-                  {id:'E2',t:'Pollution',s:'Complete',g:false,sc:'#34c759',sb:'rgba(52,199,89,0.08)'},
-                  {id:'E3',t:'Water & Marine',s:'Missing',g:true,sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'},
-                  {id:'S1',t:'Own Workforce',s:'Partial',g:true,sc:'#ff9500',sb:'rgba(255,149,0,0.08)'},
-                  {id:'S2',t:'Workers in Value Chain',s:'Missing',g:true,sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'},
-                  {id:'G1',t:'Business Conduct',s:'Complete',g:false,sc:'#34c759',sb:'rgba(52,199,89,0.08)'},
-                ].map((r,i)=>(
-                  <tr key={i} style={{borderBottom:'1px solid #f3f4f6',transition:'background 0.15s'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='#f9fafb'}
-                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                    <td style={{padding:'13px 20px',fontSize:'13px',fontWeight:'700',color:'#111827'}}>{r.id}</td>
-                    <td style={{padding:'13px 20px',fontSize:'13px',color:'#111827'}}>{r.t}</td>
-                    <td style={{padding:'13px 20px'}}><span style={{fontSize:'11px',fontWeight:'600',color:r.sc,background:r.sb,padding:'3px 10px',borderRadius:'20px'}}>{r.s}</span></td>
-                    <td style={{padding:'13px 20px',textAlign:'right',fontSize:'13px',fontWeight:'600',color:r.g?'#ff3b30':'#34c759'}}>{r.g?'⚠ Yes':'✓ No'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      );
-
-    case 'emissions':
-      return (
-        <div style={{display:'flex',flexDirection:'column',gap:'20px',animation:'fadeIn 0.3s ease'}}>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px'}}>
-            {[{l:'Scope 1',v:'48.2t',d:'Direct emissions',c:'#34c759'},{l:'Scope 2',v:'39.1t',d:'Purchased energy',c:'#007aff'},{l:'Scope 3',v:'105.2t',d:'Value chain',c:'#af52de'}].map(s=>(
-              <div key={s.l} style={{background:'#fff',borderRadius:'12px',padding:'24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-                <div style={{fontSize:'12px',fontWeight:'500',color:'#6b7280',marginBottom:'8px'}}>{s.l}</div>
-                <div style={{fontSize:'32px',fontWeight:'600',color:s.c,letterSpacing:'-1px',marginBottom:'4px'}}>{s.v}</div>
-                <div style={{fontSize:'11px',color:'#6b7280'}}>{s.d}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{background:'#fff',borderRadius:'12px',padding:'24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
-            <div style={{fontSize:'13px',fontWeight:'600',color:'#111827',marginBottom:'20px'}}>Emissions Breakdown</div>
-            {[{l:'Energy',v:65,c:'#34c759'},{l:'Transport',v:45,c:'#007aff'},{l:'Supply Chain',v:80,c:'#af52de'},{l:'Waste',v:20,c:'#ff9500'}].map(b=>(
-              <div key={b.l} style={{marginBottom:'16px'}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}>
-                  <span style={{fontSize:'13px',color:'#111827',fontWeight:'500'}}>{b.l}</span>
-                  <span style={{fontSize:'12px',color:'#6b7280'}}>{b.v}t CO2e</span>
-                </div>
-                <div style={{height:'6px',background:'#f3f4f6',borderRadius:'3px',overflow:'hidden'}}>
-                  <div style={{height:'100%',width:`${(b.v/100)*100}%`,background:b.c,borderRadius:'3px',transition:'width 0.8s ease'}}/>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-
-    case 'reports':
-      return (
-        <div style={{display:'flex',flexDirection:'column',gap:'20px',animation:'fadeIn 0.3s ease'}}>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px'}}>
-            {[{title:'CSRD Draft Report',desc:'Full ESRS disclosure draft',icon:'📄',ready:true},{title:'Management Summary',desc:'Executive overview PDF',icon:'📊',ready:true},{title:'Gap Analysis Report',desc:'Compliance gap details',icon:'🔍',ready:false}].map(r=>(
-              <div key={r.title} style={{background:'#fff',borderRadius:'12px',padding:'24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)',transition:'all 0.2s ease'}}
-                onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';e.currentTarget.style.transform='translateY(-1px)'}}
-                onMouseLeave={e=>{e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.06)';e.currentTarget.style.transform='translateY(0)'}}>
-                <div style={{fontSize:'28px',marginBottom:'14px'}}>{r.icon}</div>
-                <div style={{fontSize:'14px',fontWeight:'600',color:'#111827',marginBottom:'6px'}}>{r.title}</div>
-                <div style={{fontSize:'12px',color:'#6b7280',marginBottom:'20px'}}>{r.desc}</div>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{fontSize:'11px',fontWeight:'600',color:r.ready?'#34c759':'#ff9500',background:r.ready?'rgba(52,199,89,0.08)':'rgba(255,149,0,0.08)',padding:'3px 10px',borderRadius:'20px'}}>{r.ready?'Ready':'Pending'}</span>
-                  <button style={{background:r.ready?'#007aff':'#e5e7eb',color:r.ready?'white':'#6b7280',border:'none',padding:'7px 16px',borderRadius:'7px',fontSize:'12px',fontWeight:'600',cursor:r.ready?'pointer':'default'}}>Generate</button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{background:'#fff',borderRadius:'12px',padding:'20px 24px',border:'1px solid #e5e7eb',boxShadow:'0 1px 3px rgba(0,0,0,0.06)',display:'flex',alignItems:'center',gap:'12px',flexWrap:'wrap'}}>
-            <span style={{fontSize:'13px',fontWeight:'500',color:'#6b7280'}}>Language:</span>
-            {['German','English'].map(l=><button key={l} style={{padding:'7px 16px',borderRadius:'7px',border:'1px solid #e5e7eb',background:'#f5f5f7',color:'#111827',fontSize:'13px',fontWeight:'500',cursor:'pointer'}}>{l}</button>)}
-            <span style={{fontSize:'13px',fontWeight:'500',color:'#6b7280',marginLeft:'8px'}}>Format:</span>
-            {['PDF','Word .docx'].map(f=><button key={f} style={{padding:'7px 16px',borderRadius:'7px',border:'1px solid #e5e7eb',background:'#f5f5f7',color:'#111827',fontSize:'13px',fontWeight:'500',cursor:'pointer'}}>{f}</button>)}
-          </div>
-        </div>
-      );
-  }
-
-  let title = item?.label;
-  let text = "This module is currently in calibration. No data found yet.";
-  let button = null;
-
-  if (tabId === 'clients') {
-    title = "No Clients Yet";
-    text = "Add your first ESG client to get started.";
-    button = "Add Client";
-  } else if (tabId === 'data') {
-    title = "Data Import";
-    text = "Drop SAP, Oracle, Excel or CSV files to begin.";
-    button = "Import Data";
-  }
-
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: '100%', gap: '16px'
-    }}>
-      <Icon size={48} color={S.muted} strokeWidth={1} />
-      <h2 style={{ fontSize: '20px', fontWeight: 600, color: S.text, margin: 0 }}>{title}</h2>
-      <p style={{ fontSize: '14px', color: S.muted, margin: 0, textAlign: 'center', maxWidth: '320px' }}>
-        {text}
-      </p>
-      {(tabId === 'clients' || tabId === 'data') && (
-        <button style={{
-          background: S.accent, color: 'white', border: 'none', padding: '10px 24px',
-          borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-        }}>
-          {button}
-        </button>
+  {/* ── TOP BAR ── */}
+  <div style={{ height: '48px', background: S.panel, borderBottom: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0, zIndex: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+      <span style={{ fontSize: '13px', fontWeight: '700', color: S.text }}>{activeClient.name}</span>
+      <span style={{ fontSize: '11px', fontWeight: '600', color: statusColor[activeClient.status], background: statusColor[activeClient.status] + '18', padding: '3px 10px', borderRadius: '20px' }}>
+        {statusLabel[activeClient.status]}
+      </span>
+      <span style={{ fontSize: '11px', color: S.muted }}>Last sync: <b>2 min ago</b></span>
+      {incompleteReports > 0 && (
+        <span style={{ fontSize: '11px', color: S.amber, background: S.amber + '15', padding: '3px 10px', borderRadius: '20px', fontWeight: '600' }}>
+          ⏳ {incompleteReports} incomplete reports
+        </span>
+      )}
+      {complianceRisks > 0 && (
+        <span style={{ fontSize: '11px', color: S.red, background: S.red + '12', padding: '3px 10px', borderRadius: '20px', fontWeight: '600' }}>
+          ⚠ {complianceRisks} compliance risks
+        </span>
       )}
     </div>
-  );
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <button className="action-btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: S.accent, color: 'white', border: 'none', padding: '7px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s ease' }}>
+        <Download size={13} /> Export Report
+      </button>
+      <div style={{ width: '30px', height: '30px', background: S.accent, color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700' }}>FR</div>
+    </div>
+  </div>
+
+  {/* ── BODY ── */}
+  <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+    {/* ── SIDEBAR ── */}
+    <aside style={{ width: '240px', background: S.panel, borderRight: `1px solid ${S.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      <div style={{ padding: '18px 16px 12px', borderBottom: `1px solid ${S.border}` }}>
+        <img src={logo} alt="Targoo" style={{ width: '130px', height: 'auto', display: 'block', marginBottom: '3px' }} />
+        <div style={{ fontSize: '9px', fontWeight: '700', color: '#9ca3af', letterSpacing: '0.12em', textTransform: 'uppercase' }}>ESG Advisor Engine</div>
+        <select value={selectedClientId} onChange={e => setSelectedClientId(Number(e.target.value))} style={{ width: '100%', marginTop: '10px', padding: '8px 10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontWeight: '500', fontSize: '12px', cursor: 'pointer' }}>
+          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+        {menuItems.map(item => {
+          const isActive = activeTab === item.id;
+          const Icon = item.icon;
+          return (
+            <button key={item.id} className="nav-btn" onClick={() => setActiveTab(item.id)} style={{ display: 'flex', alignItems: 'center', gap: '9px', width: '100%', padding: '8px 11px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: isActive ? '600' : '500', marginBottom: '1px', background: isActive ? S.accentBg : 'transparent', color: isActive ? S.accent : S.muted, transition: 'all 0.15s ease', textAlign: 'left' }}>
+              <Icon size={15} strokeWidth={isActive ? 2 : 1.5} />
+              {item.label}
+              {item.id === 'esrs' && complianceRisks > 0 && (
+                <span style={{ marginLeft: 'auto', background: S.red, color: 'white', borderRadius: '10px', padding: '1px 6px', fontSize: '10px', fontWeight: '700' }}>{complianceRisks}</span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* DROP HUB */}
+      <div style={{ padding: '12px', borderTop: `1px solid ${S.border}` }}
+        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={e => { e.preventDefault(); setIsDragging(false); handleFileUpload(e.dataTransfer.files[0]?.name || 'data.xml'); }}>
+        <div onClick={() => handleFileUpload('manual_import.xlsx')} style={{ padding: '16px 12px', borderRadius: '12px', border: `2px dashed ${isDragging ? S.accent : '#c7d2fe'}`, background: isDragging ? 'rgba(0,122,255,0.06)' : 'linear-gradient(135deg,#f0f4ff,#e8f0fe)', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', transform: isDragging ? 'scale(1.02)' : 'scale(1)' }}>
+          <Database size={18} color={isDragging ? S.accent : '#6366f1'} style={{ marginBottom: '6px' }} />
+          <div style={{ fontSize: '11px', fontWeight: '700', color: isDragging ? S.accent : '#374151', marginBottom: '3px' }}>{isDragging ? 'Release to import' : 'Drop ESG files'}</div>
+          <div style={{ fontSize: '9px', color: S.muted }}>SAP · Oracle · CSV · PDF · XML</div>
+        </div>
+        {importResults && (
+          <div style={{ marginTop: '8px', padding: '10px', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+            {importResults.recognized.map((r, i) => <div key={i} style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginBottom: '2px' }}>✔ {r}</div>)}
+            {importResults.warnings.map((w, i) => <div key={i} style={{ fontSize: '10px', color: S.amber, fontWeight: '600', marginBottom: '2px' }}>⚠ {w}</div>)}
+            <div style={{ fontSize: '9px', color: S.muted, marginTop: '4px' }}>{importResults.records} records processed</div>
+          </div>
+        )}
+      </div>
+    </aside>
+
+    {/* ── MAIN ── */}
+    <main style={{ flex: 1, overflowY: 'auto', padding: '28px' }}>
+      <MainContent activeTab={activeTab} activeClient={activeClient} />
+    </main>
+
+    {/* ── RIGHT PANEL ── */}
+    <aside style={{ width: '300px', background: S.panel, borderLeft: `1px solid ${S.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      <div style={{ padding: '18px 18px 14px', borderBottom: `1px solid ${S.border}` }}>
+        <div style={{ fontSize: '14px', fontWeight: '700', color: S.text }}>CSRD Compass AI</div>
+        <div style={{ fontSize: '11px', color: S.green, marginTop: '3px', fontWeight: '600' }}>● Compliance Engine Active</div>
+      </div>
+
+      {!modelReady && (
+        <div style={{ margin: '12px', padding: '14px', background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '10px' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', color: S.amber, marginBottom: '6px' }}>⚡ AI Engine Required</div>
+          <div style={{ fontSize: '11px', color: S.muted, marginBottom: '10px', lineHeight: '1.5' }}>
+            {modelDownloading ? `Downloading Gemma AI... ${downloadProgress}%` : 'Download the offline AI model for full ESRS analysis.'}
+          </div>
+          {modelDownloading && <div style={{ height: '4px', background: '#e5e7eb', borderRadius: '2px', marginBottom: '10px' }}><div style={{ height: '100%', width: `${downloadProgress}%`, background: S.amber, borderRadius: '2px', transition: 'width 0.3s' }} /></div>}
+          {!modelDownloading && (
+            <button type="button" onClick={async () => { setModelDownloading(true); try { if (window.__TAURI__?.invoke) await window.__TAURI__.invoke('download_model'); } catch { setModelDownloading(false); } }} style={{ width: '100%', padding: '8px', background: S.amber, color: 'white', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+              Download AI Model (1.2 GB)
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div style={{ padding: '12px 14px', borderBottom: `1px solid ${S.border}` }}>
+        <div style={{ fontSize: '10px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Quick Actions</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          {[
+            { label: '📄 Generate CSRD Report', action: 'Generate the full CSRD compliance report for Hans GmbH' },
+            { label: '🔍 Run Gap Analysis', action: 'Run a complete ESRS gap analysis' },
+            { label: '📦 Request Supplier Data', action: 'Generate Scope 3 supplier questionnaire' },
+            { label: '💡 Explain ESG Score', action: 'Explain the current ESG score drivers and how to improve' }
+          ].map((qa, i) => (
+            <button key={i} className="action-btn" onClick={() => { setChatInput(qa.action); }} style={{ textAlign: 'left', padding: '7px 10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: '11px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s ease' }}>
+              {qa.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, padding: '14px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {chatHistory.map((msg, i) => (
+          <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%', padding: '10px 12px', borderRadius: '12px', fontSize: '12px', lineHeight: '1.5', background: msg.role === 'user' ? S.accent : S.bg, color: msg.role === 'user' ? 'white' : S.text, border: msg.role === 'ai' ? `1px solid ${S.border}` : 'none', animation: 'fadeIn 0.2s ease' }}>
+            {msg.text}
+            {msg.role === 'ai' && msg.text.includes('Fix') && (
+              <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                <button className="action-btn" onClick={() => setChatInput('Show me step by step how to fix this')} style={{ padding: '5px 10px', background: S.accent, color: 'white', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>Fix now</button>
+                <button className="action-btn" onClick={() => setChatInput('Show details about this compliance issue')} style={{ padding: '5px 10px', background: 'transparent', color: S.accent, border: `1px solid ${S.accent}`, borderRadius: '6px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>Details</button>
+              </div>
+            )}
+          </div>
+        ))}
+        <div ref={chatEndRef} />
+      </div>
+
+      <form onSubmit={handleSend} style={{ padding: '12px', borderTop: `1px solid ${S.border}`, position: 'relative' }}>
+        <input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Ask about compliance..." style={{ width: '100%', background: S.bg, border: `1px solid ${S.border}`, borderRadius: '20px', padding: '9px 40px 9px 14px', fontSize: '12px', outline: 'none' }} />
+        <button type="submit" style={{ position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)', width: '28px', height: '28px', background: S.accent, borderRadius: '50%', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}>
+          <Send size={13} />
+        </button>
+      </form>
+    </aside>
+  </div>
+</div>
+```
+
+);
+}
+
+// ── NAV BUTTON ──
+function NavButton({ item, isActive, onClick, badge }) {
+const Icon = item.icon;
+return (
+<button className=“nav-btn” onClick={onClick} style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘9px’, width: ‘100%’, padding: ‘8px 11px’, borderRadius: ‘8px’, border: ‘none’, cursor: ‘pointer’, fontSize: ‘12px’, fontWeight: isActive ? ‘600’ : ‘500’, marginBottom: ‘1px’, background: isActive ? ‘rgba(0,122,255,0.08)’ : ‘transparent’, color: isActive ? ‘#007aff’ : ‘#6b7280’, transition: ‘all 0.15s ease’, textAlign: ‘left’ }}>
+<Icon size={15} strokeWidth={isActive ? 2 : 1.5} />
+{item.label}
+{badge && <span style={{ marginLeft: ‘auto’, background: ‘#ff3b30’, color: ‘white’, borderRadius: ‘10px’, padding: ‘1px 6px’, fontSize: ‘10px’, fontWeight: ‘700’ }}>{badge}</span>}
+</button>
+);
+}
+
+// ── MAIN CONTENT ──
+function MainContent({ activeTab, activeClient }) {
+switch (activeTab) {
+case ‘dashboard’: return <DashboardView client={activeClient} />;
+case ‘clients’: return <ClientsView />;
+case ‘data’: return <DataView />;
+case ‘emissions’: return <EmissionsView />;
+case ‘esrs’: return <ESRSView />;
+case ‘reports’: return <ReportsView />;
+default: return <PlaceholderView tabId={activeTab} />;
+}
+}
+
+// ── DASHBOARD ──
+function DashboardView({ client }) {
+const kpis = [
+{ label: ‘ESG Score’, value: client.score || 74, trend: ‘+6’, up: true, risk: ‘Medium’, next: ‘Reduce Scope 2’, color: ‘#007aff’, unit: ‘’ },
+{ label: ‘Carbon tCO2e’, value: ‘198’, trend: ‘+2%’, up: false, risk: ‘High’, next: ‘Upload Scope 3’, color: ‘#ff3b30’, unit: ‘t’ },
+{ label: ‘Energy MWh’, value: ‘420’, trend: ‘-4%’, up: true, risk: ‘Low’, next: ‘Maintain target’, color: ‘#34c759’, unit: ‘’ },
+{ label: ‘Workforce’, value: ‘342’, trend: ‘0%’, up: null, risk: ‘Low’, next: ‘Update HR data’, color: ‘#ff9500’, unit: ‘’ }
+];
+
+return (
+<div style={{ display: ‘flex’, flexDirection: ‘column’, gap: ‘20px’, animation: ‘fadeIn 0.3s ease’ }}>
+
+```
+  {/* KPI CARDS */}
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px' }}>
+    {kpis.map((k, i) => (
+      <KPICard key={i} k={k} />
+    ))}
+  </div>
+
+  {/* CHARTS ROW */}
+  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '16px' }}>
+    <CO2Chart />
+    <ScopeDonut />
+  </div>
+
+  {/* BOTTOM ROW */}
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+    <AuditReadiness />
+    <NextActions />
+  </div>
+
+  {/* ESRS TABLE */}
+  <ESRSComplianceTable />
+</div>
+```
+
+);
+}
+
+function KPICard({ k }) {
+const [hov, setHov] = useState(false);
+return (
+<div className=“kpi-card” onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+style={{ background: hov ? k.color + ‘0a’ : ‘#fff’, borderRadius: ‘14px’, padding: ‘20px’, border: hov ? `1px solid ${k.color}30` : ‘1px solid #e5e7eb’, boxShadow: hov ? `0 8px 24px ${k.color}18` : ‘0 1px 3px rgba(0,0,0,0.06)’, transition: ‘all 0.25s cubic-bezier(0.4,0,0.2,1)’, cursor: ‘default’, position: ‘relative’, overflow: ‘hidden’ }}>
+<div style={{ fontSize: ‘10px’, fontWeight: ‘600’, color: hov ? k.color : ‘#9ca3af’, textTransform: ‘uppercase’, letterSpacing: ‘0.07em’, marginBottom: ‘10px’, transition: ‘color 0.2s’ }}>{k.label}</div>
+<div style={{ display: ‘flex’, justifyContent: ‘space-between’, alignItems: ‘flex-start’, marginBottom: ‘8px’ }}>
+<div style={{ fontSize: ‘36px’, fontWeight: ‘700’, color: hov ? k.color : ‘#111827’, letterSpacing: ‘-2px’, lineHeight: 1, transition: ‘color 0.25s’ }}>{k.value}<span style={{ fontSize: ‘14px’, fontWeight: ‘500’ }}>{k.unit}</span></div>
+<span style={{ fontSize: ‘10px’, fontWeight: ‘700’, padding: ‘3px 7px’, borderRadius: ‘20px’, color: k.up === true ? ‘#34c759’ : k.up === false ? ‘#ff3b30’ : ‘#9ca3af’, background: k.up === true ? ‘rgba(52,199,89,0.1)’ : k.up === false ? ‘rgba(255,59,48,0.1)’ : ‘rgba(156,163,175,0.1)’ }}>{k.trend}</span>
+</div>
+<div style={{ fontSize: ‘10px’, color: hov ? k.color + ‘aa’ : ‘#9ca3af’, transition: ‘all 0.2s’ }}>
+{hov ? `→ ${k.next}` : `Risk: ${k.risk}`}
+</div>
+</div>
+);
+}
+
+function CO2Chart() {
+const pts = [
+{ x: 20, y: 100, l: ‘Jan’, v: ‘248t’ }, { x: 90, y: 72, l: ‘Feb’, v: ‘231t’ },
+{ x: 160, y: 85, l: ‘Mar’, v: ‘219t’ }, { x: 230, y: 55, l: ‘Apr’, v: ‘205t’ },
+{ x: 300, y: 38, l: ‘May’, v: ‘198t’ }, { x: 370, y: 22, l: ‘Jun’, v: ‘192t’ }
+];
+const [hov, setHov] = useState(null);
+const smooth = ‘M20,100 C55,86 90,72 90,72 C125,79 160,85 160,85 C195,70 230,55 230,55 C265,46 300,38 300,38 C335,30 370,22 370,22’;
+const area = smooth + ’ L370,130 L20,130 Z’;
+
+return (
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘22px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’ }}>
+<div style={{ fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’, marginBottom: ‘2px’ }}>CO₂ Emission Trend</div>
+<div style={{ fontSize: ‘11px’, color: ‘#9ca3af’, marginBottom: ‘16px’ }}>Jan–Jun 2024 · tCO2e</div>
+<svg width=“100%” height=“140” viewBox=“0 0 400 150” style={{ overflow: ‘visible’ }}>
+<defs>
+<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stopColor="#007aff" stopOpacity="0.12" />
+<stop offset="100%" stopColor="#007aff" stopOpacity="0" />
+</linearGradient>
+</defs>
+<path d={area} fill="url(#g1)" />
+<path d={smooth} fill=“none” stroke=”#007aff” strokeWidth=“2.5” strokeLinecap=“round”
+style={{ strokeDasharray: 700, strokeDashoffset: 700, animation: ‘drawLine 1.8s cubic-bezier(0.4,0,0.2,1) forwards’ }} />
+{pts.map((p, i) => (
+<g key={i} style={{ cursor: ‘pointer’ }} onMouseEnter={() => setHov(p)} onMouseLeave={() => setHov(null)}>
+<circle cx={p.x} cy={p.y} r="14" fill="transparent" />
+<circle cx={p.x} cy={p.y} r={hov === p ? 6 : 4} fill=”#007aff” stroke=”#fff” strokeWidth=“2” style={{ transition: ‘r 0.15s’ }} />
+<text x={p.x} y="148" textAnchor="middle" fontSize="10" fill="#9ca3af" fontFamily="-apple-system,sans-serif">{p.l}</text>
+</g>
+))}
+{hov && (
+<g>
+<rect x={hov.x > 320 ? hov.x - 105 : hov.x - 15} y={hov.y - 44} width=“82” height=“34” rx=“7” fill=”#111827” />
+<text x={hov.x > 320 ? hov.x - 64 : hov.x + 26} y={hov.y - 24} textAnchor=“middle” fontSize=“13” fontWeight=“700” fill=“white” fontFamily=”-apple-system,sans-serif”>{hov.v}</text>
+</g>
+)}
+</svg>
+</div>
+);
+}
+
+function ScopeDonut() {
+const scopes = [
+{ label: ‘Scope 1’, val: 25, color: ‘#007aff’, desc: ‘Direct: 48t’ },
+{ label: ‘Scope 2’, val: 20, color: ‘#34c759’, desc: ‘Energy: 39t’ },
+{ label: ‘Scope 3’, val: 55, color: ‘#af52de’, desc: ‘Chain: 105t’ }
+];
+const [hov, setHov] = useState(null);
+const r = 52, cx = 100, cy = 75, circ = 2 * Math.PI * r;
+let offset = 0;
+const arcs = scopes.map(s => {
+const len = (s.val / 100) * circ;
+const arc = { …s, dasharray: circ, dashoffset: circ - len, rotate: (offset / circ) * 360 - 90 };
+offset += len;
+return arc;
+});
+
+return (
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘22px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’ }}>
+<div style={{ fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’, marginBottom: ‘2px’ }}>Scope Distribution</div>
+<div style={{ fontSize: ‘11px’, color: ‘#9ca3af’, marginBottom: ‘8px’ }}>Total: 192.5 tCO2e</div>
+<svg width="100%" height="158" viewBox="0 0 200 158">
+<circle cx={cx} cy={cy} r={r} fill="none" stroke="#f3f4f6" strokeWidth="20" />
+{arcs.map((a, i) => (
+<circle key={i} cx={cx} cy={cy} r={r} fill=“none”
+stroke={a.color} strokeWidth={hov === i ? 25 : 20}
+strokeDasharray={a.dasharray} strokeDashoffset={a.dashoffset}
+strokeLinecap=“butt” transform={`rotate(${a.rotate} ${cx} ${cy})`}
+style={{ transition: ‘stroke-width 0.2s, opacity 0.2s’, opacity: hov !== null && hov !== i ? 0.35 : 1, cursor: ‘pointer’ }}
+onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)} />
+))}
+<text x={cx} y={cy - 6} textAnchor=“middle” fontSize=“18” fontWeight=“700” fill=”#111827” fontFamily=”-apple-system,sans-serif”>
+{hov !== null ? scopes[hov].val + ‘%’ : ‘192t’}
+</text>
+<text x={cx} y={cy + 10} textAnchor=“middle” fontSize=“10” fill=”#9ca3af” fontFamily=”-apple-system,sans-serif”>
+{hov !== null ? scopes[hov].desc : ‘tCO2e’}
+</text>
+</svg>
+<div style={{ display: ‘flex’, justifyContent: ‘space-around’ }}>
+{scopes.map((s, i) => (
+<div key={i} style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘5px’, cursor: ‘pointer’, opacity: hov !== null && hov !== i ? 0.35 : 1, transition: ‘opacity 0.2s’ }}
+onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)}>
+<div style={{ width: ‘8px’, height: ‘8px’, borderRadius: ‘50%’, background: s.color }} />
+<span style={{ fontSize: ‘11px’, color: ‘#6b7280’, fontWeight: ‘500’ }}>{s.label}</span>
+</div>
+))}
+</div>
+</div>
+);
+}
+
+function AuditReadiness() {
+return (
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘22px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’ }}>
+<div style={{ fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’, marginBottom: ‘18px’ }}>Audit Readiness</div>
+<div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘20px’ }}>
+<svg width="80" height="80" viewBox="0 0 80 80">
+<circle cx="40" cy="40" r="32" stroke="#f3f4f6" strokeWidth="7" fill="none" />
+<circle cx="40" cy="40" r="32" stroke="#34c759" strokeWidth="7" fill="none"
+strokeDasharray="201" strokeDashoffset="64" strokeLinecap="round" transform="rotate(-90 40 40)" />
+<text x="40" y="44" textAnchor="middle" fill="#111827" fontSize="14" fontWeight="700" fontFamily="-apple-system,sans-serif">68%</text>
+</svg>
+<div style={{ display: ‘flex’, flexDirection: ‘column’, gap: ‘7px’ }}>
+<div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘6px’, fontSize: ‘12px’, color: ‘#34c759’, fontWeight: ‘600’ }}>
+<CheckCircle size={14} /> Data Validated
+</div>
+<div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘6px’, fontSize: ‘12px’, color: ‘#ff9500’, fontWeight: ‘500’ }}>
+<AlertTriangle size={14} /> ESRS E1-5 Pending
+</div>
+<div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘6px’, fontSize: ‘12px’, color: ‘#ff3b30’, fontWeight: ‘500’ }}>
+<XCircle size={14} /> Scope 3 Missing
+</div>
+</div>
+</div>
+</div>
+);
+}
+
+function NextActions() {
+return (
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘22px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’ }}>
+<div style={{ fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’, marginBottom: ‘14px’ }}>Next Actions</div>
+{[
+{ text: ‘Upload Scope 3 supplier data’, p: ‘High’, c: ‘#ff3b30’, b: ‘rgba(255,59,48,0.08)’ },
+{ text: ‘Complete ESRS E1–E3 disclosures’, p: ‘High’, c: ‘#ff3b30’, b: ‘rgba(255,59,48,0.08)’ },
+{ text: ‘Review water metrics (ESRS E3)’, p: ‘Medium’, c: ‘#ff9500’, b: ‘rgba(255,149,0,0.08)’ }
+].map((a, i) => (
+<div key={i} className=“row-hover” style={{ display: ‘flex’, justifyContent: ‘space-between’, alignItems: ‘center’, padding: ‘9px 0’, borderBottom: i < 2 ? ‘1px solid #f3f4f6’ : ‘none’, transition: ‘background 0.15s’ }}>
+<span style={{ fontSize: ‘12px’, color: ‘#374151’ }}>{a.text}</span>
+<span style={{ fontSize: ‘10px’, fontWeight: ‘700’, color: a.c, background: a.b, padding: ‘2px 8px’, borderRadius: ‘20px’, whiteSpace: ‘nowrap’, marginLeft: ‘8px’ }}>{a.p}</span>
+</div>
+))}
+</div>
+);
+}
+
+function ESRSComplianceTable() {
+const rows = [
+{ id: ‘E1’, name: ‘Climate Change’, status: ‘Partial’, sc: ‘#ff9500’, sb: ‘rgba(255,149,0,0.08)’ },
+{ id: ‘E2’, name: ‘Pollution’, status: ‘Complete’, sc: ‘#34c759’, sb: ‘rgba(52,199,89,0.08)’ },
+{ id: ‘E3’, name: ‘Water & Marine’, status: ‘Missing’, sc: ‘#ff3b30’, sb: ‘rgba(255,59,48,0.08)’ },
+{ id: ‘S1’, name: ‘Own Workforce’, status: ‘Partial’, sc: ‘#ff9500’, sb: ‘rgba(255,149,0,0.08)’ },
+{ id: ‘G1’, name: ‘Business Conduct’, status: ‘Complete’, sc: ‘#34c759’, sb: ‘rgba(52,199,89,0.08)’ }
+];
+return (
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’, overflow: ‘hidden’ }}>
+<div style={{ padding: ‘14px 20px’, borderBottom: ‘1px solid #e5e7eb’, fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’ }}>ESRS Compliance Overview</div>
+<table style={{ width: ‘100%’, borderCollapse: ‘collapse’ }}>
+<tbody>
+{rows.map((r, i) => (
+<tr key={r.id} className=“row-hover” style={{ borderBottom: i < rows.length - 1 ? ‘1px solid #f3f4f6’ : ‘none’, transition: ‘background 0.15s’ }}>
+<td style={{ padding: ‘11px 20px’, width: ‘48px’, fontSize: ‘12px’, fontWeight: ‘700’, color: ‘#6b7280’ }}>{r.id}</td>
+<td style={{ padding: ‘11px 20px’, fontSize: ‘13px’, color: ‘#111827’ }}>{r.name}</td>
+<td style={{ padding: ‘11px 20px’, textAlign: ‘right’ }}>
+<span style={{ fontSize: ‘11px’, fontWeight: ‘600’, color: r.sc, background: r.sb, padding: ‘3px 10px’, borderRadius: ‘20px’ }}>{r.status}</span>
+</td>
+</tr>
+))}
+</tbody>
+</table>
+</div>
+);
+}
+
+// ── CLIENTS VIEW ──
+function ClientsView() {
+return (
+<div style={{ display: ‘flex’, flexDirection: ‘column’, gap: ‘18px’, animation: ‘fadeIn 0.3s ease’ }}>
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘22px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’ }}>
+<div style={{ fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’, marginBottom: ‘14px’ }}>Register New Client</div>
+<div style={{ display: ‘flex’, gap: ‘10px’ }}>
+<input placeholder=“Company name” style={{ flex: 1, padding: ‘9px 13px’, borderRadius: ‘8px’, border: ‘1px solid #e5e7eb’, fontSize: ‘13px’, background: ‘#f5f5f7’, outline: ‘none’ }} />
+<select style={{ flex: 1, padding: ‘9px 13px’, borderRadius: ‘8px’, border: ‘1px solid #e5e7eb’, fontSize: ‘13px’, background: ‘#f5f5f7’, outline: ‘none’ }}>
+{[‘Automotive’, ‘Chemicals’, ‘Electronics’, ‘Food & Beverage’, ‘Machinery’].map(i => <option key={i}>{i}</option>)}
+</select>
+<button className=“action-btn” style={{ background: ‘#007aff’, color: ‘white’, border: ‘none’, padding: ‘9px 18px’, borderRadius: ‘8px’, fontSize: ‘13px’, fontWeight: ‘600’, cursor: ‘pointer’, transition: ‘all 0.15s’ }}>Add Client</button>
+</div>
+</div>
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’, overflow: ‘hidden’ }}>
+<table style={{ width: ‘100%’, borderCollapse: ‘collapse’ }}>
+<thead>
+<tr style={{ background: ‘#f9fafb’, borderBottom: ‘1px solid #e5e7eb’ }}>
+{[‘CLIENT’, ‘INDUSTRY’, ‘ESG SCORE’, ‘STATUS’, ‘ACTION’].map((h, i) => (
+<th key={h} style={{ padding: ‘11px 20px’, textAlign: i === 4 ? ‘right’ : ‘left’, fontSize: ‘11px’, fontWeight: ‘600’, color: ‘#6b7280’ }}>{h}</th>
+))}
+</tr>
+</thead>
+<tbody>
+{[
+{ n: ‘Hans GmbH Demo’, i: ‘Automotive’, s: 74, st: ‘In Progress’, sc: ‘#ff9500’ },
+{ n: ‘Müller & Co’, i: ‘Chemicals’, s: 62, st: ‘Action Required’, sc: ‘#ff3b30’ },
+{ n: ‘Schweizer AG’, i: ‘Electronics’, s: 81, st: ‘Audit Ready’, sc: ‘#34c759’ }
+].map((c, idx) => (
+<tr key={idx} className=“row-hover” style={{ borderBottom: ‘1px solid #f3f4f6’, transition: ‘background 0.15s’ }}>
+<td style={{ padding: ‘13px 20px’, fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’ }}>{c.n}</td>
+<td style={{ padding: ‘13px 20px’, fontSize: ‘13px’, color: ‘#6b7280’ }}>{c.i}</td>
+<td style={{ padding: ‘13px 20px’, fontSize: ‘13px’, fontWeight: ‘600’, color: c.s >= 75 ? ‘#34c759’ : c.s >= 60 ? ‘#ff9500’ : ‘#ff3b30’ }}>{c.s}</td>
+<td style={{ padding: ‘13px 20px’ }}><span style={{ fontSize: ‘11px’, fontWeight: ‘600’, color: c.sc, background: c.sc + ‘15’, padding: ‘3px 9px’, borderRadius: ‘20px’ }}>{c.st}</span></td>
+<td style={{ padding: ‘13px 20px’, textAlign: ‘right’ }}><button style={{ background: ‘none’, border: ‘none’, color: ‘#007aff’, fontSize: ‘13px’, fontWeight: ‘600’, cursor: ‘pointer’ }}>View →</button></td>
+</tr>
+))}
+</tbody>
+</table>
+</div>
+</div>
+);
+}
+
+// ── DATA VIEW ──
+function DataView() {
+return (
+<div style={{ display: ‘flex’, flexDirection: ‘column’, gap: ‘18px’, animation: ‘fadeIn 0.3s ease’ }}>
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘40px’, border: ‘2px dashed #e5e7eb’, textAlign: ‘center’, cursor: ‘pointer’, transition: ‘all 0.2s ease’ }}
+onMouseEnter={e => { e.currentTarget.style.borderColor = ‘#007aff’; e.currentTarget.style.background = ‘rgba(0,122,255,0.02)’; }}
+onMouseLeave={e => { e.currentTarget.style.borderColor = ‘#e5e7eb’; e.currentTarget.style.background = ‘#fff’; }}>
+<Database size={36} color=”#6b7280” strokeWidth={1.2} style={{ marginBottom: ‘14px’ }} />
+<div style={{ fontSize: ‘15px’, fontWeight: ‘600’, color: ‘#111827’, marginBottom: ‘6px’ }}>Drop ESG Data Files Here</div>
+<div style={{ fontSize: ‘13px’, color: ‘#6b7280’, marginBottom: ‘18px’ }}>SAP exports · Oracle XML · Excel · CSV · PDF supported</div>
+<button className=“action-btn” style={{ background: ‘#007aff’, color: ‘white’, border: ‘none’, padding: ‘10px 22px’, borderRadius: ‘8px’, fontSize: ‘13px’, fontWeight: ‘600’, cursor: ‘pointer’, transition: ‘all 0.15s’ }}>Browse Files</button>
+</div>
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, border: ‘1px solid #e5e7eb’, overflow: ‘hidden’ }}>
+<div style={{ padding: ‘14px 20px’, borderBottom: ‘1px solid #e5e7eb’, fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’ }}>Recent Imports</div>
+{[
+{ n: ‘oracle_dump_2025.xml’, s: ‘12.4 MB’, t: ‘Verified’, r: [‘SAP data recognized’, ‘Emissions mapped to ESRS E1’] },
+{ n: ‘sap_export_q1.xlsx’, s: ‘2.4 MB’, t: ‘Verified’, r: [‘847 records processed’] },
+{ n: ‘employees_2024.csv’, s: ‘0.8 MB’, t: ‘Verified’, r: [‘Workforce data mapped to ESRS S1’] }
+].map((f, i) => (
+<div key={i} className=“row-hover” style={{ padding: ‘13px 20px’, borderBottom: i < 2 ? ‘1px solid #f3f4f6’ : ‘none’, transition: ‘background 0.15s’ }}>
+<div style={{ display: ‘flex’, justifyContent: ‘space-between’, alignItems: ‘flex-start’ }}>
+<div>
+<div style={{ fontSize: ‘13px’, fontWeight: ‘500’, color: ‘#111827’, marginBottom: ‘4px’ }}>{f.n} <span style={{ fontSize: ‘11px’, color: ‘#9ca3af’ }}>{f.s}</span></div>
+{f.r.map((r, j) => <div key={j} style={{ fontSize: ‘11px’, color: ‘#34c759’, fontWeight: ‘500’ }}>✔ {r}</div>)}
+</div>
+<span style={{ fontSize: ‘11px’, fontWeight: ‘600’, color: ‘#34c759’, background: ‘rgba(52,199,89,0.08)’, padding: ‘3px 10px’, borderRadius: ‘20px’ }}>{f.t}</span>
+</div>
+</div>
+))}
+</div>
+</div>
+);
+}
+
+// ── EMISSIONS VIEW ──
+function EmissionsView() {
+return (
+<div style={{ display: ‘flex’, flexDirection: ‘column’, gap: ‘18px’, animation: ‘fadeIn 0.3s ease’ }}>
+<div style={{ display: ‘grid’, gridTemplateColumns: ‘repeat(3,1fr)’, gap: ‘14px’ }}>
+{[
+{ l: ‘Scope 1’, v: ‘48.2t’, d: ‘Direct emissions’, c: ‘#34c759’ },
+{ l: ‘Scope 2’, v: ‘39.1t’, d: ‘Purchased energy’, c: ‘#007aff’ },
+{ l: ‘Scope 3’, v: ‘105.2t’, d: ‘Value chain’, c: ‘#af52de’ }
+].map(s => (
+<div key={s.l} style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘22px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’ }}>
+<div style={{ fontSize: ‘11px’, fontWeight: ‘600’, color: ‘#9ca3af’, textTransform: ‘uppercase’, letterSpacing: ‘0.07em’, marginBottom: ‘10px’ }}>{s.l}</div>
+<div style={{ fontSize: ‘32px’, fontWeight: ‘700’, color: s.c, letterSpacing: ‘-1px’, marginBottom: ‘4px’ }}>{s.v}</div>
+<div style={{ fontSize: ‘12px’, color: ‘#6b7280’ }}>{s.d}</div>
+</div>
+))}
+</div>
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘22px’, border: ‘1px solid #e5e7eb’ }}>
+<div style={{ fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’, marginBottom: ‘18px’ }}>Emissions Breakdown</div>
+{[
+{ l: ‘Energy’, v: 65, c: ‘#34c759’ }, { l: ‘Transport’, v: 45, c: ‘#007aff’ },
+{ l: ‘Supply Chain’, v: 80, c: ‘#af52de’ }, { l: ‘Waste’, v: 20, c: ‘#ff9500’ }
+].map(b => (
+<div key={b.l} style={{ marginBottom: ‘14px’ }}>
+<div style={{ display: ‘flex’, justifyContent: ‘space-between’, marginBottom: ‘5px’ }}>
+<span style={{ fontSize: ‘13px’, color: ‘#111827’, fontWeight: ‘500’ }}>{b.l}</span>
+<span style={{ fontSize: ‘12px’, color: ‘#6b7280’ }}>{b.v}t CO2e</span>
+</div>
+<div style={{ height: ‘6px’, background: ‘#f3f4f6’, borderRadius: ‘3px’, overflow: ‘hidden’ }}>
+<div style={{ height: ‘100%’, width: `${b.v}%`, background: b.c, borderRadius: ‘3px’, transition: ‘width 0.8s ease’ }} />
+</div>
+</div>
+))}
+</div>
+</div>
+);
+}
+
+// ── ESRS VIEW ──
+function ESRSView() {
+return (
+<div style={{ display: ‘flex’, flexDirection: ‘column’, gap: ‘18px’, animation: ‘fadeIn 0.3s ease’ }}>
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, border: ‘1px solid #e5e7eb’, overflow: ‘hidden’ }}>
+<div style={{ padding: ‘14px 20px’, borderBottom: ‘1px solid #e5e7eb’, fontSize: ‘13px’, fontWeight: ‘600’, color: ‘#111827’ }}>ESRS Compliance Tracker</div>
+<table style={{ width: ‘100%’, borderCollapse: ‘collapse’ }}>
+<thead>
+<tr style={{ background: ‘#f9fafb’, borderBottom: ‘1px solid #e5e7eb’ }}>
+{[‘STANDARD’, ‘TOPIC’, ‘STATUS’, ‘GAP’].map(h => (
+<th key={h} style={{ padding: ‘10px 20px’, textAlign: ‘left’, fontSize: ‘11px’, fontWeight: ‘600’, color: ‘#6b7280’ }}>{h}</th>
+))}
+</tr>
+</thead>
+<tbody>
+{[
+{ id: ‘E1’, t: ‘Climate Change’, s: ‘Partial’, g: true, sc: ‘#ff9500’, sb: ‘rgba(255,149,0,0.08)’ },
+{ id: ‘E2’, t: ‘Pollution’, s: ‘Complete’, g: false, sc: ‘#34c759’, sb: ‘rgba(52,199,89,0.08)’ },
+{ id: ‘E3’, t: ‘Water & Marine’, s: ‘Missing’, g: true, sc: ‘#ff3b30’, sb: ‘rgba(255,59,48,0.08)’ },
+{ id: ‘E4’, t: ‘Biodiversity’, s: ‘Missing’, g: true, sc: ‘#ff3b30’, sb: ‘rgba(255,59,48,0.08)’ },
+{ id: ‘S1’, t: ‘Own Workforce’, s: ‘Partial’, g: true, sc: ‘#ff9500’, sb: ‘rgba(255,149,0,0.08)’ },
+{ id: ‘S2’, t: ‘Workers in Value Chain’, s: ‘Missing’, g: true, sc: ‘#ff3b30’, sb: ‘rgba(255,59,48,0.08)’ },
+{ id: ‘G1’, t: ‘Business Conduct’, s: ‘Complete’, g: false, sc: ‘#34c759’, sb: ‘rgba(52,199,89,0.08)’ }
+].map((r, i) => (
+<tr key={i} className=“row-hover” style={{ borderBottom: ‘1px solid #f3f4f6’, transition: ‘background 0.15s’ }}>
+<td style={{ padding: ‘12px 20px’, fontSize: ‘13px’, fontWeight: ‘700’, color: ‘#111827’ }}>{r.id}</td>
+<td style={{ padding: ‘12px 20px’, fontSize: ‘13px’, color: ‘#111827’ }}>{r.t}</td>
+<td style={{ padding: ‘12px 20px’ }}><span style={{ fontSize: ‘11px’, fontWeight: ‘600’, color: r.sc, background: r.sb, padding: ‘3px 10px’, borderRadius: ‘20px’ }}>{r.s}</span></td>
+<td style={{ padding: ‘12px 20px’, fontSize: ‘13px’, fontWeight: ‘600’, color: r.g ? ‘#ff3b30’ : ‘#34c759’ }}>{r.g ? ‘⚠ Yes’ : ‘✓ No’}</td>
+</tr>
+))}
+</tbody>
+</table>
+</div>
+</div>
+);
+}
+
+// ── REPORTS VIEW ──
+function ReportsView() {
+return (
+<div style={{ display: ‘flex’, flexDirection: ‘column’, gap: ‘18px’, animation: ‘fadeIn 0.3s ease’ }}>
+<div style={{ display: ‘grid’, gridTemplateColumns: ‘repeat(3,1fr)’, gap: ‘14px’ }}>
+{[
+{ title: ‘CSRD Draft Report’, desc: ‘Full ESRS disclosure · Audit-ready · Branded’, icon: ‘📄’, ready: true },
+{ title: ‘Management Summary’, desc: ‘Executive overview · PDF · Signed’, icon: ‘📊’, ready: true },
+{ title: ‘Gap Analysis Report’, desc: ‘Compliance gap details · Action plan’, icon: ‘🔍’, ready: false }
+].map(r => (
+<div key={r.title} style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘22px’, border: ‘1px solid #e5e7eb’, boxShadow: ‘0 1px 3px rgba(0,0,0,0.06)’, transition: ‘all 0.2s ease’ }}
+onMouseEnter={e => { e.currentTarget.style.boxShadow = ‘0 6px 20px rgba(0,0,0,0.08)’; e.currentTarget.style.transform = ‘translateY(-2px)’; }}
+onMouseLeave={e => { e.currentTarget.style.boxShadow = ‘0 1px 3px rgba(0,0,0,0.06)’; e.currentTarget.style.transform = ‘translateY(0)’; }}>
+<div style={{ fontSize: ‘28px’, marginBottom: ‘12px’ }}>{r.icon}</div>
+<div style={{ fontSize: ‘14px’, fontWeight: ‘600’, color: ‘#111827’, marginBottom: ‘5px’ }}>{r.title}</div>
+<div style={{ fontSize: ‘11px’, color: ‘#6b7280’, marginBottom: ‘18px’, lineHeight: ‘1.5’ }}>{r.desc}</div>
+<div style={{ display: ‘flex’, justifyContent: ‘space-between’, alignItems: ‘center’ }}>
+<span style={{ fontSize: ‘11px’, fontWeight: ‘600’, color: r.ready ? ‘#34c759’ : ‘#ff9500’, background: r.ready ? ‘rgba(52,199,89,0.08)’ : ‘rgba(255,149,0,0.08)’, padding: ‘3px 10px’, borderRadius: ‘20px’ }}>{r.ready ? ‘Ready’ : ‘Pending’}</span>
+<button className=“action-btn” style={{ background: r.ready ? ‘#007aff’ : ‘#e5e7eb’, color: r.ready ? ‘white’ : ‘#6b7280’, border: ‘none’, padding: ‘7px 14px’, borderRadius: ‘7px’, fontSize: ‘12px’, fontWeight: ‘600’, cursor: r.ready ? ‘pointer’ : ‘default’, transition: ‘all 0.15s’ }}>Generate</button>
+</div>
+</div>
+))}
+</div>
+<div style={{ background: ‘#fff’, borderRadius: ‘14px’, padding: ‘18px 22px’, border: ‘1px solid #e5e7eb’, display: ‘flex’, alignItems: ‘center’, gap: ‘10px’, flexWrap: ‘wrap’ }}>
+<span style={{ fontSize: ‘13px’, fontWeight: ‘500’, color: ‘#6b7280’ }}>Language:</span>
+{[‘Deutsch’, ‘English’, ‘Français’].map(l => (
+<button key={l} className=“action-btn” style={{ padding: ‘6px 14px’, borderRadius: ‘7px’, border: ‘1px solid #e5e7eb’, background: ‘#f5f5f7’, color: ‘#111827’, fontSize: ‘12px’, fontWeight: ‘500’, cursor: ‘pointer’, transition: ‘all 0.15s’ }}>{l}</button>
+))}
+<span style={{ fontSize: ‘13px’, fontWeight: ‘500’, color: ‘#6b7280’, marginLeft: ‘8px’ }}>Format:</span>
+{[‘PDF’, ‘Word .docx’].map(f => (
+<button key={f} className=“action-btn” style={{ padding: ‘6px 14px’, borderRadius: ‘7px’, border: ‘1px solid #e5e7eb’, background: ‘#f5f5f7’, color: ‘#111827’, fontSize: ‘12px’, fontWeight: ‘500’, cursor: ‘pointer’, transition: ‘all 0.15s’ }}>{f}</button>
+))}
+</div>
+</div>
+);
+}
+
+// ── PLACEHOLDER ──
+function PlaceholderView({ tabId }) {
+const item = menuItems.find(i => i.id === tabId);
+const Icon = item?.icon || LayoutDashboard;
+return (
+<div style={{ display: ‘flex’, flexDirection: ‘column’, alignItems: ‘center’, justifyContent: ‘center’, height: ‘100%’, gap: ‘14px’, animation: ‘fadeIn 0.3s ease’ }}>
+<Icon size={44} color="#d1d5db" strokeWidth={1} />
+<h2 style={{ fontSize: ‘18px’, fontWeight: ‘600’, color: ‘#111827’, margin: 0 }}>{item?.label}</h2>
+<p style={{ fontSize: ‘13px’, color: ‘#6b7280’, margin: 0, textAlign: ‘center’, maxWidth: ‘280px’, lineHeight: ‘1.5’ }}>
+This module is being calibrated for your workspace.
+</p>
+<span style={{ fontSize: ‘11px’, color: ‘#9ca3af’, background: ‘#f3f4f6’, padding: ‘4px 12px’, borderRadius: ‘20px’ }}>Coming soon</span>
+</div>
+);
 }
