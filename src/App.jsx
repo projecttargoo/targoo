@@ -120,23 +120,41 @@ await window.__TAURI__.invoke('cancel_gap_analysis');
 setIsAnalyzing(false);
 };
 
-const handleFileUpload = async (filePath) => {
-if (!filePath) return;
+const handleFileUpload = async (filename) => {
+if (!filename) return;
+setImportResults(null);
 setIsProcessing(true);
 setProcessedSummary(null);
-setChatHistory(prev => [...prev, { role: 'user', text: `Processing file: ${filePath}` }]);
+setChatHistory(prev => [...prev, { role: 'user', text: `Uploading ${filename}...` }]);
 try {
 if (window.__TAURI__?.invoke) {
-const summary = await window.__TAURI__.invoke('process_data_file', { filePath });
-setProcessedSummary(summary);
-setChatHistory(prev => [...prev, { 
-role: 'ai', 
-text: `✔ Success: '${summary.filename}' processed. Detected ${summary.row_count} rows. ESG Scope: ${summary.detected_scope}.` 
+const result = await window.__TAURI__.invoke('import_files', { 
+filePaths: [filename] 
+});
+// result is already parsed by Tauri bridge
+setImportResults({
+recognized: result.categories_found || [],
+warnings: result.errors || [],
+records: result.imported_count || 0
+});
+setChatHistory(prev => [...prev, {
+role: 'ai',
+text: `Processed ${result.imported_count} records. Categories: ${(result.categories_found || []).join(', ')}`
 }]);
+// Also update the UI summary
+setProcessedSummary({
+filename: filename.split(/[\\/]/).pop(),
+row_count: result.imported_count,
+detected_scope: (result.categories_found || []).join(', ') || 'Uncategorized'
+});
 setDataImported(true);
 }
 } catch (err) {
-console.error(err);
+setImportResults({
+recognized: [],
+warnings: ['Import failed: ' + err],
+records: 0
+});
 setChatHistory(prev => [...prev, { role: 'ai', text: `❌ Error processing file: ${err}` }]);
 } finally {
 setIsProcessing(false);
@@ -144,27 +162,23 @@ setIsProcessing(false);
 };
 
 const handleSend = async (e) => {
-if (e) e.preventDefault();
-if (!chatInput.trim()) return;
-const userMsg = { role: 'user', text: chatInput };
-setChatHistory(prev => [...prev, userMsg, { role: 'ai', text: '⏳ Analyzing...' }]);
-const q = chatInput;
-setChatInput('');
-try {
-if (window.__TAURI__?.invoke) {
-const r = await window.__TAURI__.invoke('ask_ai', { question: q, clientId: 1 });
-setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: r }]);
-} else {
-setTimeout(() => {
-setChatHistory(prev => [...prev.slice(0, -1), {
-role: 'ai',
-text: `ESRS analysis for "${q}": Based on ESRS E1.44, Scope 1-3 disclosures are mandatory. Current data shows 68% compliance. Recommended action: upload supplier emission data to reach 85%+ threshold.`
-}]);
-}, 900);
-}
-} catch (err) {
-setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: '⚠ AI Engine initializing. Please wait...' }]);
-}
+  if (e) e.preventDefault();
+  if (!chatInput.trim()) return;
+  const userMsg = { role: 'user', text: chatInput };
+  setChatHistory(prev => [...prev, userMsg, { role: 'ai', text: 'Analyzing...' }]);
+  const question = chatInput;
+  setChatInput('');
+  try {
+    const response = await window.__TAURI__.invoke('ask_ai', { 
+      question: question 
+    });
+    setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: response }]);
+  } catch (err) {
+    setChatHistory(prev => [...prev.slice(0, -1), { 
+      role: 'ai', 
+      text: 'AI engine is loading. Please download the Gemma model first.' 
+    }]);
+  }
 };
 
 const statusColor = { ready: S.green, partial: S.amber, risk: S.red };
@@ -252,13 +266,19 @@ return (
           <div style={{ fontSize: '11px', fontWeight: '700', color: isDragging ? S.accent : '#374151', marginBottom: '3px' }}>{isDragging ? 'Release to import' : 'Drop ESG files'}</div>
           <div style={{ fontSize: '9px', color: S.muted }}>SAP · Oracle · CSV · PDF · XML</div>
         </div>
-        {(isProcessing || processedSummary) && (
+        {(isProcessing || processedSummary || importResults) && (
           <div style={{ marginTop: '8px', padding: '10px', borderRadius: '8px', background: isProcessing ? S.bg : '#f0fdf4', border: `1px solid ${isProcessing ? S.border : '#bbf7d0'}` }}>
             {isProcessing ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: S.muted }}>
                 <Loader2 size={12} className="spin" style={{ animation: 'rotate 1s linear infinite' }} />
                 <span>Processing ERP file...</span>
               </div>
+            ) : importResults ? (
+              <>
+                {importResults.recognized.map((r, i) => <div key={i} style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginBottom: '2px' }}>✔ {r}</div>)}
+                {importResults.warnings.map((w, i) => <div key={i} style={{ fontSize: '10px', color: S.amber, fontWeight: '600', marginBottom: '2px' }}>⚠ {w}</div>)}
+                <div style={{ fontSize: '9px', color: S.muted, marginTop: '4px' }}>{importResults.records} records processed</div>
+              </>
             ) : (
               <>
                 <div style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginBottom: '2px' }}>✔ {processedSummary.filename}</div>
@@ -365,7 +385,7 @@ switch (activeTab) {
 case 'dashboard': return <DashboardView client={activeClient} />;
 case 'clients': return <ClientsView />;
 case 'data': return <DataView {...dataState} />;
-case 'gap_analysis': return <GapAnalysisView {...gapState} />;
+case 'gap': return <GapAnalysisView {...gapState} />;
 case 'emissions': return <EmissionsView />;
 case 'esrs': return <ESRSView />;
 case 'reports': return <ReportsView />;
