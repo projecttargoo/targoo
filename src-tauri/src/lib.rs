@@ -44,13 +44,41 @@ pub struct MaterialityTopic {
 }
 
 #[tauri::command]
-fn get_dashboard_stats() -> DashboardStats {
+fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
+    let app_dir = app_handle.path().app_data_dir().unwrap_or_default();
+    let db_path = app_dir.join("targoo.db");
+    
+    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+        let workforce: i64 = conn.query_row(
+            "SELECT CAST(value AS INTEGER) FROM imported_data WHERE metric LIKE '%Headcount%' OR metric LIKE '%workforce%' LIMIT 1",
+            [], |row| row.get(0)
+        ).unwrap_or(340);
+        
+        let carbon: f64 = conn.query_row(
+            "SELECT SUM(CAST(value AS REAL)) FROM imported_data WHERE metric LIKE '%CO2%' OR metric LIKE '%emission%' OR metric LIKE '%carbon%'",
+            [], |row| row.get(0)
+        ).unwrap_or(198.0);
+        
+        let energy: f64 = conn.query_row(
+            "SELECT SUM(CAST(value AS REAL)) FROM imported_data WHERE metric LIKE '%kWh%' OR metric LIKE '%energy%' OR metric LIKE '%Electricity%'",
+            [], |row| row.get(0)
+        ).unwrap_or(420.0);
+        
+        return DashboardStats {
+            esg_score: 74,
+            carbon_footprint: if carbon > 0.0 { carbon } else { 198.0 },
+            energy_intensity: if energy > 0.0 { energy } else { 420.0 },
+            workforce: workforce as u32,
+            status_message: "Data loaded from imports".to_string(),
+        };
+    }
+    
     DashboardStats {
-        esg_score: 78,
-        carbon_footprint: 192.5,
-        energy_intensity: 11.8,
-        workforce: 342,
-        status_message: "Ready to analyze".to_string(),
+        esg_score: 74,
+        carbon_footprint: 198.0,
+        energy_intensity: 420.0,
+        workforce: 340,
+        status_message: "Using demo data".to_string(),
     }
 }
 
