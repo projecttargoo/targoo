@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use tauri::{command, AppHandle, Emitter, State};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
-use tokio::time::{sleep, Duration};
+use std::time::{Instant, Duration};
+use std::thread::sleep;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GapAnalysis {
@@ -29,7 +29,7 @@ pub struct GapAnalysisState {
 }
 
 #[command]
-pub async fn gap_analysis(
+pub fn gap_analysis(
     app_handle: AppHandle,
     input: GapAnalysis,
     state: State<'_, GapAnalysisState>,
@@ -67,7 +67,7 @@ pub async fn gap_analysis(
         }
 
         // 3. Simulated heavy processing (2 seconds per topic as requested)
-        sleep(Duration::from_secs(2)).await;
+        sleep(Duration::from_secs(2));
 
         // 4. Update progress
         let progress = ((i + 1) as f64 / total_topics as f64) * 100.0;

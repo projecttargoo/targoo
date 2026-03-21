@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Users, FolderKanban, Database, Scale, Leaf, ClipboardList, FileText, Search, BookOpen, Settings, Send, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, Zap, RefreshCw, Download, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, FolderKanban, Database, Scale, Leaf, ClipboardList, FileText, Search, BookOpen, Settings, Send, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, Zap, RefreshCw, Download, Bell, LayoutList, Play, StopCircle, Loader2, UploadCloud } from 'lucide-react';
 import logo from './assets/targoo.png';
 
 const S = {
@@ -24,6 +24,7 @@ const menuItems = [
 { id: 'clients', icon: Users, label: 'Clients' },
 { id: 'projects', icon: FolderKanban, label: 'Engagements' },
 { id: 'data', icon: Database, label: 'Data Intake' },
+{ id: 'gap_analysis', icon: LayoutList, label: 'Gap Analysis' },
 { id: 'materiality', icon: Scale, label: 'Analysis' },
 { id: 'emissions', icon: Leaf, label: 'Emissions' },
 { id: 'esrs', icon: ClipboardList, label: 'Compliance' },
@@ -54,6 +55,19 @@ const [dataImported, setDataImported] = useState(false);
 const [importResults, setImportResults] = useState(null);
 const [incompleteReports] = useState(3);
 const [complianceRisks] = useState(2);
+
+// Gap Analysis State
+const [isAnalyzing, setIsAnalyzing] = useState(false);
+const [analysisProgress, setAnalysisProgress] = useState(0);
+const [currentTopic, setCurrentTopic] = useState('');
+const [analysisResults, setAnalysisResults] = useState(null);
+const [companySize, setCompanySize] = useState('Medium');
+const [sector, setSector] = useState('Automotive');
+
+// Data Intake State
+const [isProcessing, setIsProcessing] = useState(false);
+const [processedSummary, setProcessedSummary] = useState(null);
+
 const chatEndRef = useRef(null);
 
 const activeClient = clients.find(c => c.id === selectedClientId) || clients[0];
@@ -71,26 +85,62 @@ listen('download_progress', (e) => {
 setDownloadProgress(Math.round(e.payload));
 if (e.payload >= 100) { setModelReady(true); setModelDownloading(false); }
 });
+
+listen('gap_progress', (e) => {
+setAnalysisProgress(e.payload.progress);
+setCurrentTopic(e.payload.current_topic);
+});
 }
 }
 }, []);
 
-const handleFileUpload = (filename) => {
-setDataImported(false);
-setImportResults(null);
-setChatHistory(prev => [...prev, { role: 'user', text: `Uploading ${filename}...` }]);
-setTimeout(() => {
-setDataImported(true);
-setImportResults({
-recognized: ['SAP data recognized', 'Emissions mapped to ESRS E1', 'Workforce data detected'],
-warnings: ['Missing: Scope 3 supplier data'],
-records: 847
+const runGapAnalysis = async () => {
+setIsAnalyzing(true);
+setAnalysisProgress(0);
+setAnalysisResults(null);
+try {
+if (window.__TAURI__?.invoke) {
+const resultStr = await window.__TAURI__.invoke('gap_analysis', {
+input: { company_size: companySize, sector, country: 'Germany' }
 });
-setChatHistory(prev => [...prev, {
-role: 'ai',
-text: `✔ ${filename} processed. Found 847 ESG data points. Scope 1+2 mapped. ⚠ Scope 3 supplier data missing — this affects ESRS E1.46 compliance. Fix now?`
+setAnalysisResults(JSON.parse(resultStr));
+}
+} catch (err) {
+console.error(err);
+} finally {
+setIsAnalyzing(false);
+setCurrentTopic('');
+}
+};
+
+const cancelGapAnalysis = async () => {
+if (window.__TAURI__?.invoke) {
+await window.__TAURI__.invoke('cancel_gap_analysis');
+}
+setIsAnalyzing(false);
+};
+
+const handleFileUpload = async (filePath) => {
+if (!filePath) return;
+setIsProcessing(true);
+setProcessedSummary(null);
+setChatHistory(prev => [...prev, { role: 'user', text: `Processing file: ${filePath}` }]);
+try {
+if (window.__TAURI__?.invoke) {
+const summary = await window.__TAURI__.invoke('process_data_file', { filePath });
+setProcessedSummary(summary);
+setChatHistory(prev => [...prev, { 
+role: 'ai', 
+text: `✔ Success: '${summary.filename}' processed. Detected ${summary.row_count} rows. ESG Scope: ${summary.detected_scope}.` 
 }]);
-}, 1200);
+setDataImported(true);
+}
+} catch (err) {
+console.error(err);
+setChatHistory(prev => [...prev, { role: 'ai', text: `❌ Error processing file: ${err}` }]);
+} finally {
+setIsProcessing(false);
+}
 };
 
 const handleSend = async (e) => {
@@ -196,17 +246,25 @@ return (
       <div style={{ padding: '12px', borderTop: `1px solid ${S.border}` }}
         onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
-        onDrop={e => { e.preventDefault(); setIsDragging(false); handleFileUpload(e.dataTransfer.files[0]?.name || 'data.xml'); }}>
-        <div onClick={() => handleFileUpload('manual_import.xlsx')} style={{ padding: '16px 12px', borderRadius: '12px', border: `2px dashed ${isDragging ? S.accent : '#c7d2fe'}`, background: isDragging ? 'rgba(0,122,255,0.06)' : 'linear-gradient(135deg,#f0f4ff,#e8f0fe)', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', transform: isDragging ? 'scale(1.02)' : 'scale(1)' }}>
+        onDrop={e => { e.preventDefault(); setIsDragging(false); handleFileUpload(e.dataTransfer.files[0]?.path || 'data.xlsx'); }}>
+        <div onClick={() => handleFileUpload('C:\\Users\\Mock\\data.xlsx')} style={{ padding: '16px 12px', borderRadius: '12px', border: `2px dashed ${isDragging ? S.accent : '#c7d2fe'}`, background: isDragging ? 'rgba(0,122,255,0.06)' : 'linear-gradient(135deg,#f0f4ff,#e8f0fe)', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', transform: isDragging ? 'scale(1.02)' : 'scale(1)' }}>
           <Database size={18} color={isDragging ? S.accent : '#6366f1'} style={{ marginBottom: '6px' }} />
           <div style={{ fontSize: '11px', fontWeight: '700', color: isDragging ? S.accent : '#374151', marginBottom: '3px' }}>{isDragging ? 'Release to import' : 'Drop ESG files'}</div>
           <div style={{ fontSize: '9px', color: S.muted }}>SAP · Oracle · CSV · PDF · XML</div>
         </div>
-        {importResults && (
-          <div style={{ marginTop: '8px', padding: '10px', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-            {importResults.recognized.map((r, i) => <div key={i} style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginBottom: '2px' }}>✔ {r}</div>)}
-            {importResults.warnings.map((w, i) => <div key={i} style={{ fontSize: '10px', color: S.amber, fontWeight: '600', marginBottom: '2px' }}>⚠ {w}</div>)}
-            <div style={{ fontSize: '9px', color: S.muted, marginTop: '4px' }}>{importResults.records} records processed</div>
+        {(isProcessing || processedSummary) && (
+          <div style={{ marginTop: '8px', padding: '10px', borderRadius: '8px', background: isProcessing ? S.bg : '#f0fdf4', border: `1px solid ${isProcessing ? S.border : '#bbf7d0'}` }}>
+            {isProcessing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: S.muted }}>
+                <Loader2 size={12} className="spin" style={{ animation: 'rotate 1s linear infinite' }} />
+                <span>Processing ERP file...</span>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600', marginBottom: '2px' }}>✔ {processedSummary.filename}</div>
+                <div style={{ fontSize: '9px', color: S.muted }}>{processedSummary.row_count} rows · {processedSummary.detected_scope}</div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -214,7 +272,12 @@ return (
 
     {/* ── MAIN ── */}
     <main style={{ flex: 1, overflowY: 'auto', padding: '28px' }}>
-      <MainContent activeTab={activeTab} activeClient={activeClient} />
+      <MainContent 
+        activeTab={activeTab} 
+        activeClient={activeClient} 
+        gapState={{ isAnalyzing, analysisProgress, currentTopic, analysisResults, companySize, setCompanySize, sector, setSector, runGapAnalysis, cancelGapAnalysis }}
+        dataState={{ isProcessing, processedSummary, handleFileUpload }}
+      />
     </main>
 
     {/* ── RIGHT PANEL ── */}
@@ -297,11 +360,12 @@ return (
 }
 
 // ── MAIN CONTENT ──
-function MainContent({ activeTab, activeClient }) {
+function MainContent({ activeTab, activeClient, gapState, dataState }) {
 switch (activeTab) {
 case 'dashboard': return <DashboardView client={activeClient} />;
 case 'clients': return <ClientsView />;
-case 'data': return <DataView />;
+case 'data': return <DataView {...dataState} />;
+case 'gap_analysis': return <GapAnalysisView {...gapState} />;
 case 'emissions': return <EmissionsView />;
 case 'esrs': return <ESRSView />;
 case 'reports': return <ReportsView />;
@@ -529,6 +593,94 @@ return (
 );
 }
 
+// ── GAP ANALYSIS VIEW ──
+function GapAnalysisView({ isAnalyzing, analysisProgress, currentTopic, analysisResults, companySize, setCompanySize, sector, setSector, runGapAnalysis, cancelGapAnalysis }) {
+const badgeStyle = (status) => ({
+fontSize: '11px',
+fontWeight: '700',
+padding: '3px 10px',
+borderRadius: '20px',
+textTransform: 'capitalize',
+color: status === 'green' ? S.green : status === 'yellow' ? S.amber : S.red,
+background: (status === 'green' ? S.green : status === 'yellow' ? S.amber : S.red) + '15'
+});
+
+return (
+<div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease' }}>
+<div style={{ background: '#fff', borderRadius: '16px', padding: '24px', border: `1px solid ${S.border}`, boxShadow: S.shadow }}>
+<div style={{ fontSize: '18px', fontWeight: '700', color: S.text, marginBottom: '20px' }}>CSRD Gap Analysis Configuration</div>
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 200px', gap: '16px', alignItems: 'flex-end' }}>
+<div>
+<label style={{ fontSize: '12px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '8px' }}>Company Size</label>
+<select value={companySize} onChange={e => setCompanySize(e.target.value)} disabled={isAnalyzing} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '14px', cursor: isAnalyzing ? 'not-allowed' : 'pointer', outline: 'none' }}>
+{['Small', 'Medium', 'Large'].map(s => <option key={s} value={s}>{s}</option>)}
+</select>
+</div>
+<div>
+<label style={{ fontSize: '12px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '8px' }}>Industry Sector</label>
+<select value={sector} onChange={e => setSector(e.target.value)} disabled={isAnalyzing} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '14px', cursor: isAnalyzing ? 'not-allowed' : 'pointer', outline: 'none' }}>
+{['Automotive', 'Chemicals', 'Electronics', 'Food & Beverage', 'Machinery', 'Textiles', 'Finance'].map(s => <option key={s} value={s}>{s}</option>)}
+</select>
+</div>
+{!isAnalyzing ? (
+<button className="action-btn" onClick={runGapAnalysis} style={{ height: '42px', background: S.accent, color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+<Play size={16} /> Start Analysis
+</button>
+) : (
+<button className="action-btn" onClick={cancelGapAnalysis} style={{ height: '42px', background: S.red, color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+<StopCircle size={16} /> Cancel
+</button>
+)}
+</div>
+</div>
+
+{isAnalyzing && (
+<div style={{ background: '#fff', borderRadius: '16px', padding: '24px', border: `1px solid ${S.border}`, boxShadow: S.shadow }}>
+<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+<div style={{ fontSize: '14px', fontWeight: '700', color: S.text }}>Processing ESRS Standards...</div>
+<div style={{ fontSize: '14px', fontWeight: '700', color: S.accent }}>{Math.round(analysisProgress)}%</div>
+</div>
+<div style={{ height: '8px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
+<div style={{ height: '100%', width: `${analysisProgress}%`, background: S.accent, transition: 'width 0.4s cubic-bezier(0.1, 0.7, 1.0, 0.1)' }} />
+</div>
+<div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: S.muted }}>
+<Loader2 size={16} className="spin" style={{ animation: 'rotate 1s linear infinite' }} />
+<style>{`@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+<span>Currently analyzing: <b>{currentTopic || 'Initializing...'}</b></span>
+</div>
+</div>
+)}
+
+{analysisResults && (
+<div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${S.border}`, boxShadow: S.shadow, overflow: 'hidden', animation: 'fadeIn 0.4s ease' }}>
+<div style={{ padding: '20px 24px', borderBottom: `1px solid ${S.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+<div style={{ fontSize: '16px', fontWeight: '700', color: S.text }}>Gap Analysis Results</div>
+<button style={{ background: S.bg, border: `1px solid ${S.border}`, padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>Download Detailed Report</button>
+</div>
+<table style={{ width: '100%', borderCollapse: 'collapse' }}>
+<thead>
+<tr style={{ background: '#f9fafb', borderBottom: `1px solid ${S.border}` }}>
+<th style={{ padding: '14px 24px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: S.muted }}>ESRS TOPIC</th>
+<th style={{ padding: '14px 24px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: S.muted }}>COMPLIANCE STATUS</th>
+</tr>
+</thead>
+<tbody>
+{Object.entries(analysisResults.topics).map(([topic, status], i) => (
+<tr key={i} className="row-hover" style={{ borderBottom: i < Object.keys(analysisResults.topics).length - 1 ? `1px solid ${S.border}` : 'none', transition: 'background 0.15s' }}>
+<td style={{ padding: '16px 24px', fontSize: '14px', color: S.text, fontWeight: '500' }}>{topic}</td>
+<td style={{ padding: '16px 24px', textAlign: 'right' }}>
+<span style={badgeStyle(status)}>{status}</span>
+</td>
+</tr>
+))}
+</tbody>
+</table>
+</div>
+)}
+</div>
+);
+}
+
 // ── CLIENTS VIEW ──
 function ClientsView() {
 return (
@@ -574,17 +726,49 @@ return (
 }
 
 // ── DATA VIEW ──
-function DataView() {
+function DataView({ isProcessing, processedSummary, handleFileUpload }) {
+const [isHov, setIsHov] = useState(false);
 return (
-<div style={{ display: 'flex', flexDirection: 'column', gap: '18px', animation: 'fadeIn 0.3s ease' }}>
-<div style={{ background: '#fff', borderRadius: '14px', padding: '40px', border: '2px dashed #e5e7eb', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease' }}
-onMouseEnter={e => { e.currentTarget.style.borderColor = '#007aff'; e.currentTarget.style.background = 'rgba(0,122,255,0.02)'; }}
-onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#fff'; }}>
-<Database size={36} color="#6b7280" strokeWidth={1.2} style={{ marginBottom: '14px' }} />
-<div style={{ fontSize: '15px', fontWeight: '600', color: '#111827', marginBottom: '6px' }}>Drop ESG Data Files Here</div>
-<div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '18px' }}>SAP exports · Oracle XML · Excel · CSV · PDF supported</div>
-<button className="action-btn" style={{ background: '#007aff', color: 'white', border: 'none', padding: '10px 22px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}>Browse Files</button>
+<div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s ease' }}>
+<div style={{ background: '#fff', borderRadius: '16px', padding: '48px', border: `2px dashed ${isHov ? S.accent : S.border}`, textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden' }}
+onMouseEnter={() => setIsHov(true)}
+onMouseLeave={() => setIsHov(false)}
+onClick={() => !isProcessing && handleFileUpload('C:\\Users\\Mock\\manual_data.xlsx')}>
+{isProcessing && (
+<div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.8)', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+<Loader2 size={32} className="spin" color={S.accent} style={{ animation: 'rotate 1s linear infinite' }} />
+<div style={{ fontSize: '14px', fontWeight: '700', color: S.text }}>Processing ESG Data Stream...</div>
 </div>
+)}
+<UploadCloud size={48} color={isHov ? S.accent : S.muted} strokeWidth={1.2} style={{ marginBottom: '16px' }} />
+<div style={{ fontSize: '16px', fontWeight: '700', color: S.text, marginBottom: '6px' }}>{isProcessing ? 'Processing...' : 'Ingest Corporate ESG Data'}</div>
+<div style={{ fontSize: '14px', color: S.muted, marginBottom: '24px' }}>Secure local ingestion of ERP exports, Excel, CSV, or XML files.</div>
+<button className="action-btn" style={{ background: S.accent, color: 'white', border: 'none', padding: '10px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}>Select ERP File</button>
+</div>
+
+{processedSummary && (
+<div style={{ background: '#fff', borderRadius: '16px', border: `1px solid ${S.border}`, boxShadow: S.shadow, overflow: 'hidden', animation: 'fadeIn 0.4s ease' }}>
+<div style={{ padding: '16px 20px', borderBottom: `1px solid ${S.border}`, background: '#f0fdf4', display: 'flex', alignItems: 'center', gap: '10px' }}>
+<CheckCircle size={18} color={S.green} />
+<div style={{ fontSize: '14px', fontWeight: '700', color: '#166534' }}>Ingestion Complete: {processedSummary.filename}</div>
+</div>
+<div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+<div>
+<div style={{ fontSize: '11px', fontWeight: '600', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>Records Found</div>
+<div style={{ fontSize: '20px', fontWeight: '700', color: S.text }}>{processedSummary.row_count}</div>
+</div>
+<div>
+<div style={{ fontSize: '11px', fontWeight: '600', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>Detected Scope</div>
+<div style={{ fontSize: '20px', fontWeight: '700', color: S.accent }}>{processedSummary.detected_scope}</div>
+</div>
+<div>
+<div style={{ fontSize: '11px', fontWeight: '600', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>Compliance Status</div>
+<div style={{ fontSize: '20px', fontWeight: '700', color: S.green }}>Verified</div>
+</div>
+</div>
+</div>
+)}
+
 <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
 <div style={{ padding: '14px 20px', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: '600', color: '#111827' }}>Recent Imports</div>
 {[

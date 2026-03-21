@@ -408,6 +408,61 @@ pub fn process_excel(file_path: String) -> Result<String, String> {
     serde_json::to_string(&result).map_err(|e| format!("Failed to serialize result: {}", e))
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileSummary {
+    pub filename: String,
+    pub row_count: usize,
+    pub detected_scope: String,
+}
+
+#[command]
+pub fn process_data_file(_app_handle: AppHandle, file_path: String) -> Result<FileSummary, String> {
+    let filename = std::path::Path::new(&file_path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown_file")
+        .to_string();
+
+    let path_lower = file_path.to_lowercase();
+    let mut row_count = 0;
+    let mut detected_scope = "Uncategorized".to_string();
+
+    if path_lower.ends_with(".xlsx") || path_lower.ends_with(".xls") {
+        let mut excel: Xlsx<_> = open_workbook(&file_path).map_err(|e| format!("Failed to open Excel file: {}", e))?;
+        if let Some(sheet_name) = excel.sheet_names().get(0).cloned() {
+            if let Ok(range) = excel.worksheet_range(&sheet_name) {
+                row_count = range.rows().count().saturating_sub(1);
+                
+                // Detection logic
+                if let Some(first_row) = range.rows().next() {
+                    let header_str = first_row.iter().map(|c| c.to_string().to_lowercase()).collect::<Vec<_>>().join(" ");
+                    if header_str.contains("scope 1") || header_str.contains("direct") { detected_scope = "Scope 1".into(); }
+                    else if header_str.contains("scope 2") || header_str.contains("electricity") { detected_scope = "Scope 2".into(); }
+                    else if header_str.contains("scope 3") || header_str.contains("purchased") { detected_scope = "Scope 3".into(); }
+                }
+            }
+        }
+    } else if path_lower.ends_with(".csv") {
+        let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| format!("Failed to open CSV: {}", e))?;
+        let headers = rdr.headers().map_err(|e| format!("Failed to read CSV headers: {}", e))?;
+        let header_str = headers.iter().collect::<Vec<_>>().join(" ").to_lowercase();
+        
+        if header_str.contains("scope 1") || header_str.contains("direct") { detected_scope = "Scope 1".into(); }
+        else if header_str.contains("scope 2") || header_str.contains("electricity") { detected_scope = "Scope 2".into(); }
+        else if header_str.contains("scope 3") || header_str.contains("purchased") { detected_scope = "Scope 3".into(); }
+        
+        row_count = rdr.records().count();
+    } else {
+        return Err("Unsupported file format".into());
+    }
+
+    Ok(FileSummary {
+        filename,
+        row_count,
+        detected_scope,
+    })
+}
+
 #[command]
 pub fn calculate_excel_emissions(app_handle: AppHandle, file_path: String) -> Result<EmissionTotals, String> {
     let mut excel: Xlsx<_> = open_workbook(file_path).map_err(|e| format!("Failed to open Excel file: {}", e))?;

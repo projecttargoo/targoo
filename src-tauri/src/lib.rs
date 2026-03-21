@@ -69,62 +69,6 @@ fn get_db_connection(app_handle: &AppHandle) -> rusqlite::Result<Connection> {
 }
 
 #[tauri::command]
-fn process_data_file(
-    app_handle: AppHandle,
-    file_path: String,
-    client_id: i32,
-) -> Result<DashboardStats, String> {
-    if file_path.is_empty() {
-        return Err("No file selected".into());
-    }
-
-    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
-
-    // Fetch client details to get industry
-    let client = conn.query_row(
-        "SELECT id, name, industry, last_audit, score, carbon FROM clients WHERE id = ?",
-        [client_id],
-        |row| {
-            Ok(ProductionClient {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                industry: row.get(2)?,
-                last_audit: row.get(3)?,
-                score: row.get(4)?,
-                carbon: row.get(5)?,
-            })
-        },
-    ).map_err(|e| e.to_string())?;
-
-    // Dynamic Logic: Industry-based ESG & Carbon calculation
-    let (calculated_carbon, calculated_score, calculated_energy) = match client.industry.as_str() {
-        "Machinery" => (285.4, 62, 9.2), // High carbon for Mekk Elek
-        "Electronics" => (110.2, 74, 18.5), // High energy intensity
-        "Automotive" => (192.5, 78, 11.8),
-        _ => (150.0, 70, 12.0),
-    };
-
-    // Atomically update client stats and document history
-    conn.execute(
-        "UPDATE clients SET score = ?, carbon = ?, last_audit = ? WHERE id = ?",
-        params![calculated_score as i32, calculated_carbon, "2026-03-17", client_id],
-    ).map_err(|e| e.to_string())?;
-
-    conn.execute(
-        "INSERT INTO documents (name, size, status) VALUES (?, ?, ?)",
-        params![&file_path, "Enterprise Stream", "Verified"],
-    ).map_err(|e| e.to_string())?;
-
-    Ok(DashboardStats {
-        esg_score: calculated_score as u32,
-        carbon_footprint: calculated_carbon,
-        energy_intensity: calculated_energy,
-        workforce: 342,
-        status_message: format!("Analysis complete for {}. Data persisted.", client.name),
-    })
-}
-
-#[tauri::command]
 fn run_materiality_check() -> Vec<MaterialityTopic> {
     vec![
         MaterialityTopic { topic_id: "E1".to_string(), name: "Climate Change".to_string(), impact_score: 90, financial_score: 85, is_material: true },
@@ -247,7 +191,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_dashboard_stats,
-            process_data_file,
             run_materiality_check,
             add_client,
             get_enterprise_clients,
@@ -260,6 +203,7 @@ pub fn run() {
             l2_gap_analysis::gap_analysis,
             l2_gap_analysis::cancel_gap_analysis,
             l3_report::generate_report,
+            l4_data_processor::process_data_file,
             l4_data_processor::process_excel,
             l4_data_processor::calculate_excel_emissions,
             l4_data_processor::calculate_emissions,
