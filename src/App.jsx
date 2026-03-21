@@ -739,16 +739,57 @@ return (
 
 // ── CLIENTS VIEW ──
 function ClientsView() {
+const [realClients, setRealClients] = useState([]);
+
+const handleAddClient = async () => {
+  const nameInput = document.getElementById('client-name');
+  const industryInput = document.getElementById('client-industry');
+  if (!nameInput?.value) return;
+  try {
+    if (window.__TAURI__?.invoke) {
+      await window.__TAURI__.invoke('create_client', {
+        name: nameInput.value,
+        industry: industryInput?.value || 'Other',
+        country: 'DE'
+      });
+      nameInput.value = '';
+      window.location.reload();
+    }
+  } catch (err) {
+    console.error('Failed to add client:', err);
+  }
+};
+
+useEffect(() => {
+  if (window.__TAURI__?.invoke) {
+    window.__TAURI__.invoke('get_clients')
+      .then(list => { if (list?.length) setRealClients(list); })
+      .catch(() => {});
+  }
+}, []);
+
+const displayClients = realClients.length > 0 ? realClients.map(c => ({
+  n: c.name,
+  i: c.industry,
+  s: 74,
+  st: 'In Progress',
+  sc: '#ff9500'
+})) : [
+  { n: 'Hans GmbH Demo', i: 'Automotive', s: 74, st: 'In Progress', sc: '#ff9500' },
+  { n: 'Müller & Co', i: 'Chemicals', s: 62, st: 'Action Required', sc: '#ff3b30' },
+  { n: 'Schweizer AG', i: 'Electronics', s: 81, st: 'Audit Ready', sc: '#34c759' }
+];
+
 return (
 <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', animation: 'fadeIn 0.3s ease' }}>
 <div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
 <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '14px' }}>Register New Client</div>
 <div style={{ display: 'flex', gap: '10px' }}>
-<input placeholder="Company name" style={{ flex: 1, padding: '9px 13px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', background: '#f5f5f7', outline: 'none' }} />
-<select style={{ flex: 1, padding: '9px 13px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', background: '#f5f5f7', outline: 'none' }}>
+<input id="client-name" placeholder="Company name" style={{ flex: 1, padding: '9px 13px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', background: '#f5f5f7', outline: 'none' }} />
+<select id="client-industry" style={{ flex: 1, padding: '9px 13px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', background: '#f5f5f7', outline: 'none' }}>
 {['Automotive', 'Chemicals', 'Electronics', 'Food & Beverage', 'Machinery'].map(i => <option key={i}>{i}</option>)}
 </select>
-<button className="action-btn" style={{ background: '#007aff', color: 'white', border: 'none', padding: '9px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}>Add Client</button>
+<button className="action-btn" onClick={handleAddClient} style={{ background: '#007aff', color: 'white', border: 'none', padding: '9px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}>Add Client</button>
 </div>
 </div>
 <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
@@ -761,11 +802,7 @@ return (
 </tr>
 </thead>
 <tbody>
-{[
-{ n: 'Hans GmbH Demo', i: 'Automotive', s: 74, st: 'In Progress', sc: '#ff9500' },
-{ n: 'Müller & Co', i: 'Chemicals', s: 62, st: 'Action Required', sc: '#ff3b30' },
-{ n: 'Schweizer AG', i: 'Electronics', s: 81, st: 'Audit Ready', sc: '#34c759' }
-].map((c, idx) => (
+{displayClients.map((c, idx) => (
 <tr key={idx} className="row-hover" style={{ borderBottom: '1px solid #f3f4f6', transition: 'background 0.15s' }}>
 <td style={{ padding: '13px 20px', fontSize: '13px', fontWeight: '600', color: '#111827' }}>{c.n}</td>
 <td style={{ padding: '13px 20px', fontSize: '13px', color: '#6b7280' }}>{c.i}</td>
