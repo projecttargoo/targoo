@@ -962,6 +962,17 @@ return (
 
 // ── REPORTS VIEW ──
 function ReportsView() {
+const handleGenerateReport = async () => {
+  try {
+    if (window.__TAURI__?.invoke) {
+      const filePath = await window.__TAURI__.invoke('generate_report');
+      alert('Report generated: ' + filePath);
+    }
+  } catch (err) {
+    alert('Report generation failed: ' + err);
+  }
+};
+
 return (
 <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', animation: 'fadeIn 0.3s ease' }}>
 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
@@ -978,7 +989,7 @@ onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.0
 <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '18px', lineHeight: '1.5' }}>{r.desc}</div>
 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 <span style={{ fontSize: '11px', fontWeight: '600', color: r.ready ? '#34c759' : '#ff9500', background: r.ready ? 'rgba(52,199,89,0.08)' : 'rgba(255,149,0,0.08)', padding: '3px 10px', borderRadius: '20px' }}>{r.ready ? 'Ready' : 'Pending'}</span>
-<button className="action-btn" style={{ background: r.ready ? '#007aff' : '#e5e7eb', color: r.ready ? 'white' : '#6b7280', border: 'none', padding: '7px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: r.ready ? 'pointer' : 'default', transition: 'all 0.15s' }}>Generate</button>
+<button className="action-btn" onClick={r.ready ? handleGenerateReport : undefined} style={{ background: r.ready ? '#007aff' : '#e5e7eb', color: r.ready ? 'white' : '#6b7280', border: 'none', padding: '7px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: r.ready ? 'pointer' : 'default', transition: 'all 0.15s' }}>Generate</button>
 </div>
 </div>
 ))}
