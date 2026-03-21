@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, Users, FolderKanban, Database, Scale, Leaf, ClipboardList, FileText, Search, BookOpen, Settings, Send, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, Zap, RefreshCw, Download, Bell, LayoutList, Play, StopCircle, Loader2, UploadCloud, BarChart2 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
 import logo from './assets/targoo.png';
 
 const S = {
@@ -151,6 +150,7 @@ const cancelGapAnalysis = async () => {
 
 const handleFileUpload = async (filename) => {
 if (!filename) return;
+console.log('Uploading file:', filename);
 setImportResults(null);
 setIsProcessing(true);
 setProcessedSummary(null);
@@ -199,21 +199,8 @@ setIsProcessing(false);
 }
 };
 
-const handleBrowseFiles = async () => {
-  try {
-    const selected = await open({
-      multiple: true,
-      filters: [{ name: 'ESG Data', extensions: ['xlsx', 'csv', 'pdf', 'xml'] }]
-    });
-    if (selected) {
-      const files = Array.isArray(selected) ? selected : [selected];
-      for (const filePath of files) {
-        await handleFileUpload(filePath);
-      }
-    }
-  } catch (err) {
-    console.error('File dialog error:', err);
-  }
+const handleBrowseFiles = () => {
+  document.getElementById('file-input').click();
 };
 
 const handleSend = async (e) => {
@@ -242,6 +229,24 @@ const statusLabel = { ready: '● Audit Ready', partial: '◐ In Progress', risk
 return (
 <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', fontFamily: S.font, background: S.bg, overflow: 'hidden' }}>
 <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } body { overflow: hidden; -webkit-font-smoothing: antialiased; } ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; } @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } } @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } } @keyframes drawLine { from { stroke-dashoffset: 700; } to { stroke-dashoffset: 0; } } .nav-btn:hover { background: rgba(0,122,255,0.06) !important; color: #007aff !important; transform: translateX(2px); } .kpi-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 12px 32px rgba(0,0,0,0.10) !important; } .action-btn:hover { opacity: 0.88; transform: scale(0.98); } .row-hover:hover { background: #f9fafb !important; }`}</style>
+
+  {/* Hidden native file input */}
+  <input 
+    type="file" 
+    id="file-input"
+    multiple
+    accept=".xlsx,.xls,.csv,.pdf,.xml"
+    style={{display: 'none'}}
+    onChange={async (e) => {
+      const files = Array.from(e.target.files);
+      for (const file of files) {
+        // file.path is available in Tauri when "fs" is used or via special config, 
+        // but here we fall back to name for the mock/display if path is missing.
+        await handleFileUpload(file.path || file.name);
+      }
+      e.target.value = ''; // Reset input
+    }}
+  />
 
   {/* ── ALERT BAR ── */}
   <div style={{ background: '#fff3cd', borderBottom: '1px solid #ffc107', padding: '8px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
