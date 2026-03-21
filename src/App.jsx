@@ -178,6 +178,14 @@ try {
   });
   setDataImported(true);
 
+  // Refresh dashboard stats after successful import
+  try {
+    const stats = await invoke('get_dashboard_stats');
+    setDashboardStats(stats);
+  } catch (err) {
+    console.log('Stats refresh error:', err);
+  }
+
   // Automatically call analyze_imported_data after successful import
   try {
     const analysis = await invoke('analyze_imported_data');
@@ -463,8 +471,8 @@ default: return <PlaceholderView tabId={activeTab} />;
 function DashboardView({ client, stats }) {
 const kpis = [
 { label: 'ESG Score', value: stats?.esg_score || client.score || 74, trend: '+6', up: true, risk: 'Medium', next: 'Reduce Scope 2', color: '#007aff', unit: '' },
-{ label: 'Carbon tCO2e', value: stats?.carbon_footprint || '198', trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
-{ label: 'Energy MWh', value: stats?.energy_intensity || '420', trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
+{ label: 'Carbon tCO2e', value: stats?.carbon_footprint?.toFixed(1) || '198', trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
+{ label: 'Energy MWh', value: stats?.energy_intensity?.toFixed(0) || '420', trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
 { label: 'Workforce', value: stats?.workforce || '342', trend: '0%', up: null, risk: 'Low', next: 'Update HR data', color: '#ff9500', unit: '' }
 ];
 
