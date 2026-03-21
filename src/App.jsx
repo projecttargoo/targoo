@@ -34,13 +34,15 @@ const menuItems = [
 { id: 'settings', icon: Settings, label: 'Settings' }
 ];
 
-const clients = [
+const initialClients = [
 { id: 1, name: 'Hans GmbH Demo', score: 74, status: 'partial' },
 { id: 2, name: 'Müller & Co', score: 62, status: 'risk' },
 { id: 3, name: 'Schweizer AG', score: 81, status: 'ready' }
 ];
 
 export default function App() {
+const [dashboardStats, setDashboardStats] = useState(null);
+const [clients, setClients] = useState(initialClients);
 const [activeTab, setActiveTab] = useState('dashboard');
 const [chatInput, setChatInput] = useState('');
 const [chatHistory, setChatHistory] = useState([
@@ -92,6 +94,39 @@ setCurrentTopic(e.payload.current_topic);
 });
 }
 }
+}, []);
+
+useEffect(() => {
+  const loadStats = async () => {
+    try {
+      if (window.__TAURI__?.invoke) {
+        const stats = await window.__TAURI__.invoke('get_dashboard_stats');
+        setDashboardStats(stats);
+      }
+    } catch (err) {
+      console.log('Using demo data:', err);
+    }
+  };
+  loadStats();
+  
+  const loadClients = async () => {
+    try {
+      if (window.__TAURI__?.invoke) {
+        const clientList = await window.__TAURI__.invoke('get_clients');
+        if (clientList && clientList.length > 0) {
+          setClients(clientList.map(c => ({
+            id: c.id,
+            name: c.name,
+            score: 74,
+            status: 'partial'
+          })));
+        }
+      }
+    } catch (err) {
+      console.log('Using demo clients:', err);
+    }
+  };
+  loadClients();
 }, []);
 
 const runGapAnalysis = async () => {
@@ -297,6 +332,7 @@ return (
         activeClient={activeClient} 
         gapState={{ isAnalyzing, analysisProgress, currentTopic, analysisResults, companySize, setCompanySize, sector, setSector, runGapAnalysis, cancelGapAnalysis }}
         dataState={{ isProcessing, processedSummary, handleFileUpload }}
+        dashboardStats={dashboardStats}
       />
     </main>
 
@@ -380,9 +416,9 @@ return (
 }
 
 // ── MAIN CONTENT ──
-function MainContent({ activeTab, activeClient, gapState, dataState }) {
+function MainContent({ activeTab, activeClient, gapState, dataState, dashboardStats }) {
 switch (activeTab) {
-case 'dashboard': return <DashboardView client={activeClient} />;
+case 'dashboard': return <DashboardView client={activeClient} stats={dashboardStats} />;
 case 'clients': return <ClientsView />;
 case 'data': return <DataView {...dataState} />;
 case 'gap': return <GapAnalysisView {...gapState} />;
@@ -394,12 +430,12 @@ default: return <PlaceholderView tabId={activeTab} />;
 }
 
 // ── DASHBOARD ──
-function DashboardView({ client }) {
+function DashboardView({ client, stats }) {
 const kpis = [
-{ label: 'ESG Score', value: client.score || 74, trend: '+6', up: true, risk: 'Medium', next: 'Reduce Scope 2', color: '#007aff', unit: '' },
-{ label: 'Carbon tCO2e', value: '198', trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
-{ label: 'Energy MWh', value: '420', trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
-{ label: 'Workforce', value: '342', trend: '0%', up: null, risk: 'Low', next: 'Update HR data', color: '#ff9500', unit: '' }
+{ label: 'ESG Score', value: stats?.esg_score || client.score || 74, trend: '+6', up: true, risk: 'Medium', next: 'Reduce Scope 2', color: '#007aff', unit: '' },
+{ label: 'Carbon tCO2e', value: stats?.carbon_footprint || '198', trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
+{ label: 'Energy MWh', value: stats?.energy_intensity || '420', trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
+{ label: 'Workforce', value: stats?.workforce || '342', trend: '0%', up: null, risk: 'Low', next: 'Update HR data', color: '#ff9500', unit: '' }
 ];
 
 return (
