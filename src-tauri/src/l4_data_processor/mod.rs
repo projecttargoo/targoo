@@ -1,7 +1,7 @@
 use calamine::{open_workbook, Reader, Xlsx, Data};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tauri::{command, AppHandle};
+use tauri::{command, AppHandle, Manager};
 use crate::l6_audit::get_db_connection;
 
 pub mod esrs_mapper;
@@ -181,21 +181,46 @@ fn parse_csv(file_path: &str, errors: &mut Vec<String>) -> Vec<ImportedRecord> {
 }
 
 #[command]
-pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>) -> Result<ImportResult, String> {
+pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content: Vec<u8>) -> Result<ImportResult, String> {
     let _ = init_import_db(&app_handle);
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
 
     let mut all_records = Vec::new();
     let mut errors = Vec::new();
 
-    for path in file_paths {
-        let path_lower = path.to_lowercase();
+    // If content is provided (native HTML file input), save to a temp file and process
+    if !file_content.is_empty() && !file_paths.is_empty() {
+        let filename = &file_paths[0];
+        let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+        let temp_dir = app_dir.join("temp_imports");
+        std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
+        let temp_path = temp_dir.join(filename);
+        std::fs::write(&temp_path, &file_content).map_err(|e| e.to_string())?;
+        
+        let path_str = temp_path.to_str().ok_or("Invalid temp path")?;
+        let path_lower = path_str.to_lowercase();
+        
         if path_lower.ends_with(".xlsx") || path_lower.ends_with(".xls") {
-            all_records.extend(parse_excel(&path, &mut errors));
+            all_records.extend(parse_excel(path_str, &mut errors));
         } else if path_lower.ends_with(".csv") {
-            all_records.extend(parse_csv(&path, &mut errors));
+            all_records.extend(parse_csv(path_str, &mut errors));
         } else {
-            errors.push(format!("Unsupported file type: {}", path));
+            errors.push(format!("Unsupported file type via buffer: {}", filename));
+        }
+        
+        // Clean up temp file
+        let _ = std::fs::remove_file(temp_path);
+    } else {
+        // Original logic for paths (useful for Tauri native picker if used)
+        for path in file_paths {
+            let path_lower = path.to_lowercase();
+            if path_lower.ends_with(".xlsx") || path_lower.ends_with(".xls") {
+                all_records.extend(parse_excel(&path, &mut errors));
+            } else if path_lower.ends_with(".csv") {
+                all_records.extend(parse_csv(&path, &mut errors));
+            } else {
+                errors.push(format!("Unsupported file type: {}", path));
+            }
         }
     }
 

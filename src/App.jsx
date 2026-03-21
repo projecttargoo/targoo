@@ -148,7 +148,7 @@ const cancelGapAnalysis = async () => {
   setIsAnalyzing(false);
 };
 
-const handleFileUpload = async (filename) => {
+const handleFileUpload = async (filename, content = []) => {
 if (!filename) return;
 console.log('Uploading file:', filename);
 setImportResults(null);
@@ -157,7 +157,8 @@ setProcessedSummary(null);
 setChatHistory(prev => [...prev, { role: 'user', text: `Uploading ${filename}...` }]);
 try {
   const result = await invoke('import_files', { 
-    filePaths: [filename] 
+    filePaths: [filename],
+    fileContent: content
   });
   // result is already parsed by Tauri bridge
   setImportResults({
@@ -167,7 +168,7 @@ try {
   });
   setChatHistory(prev => [...prev, {
     role: 'ai',
-    text: `Processed ${result.imported_count} records. Categories: ${(result.categories_found || []).join(', ')}`
+    text: `Processed ${result.imported_count || 0} records from ${filename}`
   }]);
   // Also update the UI summary
   setProcessedSummary({
@@ -240,9 +241,12 @@ return (
     onChange={async (e) => {
       const files = Array.from(e.target.files);
       for (const file of files) {
-        // file.path is available in Tauri when "fs" is used or via special config, 
-        // but here we fall back to name for the mock/display if path is missing.
-        await handleFileUpload(file.path || file.name);
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const content = Array.from(new Uint8Array(event.target.result));
+          await handleFileUpload(file.name, content);
+        };
+        reader.readAsArrayBuffer(file);
       }
       e.target.value = ''; // Reset input
     }}
@@ -320,7 +324,7 @@ return (
       <div style={{ padding: '12px', borderTop: `1px solid ${S.border}` }}
         onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
-        onDrop={e => { e.preventDefault(); setIsDragging(false); handleFileUpload(e.dataTransfer.files[0]?.path || 'data.xlsx'); }}>
+        onDrop={e => { e.preventDefault(); setIsDragging(false); handleFileUpload(e.dataTransfer.files[0]?.name || 'data.xlsx'); }}>
         <div onClick={handleBrowseFiles} style={{ padding: '16px 12px', borderRadius: '12px', border: `2px dashed ${isDragging ? S.accent : '#c7d2fe'}`, background: isDragging ? 'rgba(0,122,255,0.06)' : 'linear-gradient(135deg,#f0f4ff,#e8f0fe)', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', transform: isDragging ? 'scale(1.02)' : 'scale(1)' }}>
           <Database size={18} color={isDragging ? S.accent : '#6366f1'} style={{ marginBottom: '6px' }} />
           <div style={{ fontSize: '11px', fontWeight: '700', color: isDragging ? S.accent : '#374151', marginBottom: '3px' }}>{isDragging ? 'Release to import' : 'Drop ESG files'}</div>
