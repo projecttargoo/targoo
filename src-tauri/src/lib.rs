@@ -152,6 +152,7 @@ fn ask_neuron_pilot(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(None::<l1_rag::GemmaEngine>))
         .manage(l8_workspace::WorkspaceState { active_project_id: Mutex::new(None) })
         .manage(l2_gap_analysis::GapAnalysisState { is_running: Arc::new(AtomicBool::new(false)) })

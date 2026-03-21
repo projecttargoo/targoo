@@ -37,6 +37,7 @@ llama_cpp = "0.3"
 pdf-extract = "0.7"
 regex = "1"
 quick-xml = "0.36"
+tauri-plugin-dialog = "2.6.0"
 
 
 

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, Users, FolderKanban, Database, Scale, Leaf, ClipboardList, FileText, Search, BookOpen, Settings, Send, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, Zap, RefreshCw, Download, Bell, LayoutList, Play, StopCircle, Loader2, UploadCloud, BarChart2 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
 import logo from './assets/targoo.png';
 
 const S = {
@@ -80,8 +82,8 @@ chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
 useEffect(() => {
 if (window.__TAURI__) {
-const { invoke, listen } = window.__TAURI__;
-if (invoke) invoke('check_model').then(r => setModelReady(r)).catch(() => {});
+const { listen } = window.__TAURI__;
+invoke('check_model').then(r => setModelReady(r)).catch(() => {});
 if (listen) {
 listen('download_progress', (e) => {
 setDownloadProgress(Math.round(e.payload));
@@ -99,10 +101,8 @@ setCurrentTopic(e.payload.current_topic);
 useEffect(() => {
   const loadStats = async () => {
     try {
-      if (window.__TAURI__?.invoke) {
-        const stats = await window.__TAURI__.invoke('get_dashboard_stats');
-        setDashboardStats(stats);
-      }
+      const stats = await invoke('get_dashboard_stats');
+      setDashboardStats(stats);
     } catch (err) {
       console.log('Using demo data:', err);
     }
@@ -111,16 +111,14 @@ useEffect(() => {
   
   const loadClients = async () => {
     try {
-      if (window.__TAURI__?.invoke) {
-        const clientList = await window.__TAURI__.invoke('get_clients');
-        if (clientList && clientList.length > 0) {
-          setClients(clientList.map(c => ({
-            id: c.id,
-            name: c.name,
-            score: 74,
-            status: 'partial'
-          })));
-        }
+      const clientList = await invoke('get_clients');
+      if (clientList && clientList.length > 0) {
+        setClients(clientList.map(c => ({
+          id: c.id,
+          name: c.name,
+          score: 74,
+          status: 'partial'
+        })));
       }
     } catch (err) {
       console.log('Using demo clients:', err);
@@ -134,12 +132,10 @@ setIsAnalyzing(true);
 setAnalysisProgress(0);
 setAnalysisResults(null);
 try {
-if (window.__TAURI__?.invoke) {
-const resultStr = await window.__TAURI__.invoke('gap_analysis', {
-input: { company_size: companySize, sector, country: 'DE' }
-});
-setAnalysisResults(JSON.parse(resultStr));
-}
+  const resultStr = await invoke('gap_analysis', {
+    input: { company_size: companySize, sector, country: 'DE' }
+  });
+  setAnalysisResults(JSON.parse(resultStr));
 } catch (err) {
 console.error(err);
 } finally {
@@ -149,10 +145,8 @@ setCurrentTopic('');
 };
 
 const cancelGapAnalysis = async () => {
-if (window.__TAURI__?.invoke) {
-await window.__TAURI__.invoke('cancel_gap_analysis');
-}
-setIsAnalyzing(false);
+  await invoke('cancel_gap_analysis');
+  setIsAnalyzing(false);
 };
 
 const handleFileUpload = async (filename) => {
@@ -162,28 +156,37 @@ setIsProcessing(true);
 setProcessedSummary(null);
 setChatHistory(prev => [...prev, { role: 'user', text: `Uploading ${filename}...` }]);
 try {
-if (window.__TAURI__?.invoke) {
-const result = await window.__TAURI__.invoke('import_files', { 
-filePaths: [filename] 
-});
-// result is already parsed by Tauri bridge
-setImportResults({
-recognized: result.categories_found || [],
-warnings: result.errors || [],
-records: result.imported_count || 0
-});
-setChatHistory(prev => [...prev, {
-role: 'ai',
-text: `Processed ${result.imported_count} records. Categories: ${(result.categories_found || []).join(', ')}`
-}]);
-// Also update the UI summary
-setProcessedSummary({
-filename: filename.split(/[\\/]/).pop(),
-row_count: result.imported_count,
-detected_scope: (result.categories_found || []).join(', ') || 'Uncategorized'
-});
-setDataImported(true);
-}
+  const result = await invoke('import_files', { 
+    filePaths: [filename] 
+  });
+  // result is already parsed by Tauri bridge
+  setImportResults({
+    recognized: result.categories_found || [],
+    warnings: result.errors || [],
+    records: result.imported_count || 0
+  });
+  setChatHistory(prev => [...prev, {
+    role: 'ai',
+    text: `Processed ${result.imported_count} records. Categories: ${(result.categories_found || []).join(', ')}`
+  }]);
+  // Also update the UI summary
+  setProcessedSummary({
+    filename: filename.split(/[\\/]/).pop(),
+    row_count: result.imported_count,
+    detected_scope: (result.categories_found || []).join(', ') || 'Uncategorized'
+  });
+  setDataImported(true);
+
+  // Automatically call analyze_imported_data after successful import
+  try {
+    const analysis = await invoke('analyze_imported_data');
+    const parsed = JSON.parse(analysis);
+    const proactiveMsg = parsed.proactive_message || 
+      `Analysis complete. Found ${parsed.missing?.length || 0} compliance gaps.`;
+    setChatHistory(prev => [...prev, { role: 'ai', text: proactiveMsg }]);
+  } catch (err) {
+    console.log('Analysis error:', err);
+  }
 } catch (err) {
 setImportResults({
 recognized: [],
@@ -196,6 +199,23 @@ setIsProcessing(false);
 }
 };
 
+const handleBrowseFiles = async () => {
+  try {
+    const selected = await open({
+      multiple: true,
+      filters: [{ name: 'ESG Data', extensions: ['xlsx', 'csv', 'pdf', 'xml'] }]
+    });
+    if (selected) {
+      const files = Array.isArray(selected) ? selected : [selected];
+      for (const filePath of files) {
+        await handleFileUpload(filePath);
+      }
+    }
+  } catch (err) {
+    console.error('File dialog error:', err);
+  }
+};
+
 const handleSend = async (e) => {
   if (e) e.preventDefault();
   if (!chatInput.trim()) return;
@@ -204,7 +224,7 @@ const handleSend = async (e) => {
   const question = chatInput;
   setChatInput('');
   try {
-    const response = await window.__TAURI__.invoke('ask_ai', { 
+    const response = await invoke('ask_ai', { 
       question: question 
     });
     setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: response }]);
@@ -296,10 +316,11 @@ return (
         onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={e => { e.preventDefault(); setIsDragging(false); handleFileUpload(e.dataTransfer.files[0]?.path || 'data.xlsx'); }}>
-        <div onClick={() => handleFileUpload('C:\\Users\\Mock\\data.xlsx')} style={{ padding: '16px 12px', borderRadius: '12px', border: `2px dashed ${isDragging ? S.accent : '#c7d2fe'}`, background: isDragging ? 'rgba(0,122,255,0.06)' : 'linear-gradient(135deg,#f0f4ff,#e8f0fe)', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', transform: isDragging ? 'scale(1.02)' : 'scale(1)' }}>
+        <div onClick={handleBrowseFiles} style={{ padding: '16px 12px', borderRadius: '12px', border: `2px dashed ${isDragging ? S.accent : '#c7d2fe'}`, background: isDragging ? 'rgba(0,122,255,0.06)' : 'linear-gradient(135deg,#f0f4ff,#e8f0fe)', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', transform: isDragging ? 'scale(1.02)' : 'scale(1)' }}>
           <Database size={18} color={isDragging ? S.accent : '#6366f1'} style={{ marginBottom: '6px' }} />
           <div style={{ fontSize: '11px', fontWeight: '700', color: isDragging ? S.accent : '#374151', marginBottom: '3px' }}>{isDragging ? 'Release to import' : 'Drop ESG files'}</div>
           <div style={{ fontSize: '9px', color: S.muted }}>SAP · Oracle · CSV · PDF · XML</div>
+          <button className="action-btn" onClick={(e) => { e.stopPropagation(); handleBrowseFiles(); }} style={{ marginTop: '10px', width: '100%', background: S.accent, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Browse Files</button>
         </div>
         {(isProcessing || processedSummary || importResults) && (
           <div style={{ marginTop: '8px', padding: '10px', borderRadius: '8px', background: isProcessing ? S.bg : '#f0fdf4', border: `1px solid ${isProcessing ? S.border : '#bbf7d0'}` }}>
@@ -331,7 +352,7 @@ return (
         activeTab={activeTab} 
         activeClient={activeClient} 
         gapState={{ isAnalyzing, analysisProgress, currentTopic, analysisResults, companySize, setCompanySize, sector, setSector, runGapAnalysis, cancelGapAnalysis }}
-        dataState={{ isProcessing, processedSummary, handleFileUpload }}
+        dataState={{ isProcessing, processedSummary, handleFileUpload, handleBrowseFiles }}
         dashboardStats={dashboardStats}
       />
     </main>
@@ -351,7 +372,7 @@ return (
           </div>
           {modelDownloading && <div style={{ height: '4px', background: '#e5e7eb', borderRadius: '2px', marginBottom: '10px' }}><div style={{ height: '100%', width: `${downloadProgress}%`, background: S.amber, borderRadius: '2px', transition: 'width 0.3s' }} /></div>}
           {!modelDownloading && (
-            <button type="button" onClick={async () => { setModelDownloading(true); try { if (window.__TAURI__?.invoke) await window.__TAURI__.invoke('download_model'); } catch { setModelDownloading(false); } }} style={{ width: '100%', padding: '8px', background: S.amber, color: 'white', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+            <button type="button" onClick={async () => { setModelDownloading(true); try { await invoke('download_model'); } catch { setModelDownloading(false); } }} style={{ width: '100%', padding: '8px', background: S.amber, color: 'white', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
               Download AI Model (1.2 GB)
             </button>
           )}
@@ -746,26 +767,26 @@ const handleAddClient = async () => {
   const industryInput = document.getElementById('client-industry');
   if (!nameInput?.value) return;
   try {
-    if (window.__TAURI__?.invoke) {
-      await window.__TAURI__.invoke('create_client', {
-        name: nameInput.value,
-        industry: industryInput?.value || 'Other',
-        country: 'DE'
-      });
-      nameInput.value = '';
-      window.location.reload();
-    }
+    await invoke('create_client', {
+      name: nameInput.value,
+      industry: industryInput?.value || 'Other',
+      country: 'DE'
+    });
+    nameInput.value = '';
+    window.location.reload();
   } catch (err) {
     console.error('Failed to add client:', err);
   }
 };
 
 useEffect(() => {
-  if (window.__TAURI__?.invoke) {
-    window.__TAURI__.invoke('get_clients')
-      .then(list => { if (list?.length) setRealClients(list); })
-      .catch(() => {});
-  }
+  const loadClients = async () => {
+    try {
+      const list = await invoke('get_clients');
+      if (list?.length) setRealClients(list);
+    } catch (err) {}
+  };
+  loadClients();
 }, []);
 
 const displayClients = realClients.length > 0 ? realClients.map(c => ({
@@ -819,14 +840,14 @@ return (
 }
 
 // ── DATA VIEW ──
-function DataView({ isProcessing, processedSummary, handleFileUpload }) {
+function DataView({ isProcessing, processedSummary, handleFileUpload, handleBrowseFiles }) {
 const [isHov, setIsHov] = useState(false);
 return (
 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s ease' }}>
 <div style={{ background: '#fff', borderRadius: '16px', padding: '48px', border: `2px dashed ${isHov ? S.accent : S.border}`, textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden' }}
 onMouseEnter={() => setIsHov(true)}
 onMouseLeave={() => setIsHov(false)}
-onClick={() => !isProcessing && handleFileUpload('C:\\Users\\Mock\\manual_data.xlsx')}>
+onClick={() => !isProcessing && handleBrowseFiles()}>
 {isProcessing && (
 <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.8)', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
 <Loader2 size={32} className="spin" color={S.accent} style={{ animation: 'rotate 1s linear infinite' }} />
@@ -836,7 +857,7 @@ onClick={() => !isProcessing && handleFileUpload('C:\\Users\\Mock\\manual_data.x
 <UploadCloud size={48} color={isHov ? S.accent : S.muted} strokeWidth={1.2} style={{ marginBottom: '16px' }} />
 <div style={{ fontSize: '16px', fontWeight: '700', color: S.text, marginBottom: '6px' }}>{isProcessing ? 'Processing...' : 'Ingest Corporate ESG Data'}</div>
 <div style={{ fontSize: '14px', color: S.muted, marginBottom: '24px' }}>Secure local ingestion of ERP exports, Excel, CSV, or XML files.</div>
-<button className="action-btn" style={{ background: S.accent, color: 'white', border: 'none', padding: '10px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}>Select ERP File</button>
+<button className="action-btn" onClick={(e) => { e.stopPropagation(); handleBrowseFiles(); }} style={{ background: S.accent, color: 'white', border: 'none', padding: '10px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.15s' }}>Select ERP File</button>
 </div>
 
 {processedSummary && (
@@ -964,10 +985,8 @@ return (
 function ReportsView() {
 const handleGenerateReport = async () => {
   try {
-    if (window.__TAURI__?.invoke) {
-      const filePath = await window.__TAURI__.invoke('generate_report');
-      alert('Report generated: ' + filePath);
-    }
+    const filePath = await invoke('generate_report');
+    alert('Report generated: ' + filePath);
   } catch (err) {
     alert('Report generation failed: ' + err);
   }
