@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Users, FolderKanban, Database, Scale, Leaf, ClipboardList, FileText, Search, BookOpen, Settings, Send, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, Zap, RefreshCw, Download, Bell, LayoutList, Play, StopCircle, Loader2, UploadCloud } from 'lucide-react';
+import { LayoutDashboard, Users, FolderKanban, Database, Scale, Leaf, ClipboardList, FileText, Search, BookOpen, Settings, Send, AlertTriangle, CheckCircle, XCircle, TrendingUp, TrendingDown, Zap, RefreshCw, Download, Bell, LayoutList, Play, StopCircle, Loader2, UploadCloud, BarChart2 } from 'lucide-react';
 import logo from './assets/targoo.png';
 
 const S = {
@@ -24,7 +24,7 @@ const menuItems = [
 { id: 'clients', icon: Users, label: 'Clients' },
 { id: 'projects', icon: FolderKanban, label: 'Engagements' },
 { id: 'data', icon: Database, label: 'Data Intake' },
-{ id: 'gap_analysis', icon: LayoutList, label: 'Gap Analysis' },
+{ id: 'gap', icon: BarChart2, label: 'Gap Analysis' },
 { id: 'materiality', icon: Scale, label: 'Analysis' },
 { id: 'emissions', icon: Leaf, label: 'Emissions' },
 { id: 'esrs', icon: ClipboardList, label: 'Compliance' },
@@ -61,8 +61,8 @@ const [isAnalyzing, setIsAnalyzing] = useState(false);
 const [analysisProgress, setAnalysisProgress] = useState(0);
 const [currentTopic, setCurrentTopic] = useState('');
 const [analysisResults, setAnalysisResults] = useState(null);
-const [companySize, setCompanySize] = useState('Medium');
-const [sector, setSector] = useState('Automotive');
+const [companySize, setCompanySize] = useState('large');
+const [sector, setSector] = useState('manufacturing');
 
 // Data Intake State
 const [isProcessing, setIsProcessing] = useState(false);
@@ -101,7 +101,7 @@ setAnalysisResults(null);
 try {
 if (window.__TAURI__?.invoke) {
 const resultStr = await window.__TAURI__.invoke('gap_analysis', {
-input: { company_size: companySize, sector, country: 'Germany' }
+input: { company_size: companySize, sector, country: 'DE' }
 });
 setAnalysisResults(JSON.parse(resultStr));
 }
@@ -613,18 +613,18 @@ return (
 <div>
 <label style={{ fontSize: '12px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '8px' }}>Company Size</label>
 <select value={companySize} onChange={e => setCompanySize(e.target.value)} disabled={isAnalyzing} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '14px', cursor: isAnalyzing ? 'not-allowed' : 'pointer', outline: 'none' }}>
-{['Small', 'Medium', 'Large'].map(s => <option key={s} value={s}>{s}</option>)}
+{['small', 'medium', 'large'].map(s => <option key={s} value={s}>{s}</option>)}
 </select>
 </div>
 <div>
 <label style={{ fontSize: '12px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '8px' }}>Industry Sector</label>
 <select value={sector} onChange={e => setSector(e.target.value)} disabled={isAnalyzing} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '14px', cursor: isAnalyzing ? 'not-allowed' : 'pointer', outline: 'none' }}>
-{['Automotive', 'Chemicals', 'Electronics', 'Food & Beverage', 'Machinery', 'Textiles', 'Finance'].map(s => <option key={s} value={s}>{s}</option>)}
+{['automotive', 'chemicals', 'electronics', 'food & beverage', 'machinery', 'textiles', 'finance', 'manufacturing'].map(s => <option key={s} value={s}>{s}</option>)}
 </select>
 </div>
 {!isAnalyzing ? (
 <button className="action-btn" onClick={runGapAnalysis} style={{ height: '42px', background: S.accent, color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-<Play size={16} /> Start Analysis
+<Play size={16} /> Run Gap Analysis
 </button>
 ) : (
 <button className="action-btn" onClick={cancelGapAnalysis} style={{ height: '42px', background: S.red, color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
