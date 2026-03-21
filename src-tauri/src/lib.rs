@@ -218,6 +218,7 @@ pub fn run() {
             l8_workspace::init_workspace_db(app.handle())?;
             l1_rag::populate_esrs_database(app.handle())?;
             l1_rag::load_esrs_from_json(app.handle())?;
+            l4_data_processor::init_import_db(app.handle())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -231,6 +232,7 @@ pub fn run() {
             license::validate_license,
             l1_rag::search_esrs,
             l1_rag::analyze_imported_data,
+            l1_rag::ask_ai,
             l2_gap_analysis::gap_analysis,
             l2_gap_analysis::cancel_gap_analysis,
             l3_report::generate_report,
