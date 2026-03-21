@@ -86,20 +86,25 @@ fn parse_excel(file_path: &str, errors: &mut Vec<String>) -> Vec<ImportedRecord>
             let mut rows = range.rows();
             if let Some(first_row) = rows.next() {
                 let headers: Vec<String> = first_row.iter().map(|c| c.to_string()).collect();
-                let (cat_idx, metric_idx, val_idx, unit_idx, year_idx) = detect_columns(&headers);
+                
+                // Identify metadata columns
+                let mut cat_idx = None;
+                let mut year_idx = None;
+                let mut unit_idx = None;
+                
+                let cat_keywords = ["category", "kategória", "type", "típus", "scope", "site", "helyszín", "company", "cég"];
+                let year_keywords = ["year", "év", "period", "időszak", "date", "dátum"];
+                let unit_keywords = ["unit", "egység", "measure"];
 
-                if val_idx.is_none() {
-                    errors.push(format!("Sheet '{}' in {}: Could not detect value column", sheet_name, file_name));
-                    continue;
+                for (i, h) in headers.iter().enumerate() {
+                    let hl = h.to_lowercase();
+                    if cat_idx.is_none() && cat_keywords.iter().any(|&k| hl.contains(k)) { cat_idx = Some(i); }
+                    if year_idx.is_none() && year_keywords.iter().any(|&k| hl.contains(k)) { year_idx = Some(i); }
+                    if unit_idx.is_none() && unit_keywords.iter().any(|&k| hl.contains(k)) { unit_idx = Some(i); }
                 }
 
-                for (_row_idx, row) in rows.enumerate() {
-                    let value = row.get(val_idx.unwrap()).map(|c| c.to_string()).unwrap_or_default();
-                    if value.is_empty() { continue; }
-
-                    let metric = metric_idx.map(|idx| row.get(idx).map(|c| c.to_string()).unwrap_or_default()).unwrap_or_else(|| "Unknown".to_string());
-                    let category = cat_idx.map(|idx| row.get(idx).map(|c| c.to_string()).unwrap_or_default()).unwrap_or_else(|| "Uncategorized".to_string());
-                    let unit = unit_idx.and_then(|idx| row.get(idx).map(|c| c.to_string()));
+                for row in rows {
+                    let category = cat_idx.and_then(|idx| row.get(idx).map(|c| c.to_string())).unwrap_or_else(|| "Uncategorized".to_string());
                     let year = year_idx.and_then(|idx| row.get(idx).and_then(|c| {
                         match c {
                             Data::Int(i) => Some(*i as i32),
@@ -108,15 +113,33 @@ fn parse_excel(file_path: &str, errors: &mut Vec<String>) -> Vec<ImportedRecord>
                             _ => None
                         }
                     }));
+                    let row_unit = unit_idx.and_then(|idx| row.get(idx).map(|c| c.to_string()));
 
-                    records.push(ImportedRecord {
-                        source_file: file_name.clone(),
-                        category,
-                        metric,
-                        value,
-                        unit,
-                        year,
-                    });
+                    // Iterate ALL columns to find numeric data
+                    for (col_idx, cell) in row.iter().enumerate() {
+                        // Skip metadata columns to avoid treating metadata as metrics
+                        if Some(col_idx) == cat_idx || Some(col_idx) == year_idx || Some(col_idx) == unit_idx {
+                            continue;
+                        }
+
+                        let is_numeric = matches!(cell, Data::Int(_) | Data::Float(_));
+                        
+                        if is_numeric {
+                            let value_str = cell.to_string();
+                            if value_str.is_empty() || value_str == "0" { continue; }
+
+                            let metric = headers.get(col_idx).cloned().unwrap_or_else(|| format!("Column {}", col_idx));
+                            
+                            records.push(ImportedRecord {
+                                source_file: file_name.clone(),
+                                category: category.clone(),
+                                metric,
+                                value: value_str,
+                                unit: row_unit.clone(),
+                                year,
+                            });
+                        }
+                    }
                 }
             }
         }
