@@ -45,10 +45,12 @@ pub struct MaterialityTopic {
 
 #[tauri::command]
 fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
-    let app_dir = app_handle.path().app_data_dir().unwrap_or_default();
-    let db_path = app_dir.join("targoo.db");
-    
-    if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+    if let Ok(conn) = get_db_connection(&app_handle) {
+        // Debug: Print DB path
+        let app_dir = app_handle.path().app_data_dir().unwrap_or_default();
+        let db_path = app_dir.join("targoo.db");
+        println!("Dashboard Stats DB Path: {:?}", db_path);
+
         let workforce: i64 = conn.query_row(
             "SELECT CAST(value AS INTEGER) FROM imported_data WHERE metric LIKE '%Headcount%' OR metric LIKE '%workforce%' LIMIT 1",
             [], |row| row.get(0)
@@ -82,7 +84,7 @@ fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
     }
 }
 
-fn get_db_connection(app_handle: &AppHandle) -> rusqlite::Result<Connection> {
+pub fn get_db_connection(app_handle: &AppHandle) -> rusqlite::Result<Connection> {
     let app_data_dir = app_handle
         .path()
         .app_data_dir()

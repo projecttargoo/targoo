@@ -28,6 +28,12 @@ pub struct ImportResult {
 
 pub fn init_import_db(app_handle: &AppHandle) -> Result<(), String> {
     let conn = get_db_connection(app_handle).map_err(|e| e.to_string())?;
+    
+    // Debug: Print DB path
+    let app_dir = app_handle.path().app_data_dir().unwrap_or_default();
+    let db_path = app_dir.join("targoo.db");
+    println!("Data Processor DB Path: {:?}", db_path);
+
     conn.execute(
         "CREATE TABLE IF NOT EXISTS imported_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
