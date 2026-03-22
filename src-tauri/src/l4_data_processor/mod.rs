@@ -10,6 +10,7 @@ pub mod esrs_mapper;
 pub mod pdf_parser;
 pub mod xml_parser;
 pub mod excel_cleaner;
+pub mod json_parser;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportedRecord {
@@ -26,6 +27,15 @@ pub struct ImportResult {
     pub imported_count: i32,
     pub errors: Vec<String>,
     pub categories_found: Vec<String>,
+    pub mapping_summary: Vec<MappingDetail>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MappingDetail {
+    pub label: String,
+    pub value: f64,
+    pub unit: String,
+    pub confidence: f32,
 }
 
 pub fn init_import_db(app_handle: &AppHandle) -> Result<(), String> {
@@ -211,6 +221,52 @@ fn parse_csv(file_path: &str, errors: &mut Vec<String>) -> Vec<ImportedRecord> {
     records
 }
 
+fn parse_txt(file_path: &str, errors: &mut Vec<String>) -> Vec<ImportedRecord> {
+    let mut records = Vec::new();
+    let file_name = std::path::Path::new(file_path).file_name().and_then(|s| s.to_str()).unwrap_or(file_path).to_string();
+
+    let file = match std::fs::File::open(file_path) {
+        Ok(f) => f,
+        Err(e) => {
+            errors.push(format!("Failed to open {}: {}", file_name, e));
+            return records;
+        }
+    };
+
+    use std::io::{BufRead, BufReader};
+    let reader = BufReader::new(file);
+
+    for line in reader.lines() {
+        if let Ok(l) = line {
+            // Support "Key: Value" or "Key [tab] Value"
+            let parts: Vec<&str> = if l.contains('\t') {
+                l.split('\t').collect()
+            } else if l.contains(':') {
+                l.split(':').collect()
+            } else {
+                continue;
+            };
+
+            if parts.len() >= 2 {
+                let metric = parts[0].trim().to_string();
+                let value = parts[1].trim().to_string();
+                
+                if !value.is_empty() && value.chars().any(|c| c.is_digit(10)) {
+                    records.push(ImportedRecord {
+                        source_file: file_name.clone(),
+                        category: "Text Parser".to_string(),
+                        metric,
+                        value,
+                        unit: None,
+                        year: None,
+                    });
+                }
+            }
+        }
+    }
+    records
+}
+
 #[command]
 pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content: Vec<u8>, client_id: i32) -> Result<ImportResult, String> {
     let _ = init_import_db(&app_handle);
@@ -237,6 +293,18 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
             all_records.extend(parse_excel(path_str, &mut errors));
         } else if path_lower.ends_with(".csv") {
             all_records.extend(parse_csv(path_str, &mut errors));
+        } else if path_lower.ends_with(".json") {
+            match json_parser::parse_json(path_str) {
+                Ok(r) => all_records.extend(r),
+                Err(e) => errors.push(e),
+            }
+        } else if path_lower.ends_with(".xml") || path_lower.ends_with(".xbrl") {
+            match xml_parser::parse_xml(path_str) {
+                Ok(r) => all_records.extend(r),
+                Err(e) => errors.push(e),
+            }
+        } else if path_lower.ends_with(".txt") {
+            all_records.extend(parse_txt(path_str, &mut errors));
         } else {
             errors.push(format!("Unsupported file type via buffer: {}", filename));
         }
@@ -251,6 +319,18 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
                 all_records.extend(parse_excel(&path, &mut errors));
             } else if path_lower.ends_with(".csv") {
                 all_records.extend(parse_csv(&path, &mut errors));
+            } else if path_lower.ends_with(".json") {
+                match json_parser::parse_json(&path) {
+                    Ok(r) => all_records.extend(r),
+                    Err(e) => errors.push(e),
+                }
+            } else if path_lower.ends_with(".xml") || path_lower.ends_with(".xbrl") {
+                match xml_parser::parse_xml(&path) {
+                    Ok(r) => all_records.extend(r),
+                    Err(e) => errors.push(e),
+                }
+            } else if path_lower.ends_with(".txt") {
+                all_records.extend(parse_txt(&path, &mut errors));
             } else {
                 errors.push(format!("Unsupported file type: {}", path));
             }
@@ -274,6 +354,8 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
 
     // NORMALIZE AND UPSERT TO ESG_STATE
     println!("Normalizing {} records to esg_state", all_records.len());
+    let mut summary_map: HashMap<String, (f64, String, f32, i32)> = HashMap::new();
+
     for rec in &all_records {
         // Clean value string: replace comma with dot and remove spaces
         let cleaned_val = rec.value.replace(",", ".").replace(" ", "").replace("\u{a0}", "");
@@ -290,6 +372,12 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
                 timestamp,
             );
             
+            // Collect summary data
+            let entry = summary_map.entry(normalized.category.clone()).or_insert((0.0, normalized.normalized_unit.clone().unwrap_or_default(), 0.0, 0));
+            entry.0 += normalized.normalized_value.unwrap_or(normalized.value);
+            entry.2 += normalized.confidence;
+            entry.3 += 1;
+
             // Fix logic: Fritz needs all data. We save even unclassified metrics to esg_state.
             if let Ok(_) = state::upsert_esg_state(&conn, &normalized, client_id) {
                 if normalized.category != "unknown" {
@@ -303,10 +391,20 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
         }
     }
 
+    let mapping_summary = summary_map.into_iter()
+        .map(|(label, (value, unit, sum_conf, count))| MappingDetail {
+            label,
+            value,
+            unit,
+            confidence: if count > 0 { sum_conf / (count as f32) } else { 0.0 },
+        })
+        .collect();
+
     Ok(ImportResult {
         imported_count,
         errors,
         categories_found: categories_found.into_iter().collect(),
+        mapping_summary,
     })
 }
 

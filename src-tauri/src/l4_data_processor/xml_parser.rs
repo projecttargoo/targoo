@@ -26,10 +26,20 @@ pub fn parse_xml(file_path: &str) -> Result<Vec<ImportedRecord>, String> {
             }
             Ok(Event::Text(e)) => {
                 let tag_name = current_tag.clone();
-                if keywords.iter().any(|&k| tag_name.contains(k)) {
-                    let value = e.unescape().map_err(|e| e.to_string())?.to_string();
-                    
-                    if !value.is_empty() {
+                let value = e.unescape().map_err(|e| e.to_string())?.to_string();
+                
+                if !value.is_empty() {
+                    // Detect XBRL tags
+                    if tag_name.contains("esrs-e1") && tag_name.contains("ghgemissions") {
+                        records.push(ImportedRecord {
+                            source_file: file_name.clone(),
+                            category: "XBRL-lite".to_string(),
+                            metric: "scope1_total".to_string(), // Direct mapping for important XBRL tags
+                            value,
+                            unit: Some("tonne".to_string()),
+                            year: None,
+                        });
+                    } else if keywords.iter().any(|&k| tag_name.contains(k)) {
                         // Attempt to detect unit from tag name (e.g., energy_kwh)
                         let unit = if tag_name.contains("kwh") {
                             Some("kWh".to_string())

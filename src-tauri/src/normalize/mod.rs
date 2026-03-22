@@ -5,7 +5,7 @@ pub fn detect_file_type(path: &str) -> &'static str {
     if p.ends_with(".xlsx") || p.ends_with(".xls") { return "excel"; }
     if p.ends_with(".csv") { return "csv"; }
     if p.ends_with(".pdf") { return "pdf"; }
-    if p.ends_with(".xml") { return "xml"; }
+    if p.ends_with(".xml") || p.ends_with(".xbrl") { return "xml"; }
     if p.ends_with(".txt") { return "txt"; }
     if p.ends_with(".json") { return "json"; }
     "unknown"
@@ -31,68 +31,107 @@ pub fn normalize_unit(unit: &str) -> String {
     if u.contains("m3") || u.contains("m³") || u.contains("m^3") || u.contains("nm3") { return "m3".into(); }
     if u == "l" || u.contains("liter") { return "liter".into(); }
     if u.contains("kg") { return "kg".into(); }
-    if u.contains("t") || u.contains("tonne") || u.contains("tonna") { return "tonne".into(); }
+    if u.contains("t") || u.contains("tonne") || u.contains("tonna") || u.contains("ton") { return "tonne".into(); }
     if u.contains("%") || u.contains("percent") { return "percent".into(); }
     if u.contains("fő") || u.contains("person") || u.contains("people") || u.contains("headcount") { return "headcount".into(); }
     u
+}
+
+/// Swiss Watch Precision: Internal SSOT standardization
+pub fn normalize_value(value: f64, unit: &str) -> (f64, String) {
+    let u = normalize_unit(unit);
+    
+    if u == "mwh" {
+        return (value * 1000.0, "kwh".to_string());
+    }
+    if u == "tonne" {
+        return (value * 1000.0, "kg".to_string());
+    }
+    
+    (value, u)
 }
 
 pub fn classify(column: &str, unit: &str) -> (String, f32) {
     let col = column.to_lowercase();
     let u = normalize_unit(unit);
 
-    // SCOPE 2 - Electricity
-    if col.contains("electric") || col.contains("strom") || col.contains("áram") || col.contains("villamos") || col.contains("electricity") || col.contains("energia") {
-        return ("scope2_electricity".into(), 0.95);
+    // WEIGHTED DICTIONARY ENGINE
+    let mut scores = std::collections::HashMap::new();
+
+    // Scope 2 - Electricity
+    let s2_keywords = ["strom", "electricity", "áram", "energy consumption", "electric power", "villamos", "energia"];
+    for kw in s2_keywords {
+        if col.contains(kw) { *scores.entry("scope2_electricity").or_insert(0.0) += 0.5; }
     }
-    // SCOPE 1 - Gas
-    if col.contains("natural gas") || col.contains("erdgas") || col.contains("gáz") || col.contains("földgáz") || col.contains("foldgaz") || col.contains("gas") {
-        return ("scope1_gas".into(), 0.95);
+    if u == "kwh" || u == "mwh" { *scores.entry("scope2_electricity").or_insert(0.0) += 0.4; }
+
+    // Scope 1 - Gas
+    let gas_keywords = ["gas", "erdgas", "gáz", "natural gas", "heizgas", "földgáz", "foldgaz"];
+    for kw in gas_keywords {
+        if col.contains(kw) { *scores.entry("scope1_gas").or_insert(0.0) += 0.5; }
     }
-    // SCOPE 1 - Diesel/Fuel
-    if col.contains("diesel") || col.contains("fuel") || col.contains("benzin") || col.contains("petrol") || col.contains("flotta") || col.contains("üzemanyag") {
-        return ("scope1_fuel".into(), 0.95);
+    if u == "m3" { *scores.entry("scope1_gas").or_insert(0.0) += 0.4; }
+
+    // Scope 1 - Fuel
+    let fuel_keywords = ["diesel", "fuel", "benzin", "fleet", "üzemanyag", "flotta", "petrol"];
+    for kw in fuel_keywords {
+        if col.contains(kw) { *scores.entry("scope1_fuel").or_insert(0.0) += 0.5; }
     }
-    // SCOPE 1 - Refrigerant
-    if col.contains("refrigerant") || col.contains("hűtő") || col.contains("hutokozeg") || col.contains("kaelte") || col.contains("coolant") || col.contains("töltés") || col.contains("klíma") {
-        return ("scope1_refrigerant".into(), 0.95);
+    if u == "liter" { *scores.entry("scope1_fuel").or_insert(0.0) += 0.4; }
+
+    // Scope 1 - Refrigerant
+    let ref_keywords = ["refrigerant", "hűtő", "hutokozeg", "kaelte", "coolant", "töltés", "klíma"];
+    for kw in ref_keywords {
+        if col.contains(kw) { *scores.entry("scope1_refrigerant").or_insert(0.0) += 0.5; }
     }
-    // WATER
-    if col.contains("water") || col.contains("víz") || col.contains("wasser") || col.contains("vízfogyasztás") || col.contains("viz") {
-        return ("water".into(), 0.90);
-    }
-    // WASTE
-    if col.contains("waste") || col.contains("hulladék") || col.contains("abfall") || col.contains("recycl") || col.contains("szemét") {
-        return ("waste".into(), 0.90);
-    }
-    // GENDER / DIVERSITY
-    if col.contains("female") || col.contains("gender") || col.contains("diversity") || col.contains("női") || col.contains("noi") {
-        return ("diversity_ratio".into(), 0.90);
-    }
-    // TRAINING
-    if col.contains("training") || col.contains("képzés") || col.contains("schulung") {
-        return ("training_cost".into(), 0.90);
-    }
-    // ACCIDENTS
-    if col.contains("accident") || col.contains("baleset") || col.contains("unfall") || col.contains("injury") {
-        return ("work_accidents".into(), 0.90);
-    }
-    // WORKFORCE
-    if col.contains("headcount") || col.contains("employee") || col.contains("workforce") || col.contains("létszám") || col.contains("letszam") || col.contains("mitarbeiter") || col.contains("worker") {
-        return ("workforce".into(), 0.95);
+    if u == "kg" && !scores.contains_key("scope1_fuel") { *scores.entry("scope1_refrigerant").or_insert(0.0) += 0.3; }
+
+    // Water
+    let water_keywords = ["water", "wasser", "víz", "m3 water", "vízfogyasztás"];
+    for kw in water_keywords {
+        if col.contains(kw) { *scores.entry("water").or_insert(0.0) += 0.5; }
     }
 
-    // UNIT FALLBACK
-    if u == "kwh" || u == "mwh" { return ("scope2_electricity".into(), 0.70); }
-    if u == "m3" { return ("scope1_gas".into(), 0.60); }
-    if u == "liter" { return ("scope1_fuel".into(), 0.60); }
-    if u == "kg" { return ("scope1_refrigerant".into(), 0.50); }
-    if u == "headcount" { return ("workforce".into(), 0.70); }
-    if u == "percent" { return ("diversity_ratio".into(), 0.40); }
+    // Workforce (Headcount)
+    let work_keywords = ["headcount", "mitarbeiter", "létszám", "employees total", "full-time", "letszam", "worker"];
+    for kw in work_keywords {
+        if col.contains(kw) { *scores.entry("workforce").or_insert(0.0) += 0.5; }
+    }
+    if u == "headcount" { *scores.entry("workforce").or_insert(0.0) += 0.4; }
 
-    // UNKNOWN - log it
-    eprintln!("[NORMALIZE] Unknown category for column='{}' unit='{}'", column, unit);
-    ("unknown".into(), 0.10)
+    // Diversity / Gender (Precision check)
+    let div_keywords = ["female", "gender", "diversity", "női", "noi", "ratio", "százalék"];
+    for kw in div_keywords {
+        if col.contains(kw) { *scores.entry("diversity_ratio").or_insert(0.0) += 0.6; } // Higher weight for precision
+    }
+    if u == "percent" { *scores.entry("diversity_ratio").or_insert(0.0) += 0.4; }
+
+    // Training
+    let train_keywords = ["training", "képzés", "schulung", "oktatás"];
+    for kw in train_keywords {
+        if col.contains(kw) { *scores.entry("training_cost").or_insert(0.0) += 0.5; }
+    }
+
+    // Find highest score
+    let mut best_cat = "unknown".to_string();
+    let mut max_score = 0.0;
+
+    for (cat, score) in scores {
+        if score > max_score {
+            max_score = score;
+            best_cat = cat.to_string();
+        }
+    }
+
+    // Adjust confidence
+    let confidence = (max_score as f32).min(0.99);
+
+    if best_cat == "unknown" {
+        eprintln!("[NORMALIZE] Unknown category for column='{}' unit='{}'", column, unit);
+        return ("unknown".into(), 0.10);
+    }
+
+    (best_cat, confidence)
 }
 
 pub fn extract_unit_from_column(column: &str) -> String {
@@ -104,6 +143,7 @@ pub fn extract_unit_from_column(column: &str) -> String {
     if col.contains("(kg)") || col.contains("kg)") { return "kg".into(); }
     if col.contains("eur") { return "eur".into(); }
     if col.contains("fő") || col.contains("person") || col.contains("headcount") { return "headcount".into(); }
+    if col.contains("%") || col.contains("százalék") { return "percent".into(); }
     "".into()
 }
 
@@ -119,15 +159,16 @@ pub fn map_to_normalized(
     } else {
         unit.to_string()
     };
+    
     let (category, confidence) = classify(column, &effective_unit);
-    let normalized_unit = Some(normalize_unit(&effective_unit));
+    let (norm_value, norm_unit) = normalize_value(value, &effective_unit);
 
     NormalizedRow {
         category,
         value,
         unit: effective_unit,
-        normalized_value: None,
-        normalized_unit,
+        normalized_value: Some(norm_value),
+        normalized_unit: Some(norm_unit),
         confidence,
         source: column.to_string(),
         origin_file: origin_file.to_string(),

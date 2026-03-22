@@ -181,7 +181,8 @@ try {
   setImportResults({
     recognized: result.categories_found || [],
     warnings: result.errors || [],
-    records: result.imported_count || 0
+    records: result.imported_count || 0,
+    mapping_summary: result.mapping_summary || []
   });
   setChatHistory(prev => [...prev, {
     role: 'ai',
@@ -367,11 +368,39 @@ return (
           <button className="action-btn" onClick={(e) => { e.stopPropagation(); handleBrowseFiles(); }} style={{ marginTop: '10px', width: '100%', background: S.accent, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Browse Files</button>
         </div>
         {(isProcessing || processedSummary || importResults) && (
-          <div style={{ marginTop: '8px', padding: '10px', borderRadius: '8px', background: isProcessing ? S.bg : '#f0fdf4', border: `1px solid ${isProcessing ? S.border : '#bbf7d0'}` }}>
+          <div style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', background: isProcessing ? S.bg : 'rgba(255,255,255,0.5)', border: `1px solid ${isProcessing ? S.border : '#e5e7eb'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
             {isProcessing ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: S.muted }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px', color: S.muted, padding: '4px 0' }}>
                 <Loader2 size={12} className="spin" style={{ animation: 'rotate 1s linear infinite' }} />
                 <span>Processing ERP file...</span>
+              </div>
+            ) : importResults?.mapping_summary ? (
+              <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                <div style={{ fontSize: '10px', fontWeight: '700', color: S.text, marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Confidence Report</span>
+                  <span style={{ color: S.green }}>{importResults.records} records</span>
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #eee' }}>
+                      <th style={{ textAlign: 'left', padding: '4px 2px', color: S.muted, fontWeight: '600' }}>Metric</th>
+                      <th style={{ textAlign: 'left', padding: '4px 2px', color: S.muted, fontWeight: '600' }}>Value</th>
+                      <th style={{ textAlign: 'right', padding: '4px 2px', color: S.muted, fontWeight: '600' }}>Match</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importResults.mapping_summary.map((m, i) => (
+                      <tr key={i} style={{ borderBottom: i < importResults.mapping_summary.length - 1 ? '1px solid #f9f9f9' : 'none' }}>
+                        <td style={{ padding: '5px 2px', fontWeight: '600', color: '#374151', textTransform: 'capitalize' }}>{m.label.replace('scope', 'S').replace('_', ' ')}</td>
+                        <td style={{ padding: '5px 2px', color: S.text }}>{m.value.toLocaleString()} <span style={{ color: S.muted, fontSize: '8px' }}>{m.unit}</span></td>
+                        <td style={{ padding: '5px 2px', textAlign: 'right', fontWeight: '700', color: m.confidence > 0.9 ? S.green : m.confidence > 0.7 ? S.amber : S.red }}>
+                          <span style={{ display: 'inline-block', width: '5px', height: '5px', borderRadius: '50%', background: m.confidence > 0.9 ? S.green : m.confidence > 0.7 ? S.amber : S.red, marginRight: '4px', verticalAlign: 'middle' }}></span>
+                          {Math.round(m.confidence * 100)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : importResults ? (
               <>
