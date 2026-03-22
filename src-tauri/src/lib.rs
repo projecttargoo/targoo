@@ -48,15 +48,15 @@ pub struct MaterialityTopic {
 #[tauri::command]
 fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        let energy = state::get_esg_total(&conn, 1, "scope2_electricity");
+        let energy = state::get_esg_total(&conn, 1, "scope2_electricity") / 1000.0;
         let gas = state::get_esg_total(&conn, 1, "scope1_gas");
         let fuel = state::get_esg_total(&conn, 1, "scope1_fuel");
         let refrigerant = state::get_esg_total(&conn, 1, "scope1_refrigerant");
-        let workforce = state::get_esg_count(&conn, 1, "workforce");
+        let workforce = state::get_esg_total(&conn, 1, "workforce");
         
         let carbon = gas + fuel + refrigerant;
         
-        println!("ESG_STATE: energy={} carbon={} workforce={}", energy, carbon, workforce);
+        println!("ESG_STATE: energy={} MWh carbon={} workforce={}", energy, carbon, workforce);
         
         return DashboardStats {
             esg_score: 74,
