@@ -295,19 +295,28 @@ fn get_co2_trend(app_handle: AppHandle, client_id: i32) -> String {
 #[tauri::command]
 fn get_esrs_compliance(app_handle: AppHandle, client_id: i32) -> String {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        let has_scope1 = state::get_esg_total(&conn, client_id, "scope1_gas") > 0.0
-            || state::get_esg_total(&conn, client_id, "scope1_fuel") > 0.0;
-        let has_scope2 = state::get_esg_total(&conn, client_id, "scope2_electricity") > 0.0;
-        let has_scope3 = state::get_esg_total(&conn, client_id, "scope3_supplier") > 0.0;
-        let has_workforce = state::get_esg_total(&conn, client_id, "workforce") > 0.0;
+        let scope1_gas = state::get_esg_total(&conn, client_id, "scope1_gas");
+        let scope1_fuel = state::get_esg_total(&conn, client_id, "scope1_fuel");
+        let scope1_ref = state::get_esg_total(&conn, client_id, "scope1_refrigerant");
+        let scope2 = state::get_esg_total(&conn, client_id, "scope2_electricity");
+        let scope3 = state::get_esg_total(&conn, client_id, "scope3_supplier");
+        
+        let carbon_footprint = (scope1_gas * 2.04 + scope1_fuel * 2.68 + scope1_ref * 2088.0 + scope2 * 0.276) / 1000.0 + scope3;
+        
+        let has_water = state::get_esg_total(&conn, client_id, "water") > 0.0;
+        let has_waste = state::get_esg_total(&conn, client_id, "waste") > 0.0;
+        let workforce = state::get_esg_total(&conn, client_id, "workforce");
+        let has_training = state::get_esg_total(&conn, client_id, "training_cost") > 0.0;
+        let has_diversity = state::get_esg_total(&conn, client_id, "diversity_ratio") > 0.0;
 
         serde_json::json!([
-            {"id": "E1", "name": "Climate Change", "status": if has_scope1 && has_scope2 { "Complete" } else if has_scope1 || has_scope2 { "Partial" } else { "Missing" }},
+            {"id": "E1", "name": "Climate Change", "status": if carbon_footprint > 0.0 { "Complete" } else { "Missing" }},
             {"id": "E2", "name": "Pollution", "status": "Missing"},
-            {"id": "E3", "name": "Water & Marine", "status": if state::get_esg_total(&conn, client_id, "water") > 0.0 { "Partial" } else { "Missing" }},
+            {"id": "E3", "name": "Water & Marine", "status": if has_water { "Complete" } else { "Missing" }},
             {"id": "E4", "name": "Biodiversity", "status": "Missing"},
-            {"id": "S1", "name": "Own Workforce", "status": if has_workforce { "Partial" } else { "Missing" }},
-            {"id": "S2", "name": "Workers in Value Chain", "status": if has_scope3 { "Partial" } else { "Missing" }},
+            {"id": "E5", "name": "Resource Use", "status": if has_waste { "Complete" } else { "Missing" }},
+            {"id": "S1", "name": "Own Workforce", "status": if workforce > 0.0 { if has_training || has_diversity { "Complete" } else { "Partial" } } else { "Missing" }},
+            {"id": "S2", "name": "Workers in Value Chain", "status": if scope3 > 0.0 { "Partial" } else { "Missing" }},
             {"id": "G1", "name": "Business Conduct", "status": "Missing"}
         ]).to_string()
     } else {
