@@ -57,19 +57,27 @@ pub struct MaterialityTopic {
 #[tauri::command]
 fn get_dashboard_stats(app_handle: AppHandle, client_id: i32) -> DashboardStats {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        let scope1_gas = state::get_esg_total(&conn, client_id, "scope1_gas");
-        let scope1_fuel = state::get_esg_total(&conn, client_id, "scope1_fuel");
-        let scope1_refrigerant = state::get_esg_total(&conn, client_id, "scope1_refrigerant");
-        let scope2 = state::get_esg_total(&conn, client_id, "scope2_electricity");
+        let scope1_gas_raw = state::get_esg_total(&conn, client_id, "scope1_gas");
+        let scope1_fuel_raw = state::get_esg_total(&conn, client_id, "scope1_fuel");
+        let scope1_ref_raw = state::get_esg_total(&conn, client_id, "scope1_refrigerant");
+        let scope2_raw = state::get_esg_total(&conn, client_id, "scope2_electricity");
         let scope3 = state::get_esg_total(&conn, client_id, "scope3_supplier");
         let workforce = state::get_esg_total(&conn, client_id, "workforce") as u32;
         let training_cost = state::get_esg_total(&conn, client_id, "training_cost");
         let work_accidents = state::get_esg_total(&conn, client_id, "work_accidents") as i64;
         
-        let scope1 = scope1_gas + scope1_fuel + scope1_refrigerant;
+        // Carbon Footprint calculation using Emission Factors (tCO2e)
+        let scope1_gas_co2 = (scope1_gas_raw * 2.04) / 1000.0;
+        let scope1_fuel_co2 = (scope1_fuel_raw * 2.68) / 1000.0;
+        let scope1_ref_co2 = (scope1_ref_raw * 2088.0) / 1000.0;
+        let scope2_co2 = (scope2_raw * 0.276) / 1000.0;
+
+        let scope1 = scope1_gas_co2 + scope1_fuel_co2 + scope1_ref_co2;
+        let scope2 = scope2_co2;
         let carbon = scope1 + scope2 + scope3;
-        let energy_kwh = scope2;
-        let energy_mwh = scope2 / 1000.0;
+        
+        let energy_kwh = scope2_raw;
+        let energy_mwh = scope2_raw / 1000.0;
         
         let has_data = carbon > 0.0 || workforce > 0;
         let esg_score = if has_data {
@@ -87,9 +95,9 @@ fn get_dashboard_stats(app_handle: AppHandle, client_id: i32) -> DashboardStats 
             scope1,
             scope2,
             scope3,
-            scope1_gas,
-            scope1_fuel,
-            scope1_refrigerant,
+            scope1_gas: scope1_gas_raw,
+            scope1_fuel: scope1_fuel_raw,
+            scope1_refrigerant: scope1_ref_raw,
             training_cost,
             work_accidents,
             status_message: if has_data { "ESG_STATE loaded".into() } else { "No data imported yet".into() },
