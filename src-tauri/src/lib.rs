@@ -31,8 +31,17 @@ pub struct ProductionClient {
 pub struct DashboardStats {
     pub esg_score: u32,
     pub carbon_footprint: f64,
-    pub energy_intensity: f64,
+    pub energy_kwh: f64,
+    pub energy_mwh: f64,
     pub workforce: u32,
+    pub scope1: f64,
+    pub scope2: f64,
+    pub scope3: f64,
+    pub scope1_gas: f64,
+    pub scope1_fuel: f64,
+    pub scope1_refrigerant: f64,
+    pub training_cost: f64,
+    pub work_accidents: i64,
     pub status_message: String,
 }
 
@@ -48,31 +57,60 @@ pub struct MaterialityTopic {
 #[tauri::command]
 fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        let energy = state::get_esg_total(&conn, 1, "scope2_electricity") / 1000.0;
-        let gas = state::get_esg_total(&conn, 1, "scope1_gas");
-        let fuel = state::get_esg_total(&conn, 1, "scope1_fuel");
-        let refrigerant = state::get_esg_total(&conn, 1, "scope1_refrigerant");
-        let workforce = state::get_esg_total(&conn, 1, "workforce");
+        let scope1_gas = state::get_esg_total(&conn, 1, "scope1_gas");
+        let scope1_fuel = state::get_esg_total(&conn, 1, "scope1_fuel");
+        let scope1_refrigerant = state::get_esg_total(&conn, 1, "scope1_refrigerant");
+        let scope2 = state::get_esg_total(&conn, 1, "scope2_electricity");
+        let scope3 = state::get_esg_total(&conn, 1, "scope3_supplier");
+        let workforce = state::get_esg_total(&conn, 1, "workforce") as u32;
+        let training_cost = state::get_esg_total(&conn, 1, "training_cost");
+        let work_accidents = state::get_esg_total(&conn, 1, "work_accidents") as i64;
         
-        let carbon = gas + fuel + refrigerant;
+        let scope1 = scope1_gas + scope1_fuel + scope1_refrigerant;
+        let carbon = scope1 + scope2 + scope3;
+        let energy_kwh = scope2;
+        let energy_mwh = scope2 / 1000.0;
         
-        println!("ESG_STATE: energy={} MWh carbon={} workforce={}", energy, carbon, workforce);
-        
+        let has_data = carbon > 0.0 || workforce > 0;
+        let esg_score = if has_data {
+            let env_score = if carbon < 5000.0 { 80 } else if carbon < 15000.0 { 60 } else { 40 };
+            let soc_score = if workforce > 0 { 75 } else { 50 };
+            (env_score + soc_score) / 2
+        } else { 74 };
+
         return DashboardStats {
-            esg_score: 74,
-            carbon_footprint: if carbon > 0.0 { carbon } else { 0.0 },
-            energy_intensity: if energy > 0.0 { energy } else { 0.0 },
-            workforce: workforce as u32,
-            status_message: "ESG_STATE loaded".to_string(),
+            esg_score,
+            carbon_footprint: carbon,
+            energy_kwh,
+            energy_mwh,
+            workforce,
+            scope1,
+            scope2,
+            scope3,
+            scope1_gas,
+            scope1_fuel,
+            scope1_refrigerant,
+            training_cost,
+            work_accidents,
+            status_message: if has_data { "ESG_STATE loaded".into() } else { "No data imported yet".into() },
         };
     }
-    
+
     DashboardStats {
-        esg_score: 74,
+        esg_score: 0,
         carbon_footprint: 0.0,
-        energy_intensity: 0.0,
+        energy_kwh: 0.0,
+        energy_mwh: 0.0,
         workforce: 0,
-        status_message: "DB connection failed".to_string(),
+        scope1: 0.0,
+        scope2: 0.0,
+        scope3: 0.0,
+        scope1_gas: 0.0,
+        scope1_fuel: 0.0,
+        scope1_refrigerant: 0.0,
+        training_cost: 0.0,
+        work_accidents: 0,
+        status_message: "DB connection failed".into(),
     }
 }
 
@@ -221,6 +259,67 @@ fn get_scope_distribution(app_handle: AppHandle) -> String {
     }
 }
 
+#[tauri::command]
+fn get_co2_trend(app_handle: AppHandle) -> String {
+    if let Ok(conn) = get_db_connection(&app_handle) {
+        let mut stmt = match conn.prepare(
+            "SELECT 
+                COALESCE(timestamp, created_at) as period,
+                SUM(value) as total
+            FROM esg_state 
+            WHERE category IN ('scope1_gas', 'scope1_fuel', 'scope1_refrigerant', 'scope2_electricity')
+            AND client_id = 1
+            GROUP BY period
+            ORDER BY period ASC
+            LIMIT 12"
+        ) {
+            Ok(s) => s,
+            Err(_) => return "[]".to_string(),
+        };
+
+        let results: Vec<serde_json::Value> = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0).unwrap_or_default(),
+                row.get::<_, f64>(1).unwrap_or(0.0),
+            ))
+        })
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .map(|(period, total)| serde_json::json!({
+            "period": period,
+            "value": total
+        }))
+        .collect();
+
+        serde_json::to_string(&results).unwrap_or("[]".to_string())
+    } else {
+        "[]".to_string()
+    }
+}
+
+#[tauri::command]
+fn get_esrs_compliance(app_handle: AppHandle) -> String {
+    if let Ok(conn) = get_db_connection(&app_handle) {
+        let has_scope1 = state::get_esg_total(&conn, 1, "scope1_gas") > 0.0
+            || state::get_esg_total(&conn, 1, "scope1_fuel") > 0.0;
+        let has_scope2 = state::get_esg_total(&conn, 1, "scope2_electricity") > 0.0;
+        let has_scope3 = state::get_esg_total(&conn, 1, "scope3_supplier") > 0.0;
+        let has_workforce = state::get_esg_total(&conn, 1, "workforce") > 0.0;
+
+        serde_json::json!([
+            {"id": "E1", "name": "Climate Change", "status": if has_scope1 && has_scope2 { "Complete" } else if has_scope1 || has_scope2 { "Partial" } else { "Missing" }},
+            {"id": "E2", "name": "Pollution", "status": "Missing"},
+            {"id": "E3", "name": "Water & Marine", "status": if state::get_esg_total(&conn, 1, "water") > 0.0 { "Partial" } else { "Missing" }},
+            {"id": "E4", "name": "Biodiversity", "status": "Missing"},
+            {"id": "S1", "name": "Own Workforce", "status": if has_workforce { "Partial" } else { "Missing" }},
+            {"id": "S2", "name": "Workers in Value Chain", "status": if has_scope3 { "Partial" } else { "Missing" }},
+            {"id": "G1", "name": "Business Conduct", "status": "Missing"}
+        ]).to_string()
+    } else {
+        "[]".to_string()
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -271,6 +370,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_dashboard_stats,
             get_scope_distribution,
+            get_co2_trend,
+            get_esrs_compliance,
             debug_esg_state,
             run_materiality_check,
             add_client,

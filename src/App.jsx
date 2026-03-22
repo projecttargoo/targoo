@@ -43,6 +43,8 @@ const initialClients = [
 
 export default function App() {
 const [dashboardStats, setDashboardStats] = useState(null);
+const [co2Trend, setCo2Trend] = useState([]);
+const [esrsCompliance, setEsrsCompliance] = useState([]);
 const [clients, setClients] = useState(initialClients);
 const [activeTab, setActiveTab] = useState('dashboard');
 const [chatInput, setChatInput] = useState('');
@@ -105,6 +107,15 @@ useEffect(() => {
     } catch (err) {
       console.log('Using demo data:', err);
     }
+    try {
+      const trend = await invoke('get_co2_trend');
+      const trendData = JSON.parse(trend);
+      if (trendData.length > 0) setCo2Trend(trendData);
+    } catch(e) {}
+    try {
+      const compliance = await invoke('get_esrs_compliance');
+      setEsrsCompliance(JSON.parse(compliance));
+    } catch(e) {}
   };
   loadStats();
   
@@ -182,6 +193,16 @@ try {
   const stats = await invoke('get_dashboard_stats');
   console.log("New Dashboard Stats:", stats);
   setDashboardStats(stats);
+  
+  try {
+    const trend = await invoke('get_co2_trend');
+    const trendData = JSON.parse(trend);
+    if (trendData.length > 0) setCo2Trend(trendData);
+  } catch(e) {}
+  try {
+    const compliance = await invoke('get_esrs_compliance');
+    setEsrsCompliance(JSON.parse(compliance));
+  } catch(e) {}
 
   // Automatically call analyze_imported_data after successful import
   try {
@@ -371,6 +392,8 @@ return (
         gapState={{ isAnalyzing, analysisProgress, currentTopic, analysisResults, companySize, setCompanySize, sector, setSector, runGapAnalysis, cancelGapAnalysis }}
         dataState={{ isProcessing, processedSummary, handleFileUpload, handleBrowseFiles }}
         dashboardStats={dashboardStats}
+        co2Trend={co2Trend}
+        esrsCompliance={esrsCompliance}
       />
     </main>
 
@@ -462,9 +485,9 @@ return (
 }
 
 // ── MAIN CONTENT ──
-function MainContent({ activeTab, activeClient, gapState, dataState, dashboardStats }) {
+function MainContent({ activeTab, activeClient, gapState, dataState, dashboardStats, co2Trend, esrsCompliance }) {
 switch (activeTab) {
-case 'dashboard': return <DashboardView client={activeClient} dashboardStats={dashboardStats} />;
+case 'dashboard': return <DashboardView client={activeClient} dashboardStats={dashboardStats} co2Trend={co2Trend} esrsCompliance={esrsCompliance} />;
 case 'clients': return <ClientsView />;
 case 'data': return <DataView {...dataState} />;
 case 'gap': return <GapAnalysisView {...gapState} />;
@@ -476,12 +499,12 @@ default: return <PlaceholderView tabId={activeTab} />;
 }
 
 // ── DASHBOARD ──
-function DashboardView({ client, dashboardStats }) {
+function DashboardView({ client, dashboardStats, co2Trend, esrsCompliance }) {
 const kpis = [
-{ label: 'ESG Score', value: dashboardStats?.esg_score ?? 74, trend: '+6', up: true, risk: 'Medium', next: 'Reduce Scope 2', color: '#007aff', unit: '' },
-{ label: 'Carbon tCO2e', value: dashboardStats?.carbon_footprint ?? 198, trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
-{ label: 'Energy MWh', value: dashboardStats?.energy_intensity ?? 420, trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
-{ label: 'Workforce', value: dashboardStats?.workforce ?? 342, trend: '0%', up: null, risk: 'Low', next: 'Update HR data', color: '#ff9500', unit: '' }
+  { label: 'ESG Score', value: dashboardStats?.esg_score ?? 0, trend: '+6', up: true, risk: 'Medium', next: 'Reduce Scope 2', color: '#007aff', unit: '' },
+  { label: 'Carbon tCO2e', value: dashboardStats?.carbon_footprint ? dashboardStats.carbon_footprint : 0, trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
+  { label: 'Energy MWh', value: dashboardStats?.energy_mwh ? dashboardStats.energy_mwh : 0, trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
+  { label: 'Workforce', value: dashboardStats?.workforce ?? 0, trend: '0%', up: null, risk: 'Low', next: 'Update HR data', color: '#ff9500', unit: '' }
 ];
 
 return (
@@ -496,8 +519,8 @@ return (
 
   {/* CHARTS ROW */}
   <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '16px' }}>
-    <CO2Chart />
-    <ScopeDonut />
+    <CO2Chart co2Trend={co2Trend} />
+    <ScopeDonut dashboardStats={dashboardStats} />
   </div>
 
   {/* BOTTOM ROW */}
@@ -507,7 +530,7 @@ return (
   </div>
 
   {/* ESRS TABLE */}
-  <ESRSComplianceTable />
+  <ESRSComplianceTable esrsCompliance={esrsCompliance} />
 </div>
 
 );
@@ -532,12 +555,19 @@ style={{ background: hov ? k.color + '0a' : '#fff', borderRadius: '14px', paddin
 );
 }
 
-function CO2Chart() {
-const pts = [
-{ x: 20, y: 100, l: 'Jan', v: '248t' }, { x: 90, y: 72, l: 'Feb', v: '231t' },
-{ x: 160, y: 85, l: 'Mar', v: '219t' }, { x: 230, y: 55, l: 'Apr', v: '205t' },
-{ x: 300, y: 38, l: 'May', v: '198t' }, { x: 370, y: 22, l: 'Jun', v: '192t' }
-];
+function CO2Chart({ co2Trend }) {
+  const pts = co2Trend && co2Trend.length > 0 
+    ? co2Trend.map((d, i) => ({
+        x: 20 + i * 70,
+        y: 120 - Math.min((d.value / 50000) * 100, 110),
+        l: d.period?.substring(0, 7) || '',
+        v: d.value.toFixed(0) + 't'
+      }))
+    : [
+        {x:20,y:100,l:'Jan',v:'248t'},{x:90,y:72,l:'Feb',v:'231t'},
+        {x:160,y:85,l:'Mar',v:'219t'},{x:230,y:55,l:'Apr',v:'205t'},
+        {x:300,y:38,l:'May',v:'198t'},{x:370,y:22,l:'Jun',v:'192t'}
+      ];
 const [hov, setHov] = useState(null);
 const smooth = 'M20,100 C55,86 90,72 90,72 C125,79 160,85 160,85 C195,70 230,55 230,55 C265,46 300,38 300,38 C335,30 370,22 370,22';
 const area = smooth + ' L370,130 L20,130 Z';
@@ -574,12 +604,15 @@ style={{ strokeDasharray: 700, strokeDashoffset: 700, animation: 'drawLine 1.8s 
 );
 }
 
-function ScopeDonut() {
+function ScopeDonut({ dashboardStats }) {
+const total = (dashboardStats?.scope1 ?? 0) + (dashboardStats?.scope2 ?? 0) + (dashboardStats?.scope3 ?? 0);
 const scopes = [
-{ label: 'Scope 1', val: 25, color: '#007aff', desc: 'Direct: 48t' },
-{ label: 'Scope 2', val: 20, color: '#34c759', desc: 'Energy: 39t' },
-{ label: 'Scope 3', val: 55, color: '#af52de', desc: 'Chain: 105t' }
+  { label: 'Scope 1', val: total > 0 ? Math.round((dashboardStats?.scope1 ?? 0) / total * 100) : 33, color: '#007aff', desc: `Direct: ${(dashboardStats?.scope1 ?? 0).toFixed(1)}t` },
+  { label: 'Scope 2', val: total > 0 ? Math.round((dashboardStats?.scope2 ?? 0) / total * 100) : 33, color: '#34c759', desc: `Energy: ${(dashboardStats?.scope2 ?? 0).toFixed(1)}t` },
+  { label: 'Scope 3', val: total > 0 ? Math.round((dashboardStats?.scope3 ?? 0) / total * 100) : 34, color: '#af52de', desc: `Chain: ${(dashboardStats?.scope3 ?? 0).toFixed(1)}t` },
 ];
+const totalLabel = total > 0 ? `${total.toFixed(1)}t` : '0t';
+
 const [hov, setHov] = useState(null);
 const r = 52, cx = 100, cy = 75, circ = 2 * Math.PI * r;
 let offset = 0;
@@ -593,7 +626,7 @@ return arc;
 return (
 <div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
 <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '2px' }}>Scope Distribution</div>
-<div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '8px' }}>Total: 192.5 tCO2e</div>
+<div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '8px' }}>Total: {totalLabel} tCO2e</div>
 <svg width="100%" height="158" viewBox="0 0 200 158">
 <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f3f4f6" strokeWidth="20" />
 {arcs.map((a, i) => (
@@ -605,7 +638,7 @@ style={{ transition: 'stroke-width 0.2s, opacity 0.2s', opacity: hov !== null &&
 onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)} />
 ))}
 <text x={cx} y={cy - 6} textAnchor="middle" fontSize="18" fontWeight="700" fill="#111827" fontFamily="-apple-system,sans-serif">
-{hov !== null ? scopes[hov].val + '%' : '192t'}
+{hov !== null ? scopes[hov].val + '%' : totalLabel}
 </text>
 <text x={cx} y={cy + 10} textAnchor="middle" fontSize="10" fill="#9ca3af" fontFamily="-apple-system,sans-serif">
 {hov !== null ? scopes[hov].desc : 'tCO2e'}
@@ -669,14 +702,20 @@ return (
 );
 }
 
-function ESRSComplianceTable() {
-const rows = [
-{ id: 'E1', name: 'Climate Change', status: 'Partial', sc: '#ff9500', sb: 'rgba(255,149,0,0.08)' },
-{ id: 'E2', name: 'Pollution', status: 'Complete', sc: '#34c759', sb: 'rgba(52,199,89,0.08)' },
-{ id: 'E3', name: 'Water & Marine', status: 'Missing', sc: '#ff3b30', sb: 'rgba(255,59,48,0.08)' },
-{ id: 'S1', name: 'Own Workforce', status: 'Partial', sc: '#ff9500', sb: 'rgba(255,149,0,0.08)' },
-{ id: 'G1', name: 'Business Conduct', status: 'Complete', sc: '#34c759', sb: 'rgba(52,199,89,0.08)' }
-];
+function ESRSComplianceTable({ esrsCompliance }) {
+  const rows = esrsCompliance && esrsCompliance.length > 0 ? esrsCompliance.map(r => ({
+    id: r.id,
+    name: r.name,
+    status: r.status,
+    sc: r.status === 'Complete' ? '#34c759' : r.status === 'Partial' ? '#ff9500' : '#ff3b30',
+    sb: r.status === 'Complete' ? 'rgba(52,199,89,0.08)' : r.status === 'Partial' ? 'rgba(255,149,0,0.08)' : 'rgba(255,59,48,0.08)'
+  })) : [
+    {id:'E1',name:'Climate Change',status:'Partial',sc:'#ff9500',sb:'rgba(255,149,0,0.08)'},
+    {id:'E2',name:'Pollution',status:'Complete',sc:'#34c759',sb:'rgba(52,199,89,0.08)'},
+    {id:'E3',name:'Water & Marine',status:'Missing',sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'},
+    {id:'S1',name:'Own Workforce',status:'Partial',sc:'#ff9500',sb:'rgba(255,149,0,0.08)'},
+    {id:'G1',name:'Business Conduct',status:'Complete',sc:'#34c759',sb:'rgba(52,199,89,0.08)'}
+  ];
 return (
 <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
 <div style={{ padding: '14px 20px', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: '600', color: '#111827' }}>ESRS Compliance Overview</div>
