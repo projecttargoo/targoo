@@ -3,11 +3,14 @@ use std::collections::HashMap;
 use tauri::{command, AppHandle, Emitter, State};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Instant, Duration};
+use std::time::Duration;
 use std::thread::sleep;
+use rusqlite::params;
+use crate::l6_audit::get_db_connection;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GapAnalysis {
+    pub client_id: i32,
     pub company_size: String,
     pub sector: String,
     pub country: String,
@@ -34,60 +37,84 @@ pub fn gap_analysis(
     input: GapAnalysis,
     state: State<'_, GapAnalysisState>,
 ) -> Result<String, String> {
-    // Set running state to true
     state.is_running.store(true, Ordering::SeqCst);
-    
-    let mut topics = HashMap::new();
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    let client_id = input.client_id;
+
     let esrs_topics = vec![
-        "ESRS E1: Climate change",
-        "ESRS E2: Pollution",
-        "ESRS E3: Water and marine resources",
-        "ESRS E4: Biodiversity and ecosystems",
-        "ESRS E5: Resource use and circular economy",
-        "ESRS S1: Own workforce",
-        "ESRS S2: Workers in the value chain",
-        "ESRS S3: Affected communities",
-        "ESRS S4: Consumers and end-users",
-        "ESRS G1: Business conduct",
+        ("E1", "Climate change"),
+        ("E2", "Pollution"),
+        ("E3", "Water and marine resources"),
+        ("E4", "Biodiversity and ecosystems"),
+        ("E5", "Resource use and circular economy"),
+        ("S1", "Own workforce"),
+        ("S2", "Workers in the value chain"),
+        ("S3", "Affected communities"),
+        ("S4", "Consumers and end-users"),
+        ("G1", "Business conduct"),
     ];
 
-    let total_topics = esrs_topics.len();
-    let start_time = Instant::now();
-    let timeout = Duration::from_secs(30);
+    let mut results = HashMap::new();
+    let total = esrs_topics.len();
 
-    for (i, topic) in esrs_topics.iter().enumerate() {
-        // 1. Check for cancellation
+    // Data pre-fetch for efficiency
+    let gas = crate::state::get_esg_total(&conn, client_id, "scope1_gas");
+    let fuel = crate::state::get_esg_total(&conn, client_id, "scope1_fuel");
+    let refrigerant = crate::state::get_esg_total(&conn, client_id, "scope1_refrigerant");
+    let electricity = crate::state::get_esg_total(&conn, client_id, "scope2_electricity");
+    let water = crate::state::get_esg_total(&conn, client_id, "water");
+    let workforce = crate::state::get_esg_total(&conn, client_id, "workforce");
+    let training = crate::state::get_esg_total(&conn, client_id, "training_cost");
+    let waste = crate::state::get_esg_total(&conn, client_id, "waste");
+
+    // Check for G1 keywords in ledger
+    let has_g1: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM esg_state WHERE client_id = ?1 AND (source LIKE '%compliance%' OR source LIKE '%corruption%'))",
+        params![client_id],
+        |row| row.get(0)
+    ).unwrap_or(false);
+
+    for (i, (code, name)) in esrs_topics.iter().enumerate() {
         if !state.is_running.load(Ordering::SeqCst) {
             return Err("Gap analysis was cancelled".to_string());
         }
 
-        // 2. Check for timeout
-        if start_time.elapsed() > timeout {
-            break; // Return partial results if we time out
-        }
-
-        // 3. Simulated heavy processing (2 seconds per topic as requested)
-        sleep(Duration::from_secs(2));
-
-        // 4. Update progress
-        let progress = ((i + 1) as f64 / total_topics as f64) * 100.0;
+        let label = format!("ESRS {}: {}", code, name);
+        
+        // Progress emission
         app_handle.emit("gap_progress", ProgressPayload {
-            progress,
-            current_topic: topic.to_string(),
+            progress: ((i + 1) as f64 / total as f64) * 100.0,
+            current_topic: label.clone(),
         }).map_err(|e| e.to_string())?;
 
-        let status = match (i + input.company_size.len()) % 3 {
-            0 => "green",
-            1 => "yellow",
-            _ => "red",
+        // Real Comparison Logic
+        let status = match *code {
+            "E1" => {
+                let has_s1 = gas > 0.0 || fuel > 0.0 || refrigerant > 0.0;
+                let has_s2 = electricity > 0.0;
+                if has_s1 && has_s2 { "green" }
+                else if has_s1 || has_s2 { "yellow" }
+                else { "red" }
+            },
+            "E3" => if water > 0.0 { "green" } else { "red" },
+            "E5" => if waste > 0.0 { "green" } else { "red" },
+            "S1" => {
+                if workforce > 0.0 && training > 0.0 { "green" }
+                else if workforce > 0.0 { "yellow" }
+                else { "red" }
+            },
+            "G1" => if has_g1 { "green" } else { "red" },
+            _ => "red", // Default for topics not yet mapped to data
         };
-        topics.insert(topic.to_string(), status.to_string());
+
+        results.insert(label, status.to_string());
+        
+        // Brief artificial delay to ensure UI progress bar is visible on fast DBs
+        sleep(Duration::from_millis(150));
     }
 
-    // Set running state back to false
     state.is_running.store(false, Ordering::SeqCst);
-
-    let result = GapResult { topics };
+    let result = GapResult { topics: results };
     serde_json::to_string(&result).map_err(|e| e.to_string())
 }
 

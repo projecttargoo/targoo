@@ -261,7 +261,7 @@ export default function App() {
             gapState={{ isAnalyzing, analysisProgress, currentTopic, analysisResults, companySize, setCompanySize, sector, setSector, runGapAnalysis: async () => {
               setIsAnalyzing(true);
               try {
-                const res = await invoke('gap_analysis', { input: { company_size: companySize, sector, country: 'DE' } });
+                const res = await invoke('gap_analysis', { input: { client_id: selectedClientId, company_size: companySize, sector, country: 'DE' } });
                 setAnalysisResults(JSON.parse(res));
               } finally { setIsAnalyzing(false); }
             }}}
@@ -391,28 +391,111 @@ function EmissionsView({ ledgerData }) {
   );
 }
 
-function MaterialityView({ materialityData, selectedClientId, setMaterialityData }) {
-  const handleScoreChange = async (topicId, field, val) => {
-    await invoke('update_materiality_score', { clientId: selectedClientId, topicId, impactScore: field === 'impact_score' ? parseFloat(val) : 0, financialScore: field === 'financial_score' ? parseFloat(val) : 0 });
-    const mat = await invoke('get_materiality_assessment', { clientId: selectedClientId });
-    setMaterialityData(JSON.parse(mat));
+// ── MATERIALITY VIEW (Double Materiality Wizard) ──
+function MaterialityView({ materialityData, setMaterialityData, selectedClientId }) {
+  const [hovered, setHovered] = useState(null);
+
+  const handleScoreChange = async (topic_id, field, value) => {
+    const val = parseFloat(value);
+    
+    // 1. Update Local UI State immediately for high-speed feedback
+    const updated = materialityData.map(t => {
+      if (t.esrs_code === topic_id) {
+        const newTopic = { ...t, [field]: val };
+        // Logic: Automatically set is_material = true if score > 3.0
+        newTopic.is_material = newTopic.impact_score > 3.0 || newTopic.financial_score > 3.0;
+        return newTopic;
+      }
+      return t;
+    });
+    setMaterialityData(updated);
+
+    // 2. Persist to SQLite Backend
+    const topic = updated.find(t => t.esrs_code === topic_id);
+    try {
+      await invoke('update_materiality_score', {
+        clientId: selectedClientId,
+        topicId: topic_id,
+        impactScore: topic.impact_score,
+        financialScore: topic.financial_score
+      });
+    } catch (err) {
+      console.error('Failed to persist materiality score:', err);
+    }
   };
+
+  const materialCount = materialityData.filter(t => t.is_material).length;
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-      <div style={{ background: '#fff', padding: '20px', borderRadius: '14px' }}>
-        {materialityData.map(t => (
-          <div key={t.esrs_code} style={{ marginBottom: '15px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '700' }}>{t.esrs_code} {t.topic_name}</div>
-            <input type="range" min="1" max="5" step="0.5" value={t.impact_score} onChange={e => handleScoreChange(t.esrs_code, 'impact_score', e.target.value)} style={{ width: '100%' }} />
-          </div>
-        ))}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', animation: 'fadeIn 0.3s ease', height: '100%' }}>
+      {/* LEFT: EVALUATION SLIDERS */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', border: `1px solid ${S.border}`, boxShadow: S.shadow, overflowY: 'auto' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: '700', color: S.text, marginBottom: '8px' }}>Double Materiality Wizard</h2>
+        <p style={{ fontSize: '12px', color: S.muted, marginBottom: '24px' }}>Assess topics based on ESRS impact and financial importance.</p>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {materialityData.map(t => (
+            <div key={t.esrs_code} style={{ padding: '16px', borderRadius: '12px', background: t.is_material ? 'rgba(52,199,89,0.04)' : S.bg, border: `1px solid ${t.is_material ? S.green + '30' : S.border}`, transition: 'all 0.2s ease' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: S.text }}>{t.esrs_code} {t.topic_name}</div>
+                <span style={{ fontSize: '9px', fontWeight: '800', padding: '3px 8px', borderRadius: '20px', background: t.is_material ? S.green : '#d1d5db', color: 'white' }}>
+                  {t.is_material ? 'MATERIAL' : 'NOT MATERIAL'}
+                </span>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Impact: {t.impact_score.toFixed(1)}</label>
+                  <input type="range" min="1" max="5" step="0.5" value={t.impact_score} onChange={(e) => handleScoreChange(t.esrs_code, 'impact_score', e.target.value)} style={{ width: '100%', accentColor: S.accent, cursor: 'pointer' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '10px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Financial: {t.financial_score.toFixed(1)}</label>
+                  <input type="range" min="1" max="5" step="0.5" value={t.financial_score} onChange={(e) => handleScoreChange(t.esrs_code, 'financial_score', e.target.value)} style={{ width: '100%', accentColor: S.accent, cursor: 'pointer' }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-      <div style={{ background: '#fff', padding: '20px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="300" height="300" viewBox="0 0 300 300" style={{ border: `1px solid ${S.border}` }}>
-          <line x1="150" y1="0" x2="150" y2="300" stroke={S.border} strokeDasharray="4" />
-          <line x1="0" y1="150" x2="300" y2="150" stroke={S.border} strokeDasharray="4" />
-          {materialityData.map(t => <circle key={t.esrs_code} cx={(t.financial_score - 1) * 60} cy={300 - (t.impact_score - 1) * 60} r="6" fill={t.is_material ? S.green : S.muted} />)}
-        </svg>
+
+      {/* RIGHT: INTERACTIVE MATRIX */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '32px', border: `1px solid ${S.border}`, boxShadow: S.shadow, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: '700', color: S.text, marginBottom: '32px' }}>Materiality Matrix (CSRD)</h2>
+          
+          <div style={{ position: 'relative', width: '320px', height: '320px' }}>
+            <div style={{ position: 'absolute', bottom: '-25px', width: '100%', textAlign: 'center', fontSize: '10px', fontWeight: '700', color: S.muted }}>Financial Materiality (Risk/Opp)</div>
+            <div style={{ position: 'absolute', left: '-160px', top: '160px', transform: 'rotate(-90deg)', width: '320px', textAlign: 'center', fontSize: '10px', fontWeight: '700', color: S.muted }}>Impact Materiality (People/Env)</div>
+
+            <svg width="320" height="320" viewBox="0 0 320 320" style={{ overflow: 'visible', background: '#fcfcfc', border: `1px solid ${S.border}` }}>
+              <rect x="160" y="0" width="160" height="160" fill="rgba(255,59,48,0.03)" />
+              <line x1="160" y1="0" x2="160" y2="320" stroke={S.border} strokeDasharray="4" />
+              <line x1="0" y1="160" x2="320" y2="160" stroke={S.border} strokeDasharray="4" />
+
+              {materialityData.map(t => {
+                const x = ((t.financial_score - 1) / 4) * 320;
+                const y = 320 - (((t.impact_score - 1) / 4) * 320);
+                return (
+                  <g key={t.esrs_code} style={{ transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }} onMouseEnter={() => setHovered(t)} onMouseLeave={() => setHovered(null)}>
+                    <circle cx={x} cy={y} r={hovered?.esrs_code === t.esrs_code ? "8" : "6"} fill={t.is_material ? S.green : S.muted} stroke="white" strokeWidth="2" style={{ cursor: 'pointer' }} />
+                    <text x={x + 10} y={y + 4} fontSize="10" fontWeight="700" fill={S.text} style={{ pointerEvents: 'none' }}>{t.esrs_code}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+
+        <div style={{ background: S.accentBg, borderRadius: '14px', padding: '20px', border: `1px solid ${S.accent}20` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: S.accent, animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: '13px', fontWeight: '700', color: S.accent }}>AI Strategic Insight</span>
+          </div>
+          <p style={{ fontSize: '12px', color: S.text, lineHeight: '1.6' }}>
+            Based on your assessment, <b>{materialCount} topics</b> are material. 
+            {materialCount > 0 ? ` Topics like ${materialityData.filter(t => t.is_material).map(t => t.esrs_code).slice(0, 2).join(' and ')} now require mandatory disclosure focus in your CSRD report.` : " Adjust the sliders to evaluate the double materiality of your core ESRS topics."}
+          </p>
+        </div>
       </div>
     </div>
   );
