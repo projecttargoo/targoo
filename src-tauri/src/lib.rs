@@ -52,17 +52,17 @@ fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
         println!("Dashboard Stats DB Path: {:?}", db_path);
 
         let workforce: i64 = conn.query_row(
-            "SELECT CAST(value AS INTEGER) FROM imported_data WHERE metric LIKE '%Headcount%' OR metric LIKE '%workforce%' LIMIT 1",
+            "SELECT CAST(value AS INTEGER) FROM imported_data WHERE metric LIKE '%Headcount%' OR metric LIKE '%workforce%' OR metric LIKE '%employee%' OR metric LIKE '%Létszám%' LIMIT 1",
             [], |row| row.get(0)
         ).unwrap_or(340);
         
         let carbon: f64 = conn.query_row(
-            "SELECT SUM(CAST(value AS REAL)) FROM imported_data WHERE metric LIKE '%CO2%' OR metric LIKE '%emission%' OR metric LIKE '%carbon%'",
+            "SELECT SUM(CAST(value AS REAL)) FROM imported_data WHERE metric LIKE '%Gas%' OR metric LIKE '%Diesel%' OR metric LIKE '%CO2%' OR metric LIKE '%carbon%' OR metric LIKE '%emission%'",
             [], |row| row.get(0)
         ).unwrap_or(198.0);
         
         let energy: f64 = conn.query_row(
-            "SELECT SUM(CAST(value AS REAL)) FROM imported_data WHERE metric LIKE '%kWh%' OR metric LIKE '%energy%' OR metric LIKE '%Electricity%'",
+            "SELECT SUM(CAST(value AS REAL)) FROM imported_data WHERE metric LIKE '%kWh%' OR metric LIKE '%Electricity%' OR metric LIKE '%Energy%' OR metric LIKE '%MWh%'",
             [], |row| row.get(0)
         ).unwrap_or(420.0);
         
