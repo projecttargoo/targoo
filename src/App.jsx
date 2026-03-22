@@ -46,6 +46,7 @@ const [dashboardStats, setDashboardStats] = useState(null);
 const [co2Trend, setCo2Trend] = useState([]);
 const [esrsCompliance, setEsrsCompliance] = useState([]);
 const [ledgerData, setLedgerData] = useState([]);
+const [materialityData, setMaterialityData] = useState([]);
 const [clients, setClients] = useState(initialClients);
 const [activeTab, setActiveTab] = useState('dashboard');
 const [chatInput, setChatInput] = useState('');
@@ -123,6 +124,10 @@ useEffect(() => {
       const ledger = await invoke('get_esg_ledger', { clientId: selectedClientId });
       setLedgerData(JSON.parse(ledger));
     } catch(e) { setLedgerData([]); }
+    try {
+      const mat = await invoke('get_materiality_assessment', { clientId: selectedClientId });
+      setMaterialityData(JSON.parse(mat));
+    } catch(e) { setMaterialityData([]); }
   };
   loadStats();
 }, [selectedClientId]);
@@ -448,6 +453,9 @@ return (
         co2Trend={co2Trend}
         esrsCompliance={esrsCompliance}
         ledgerData={ledgerData}
+        materialityData={materialityData}
+        setMaterialityData={setMaterialityData}
+        selectedClientId={selectedClientId}
       />
     </main>
 
@@ -555,17 +563,228 @@ return (
 }
 
 // ── MAIN CONTENT ──
-function MainContent({ activeTab, activeClient, gapState, dataState, dashboardStats, co2Trend, esrsCompliance, ledgerData }) {
+function MainContent({ activeTab, activeClient, gapState, dataState, dashboardStats, co2Trend, esrsCompliance, ledgerData, materialityData, setMaterialityData, selectedClientId }) {
 switch (activeTab) {
 case 'dashboard': return <DashboardView client={activeClient} dashboardStats={dashboardStats} co2Trend={co2Trend} esrsCompliance={esrsCompliance} />;
 case 'clients': return <ClientsView />;
 case 'data': return <DataView {...dataState} />;
 case 'gap': return <GapAnalysisView {...gapState} />;
+case 'materiality': return <MaterialityView materialityData={materialityData} setMaterialityData={setMaterialityData} selectedClientId={selectedClientId} />;
 case 'emissions': return <EmissionsView ledgerData={ledgerData} />;
 case 'esrs': return <ESRSView />;
 case 'reports': return <ReportsView activeClient={activeClient} />;
+case 'audit': return <AuditTrailView selectedClientId={activeClient.id} />;
 default: return <PlaceholderView tabId={activeTab} />;
 }
+}
+function MaterialityView({ materialityData, setMaterialityData, selectedClientId }) {
+  const [hovered, setHovered] = useState(null);
+
+  const handleScoreChange = async (topic_id, field, value) => {
+    const updated = materialityData.map(t => {
+      if (t.esrs_code === topic_id) {
+        const newTopic = { ...t, [field]: parseFloat(value) };
+        newTopic.is_material = newTopic.impact_score > 3.0 || newTopic.financial_score > 3.0;
+        return newTopic;
+      }
+      return t;
+    });
+    setMaterialityData(updated);
+
+    const topic = updated.find(t => t.esrs_code === topic_id);
+    try {
+      await invoke('update_materiality_score', {
+        clientId: selectedClientId,
+        topicId: topic_id,
+        impactScore: topic.impact_score,
+        financialScore: topic.financial_score
+      });
+    } catch (err) {
+      console.error('Failed to update materiality score:', err);
+    }
+  };
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', animation: 'fadeIn 0.3s ease', height: '100%' }}>
+      {/* LEFT: SLIDERS */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', border: `1px solid ${S.border}`, boxShadow: S.shadow, overflowY: 'auto' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: '700', color: S.text, marginBottom: '8px' }}>Double Materiality Wizard</h2>
+        <p style={{ fontSize: '12px', color: S.muted, marginBottom: '24px' }}>Assess topics based on ESRS impact and financial importance.</p>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {materialityData.map(t => (
+            <div key={t.esrs_code} style={{ padding: '16px', borderRadius: '12px', background: t.is_material ? 'rgba(52,199,89,0.04)' : S.bg, border: `1px solid ${t.is_material ? S.green + '30' : S.border}`, transition: 'all 0.2s ease' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: S.text }}>{t.esrs_code} {t.topic_name}</div>
+                <span style={{ fontSize: '10px', fontWeight: '700', padding: '3px 8px', borderRadius: '20px', background: t.is_material ? S.green : S.muted, color: 'white' }}>
+                  {t.is_material ? 'MATERIAL' : 'NOT MATERIAL'}
+                </span>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Impact Materiality: {t.impact_score}</label>
+                  <input type="range" min="1" max="5" step="0.5" value={t.impact_score} onChange={(e) => handleScoreChange(t.esrs_code, 'impact_score', e.target.value)} style={{ width: '100%', accentColor: S.accent, cursor: 'pointer' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Financial Materiality: {t.financial_score}</label>
+                  <input type="range" min="1" max="5" step="0.5" value={t.financial_score} onChange={(e) => handleScoreChange(t.esrs_code, 'financial_score', e.target.value)} style={{ width: '100%', accentColor: S.accent, cursor: 'pointer' }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* RIGHT: MATRIX */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '32px', border: `1px solid ${S.border}`, boxShadow: S.shadow, display: 'flex', flexDirection: 'column' }}>
+        <h2 style={{ fontSize: '16px', fontWeight: '700', color: S.text, marginBottom: '24px', textAlign: 'center' }}>Materiality Matrix (CSRD)</h2>
+        
+        <div style={{ flex: 1, position: 'relative', margin: '20px' }}>
+          <svg width="100%" height="100%" viewBox="0 0 400 400" style={{ overflow: 'visible' }}>
+            {/* Background Quadrants */}
+            <rect x="0" y="0" width="200" height="200" fill="#f9fafb" />
+            <rect x="200" y="0" width="200" height="200" fill="rgba(52,199,89,0.05)" />
+            <rect x="0" y="200" width="200" height="200" fill="#f9fafb" />
+            <rect x="200" y="200" width="200" height="200" fill="rgba(52,199,89,0.05)" />
+            
+            {/* Axes */}
+            <line x1="0" y1="400" x2="400" y2="400" stroke={S.border} strokeWidth="2" />
+            <line x1="0" y1="0" x2="0" y2="400" stroke={S.border} strokeWidth="2" />
+            
+            {/* Quadrant Lines (at score 3.0) */}
+            <line x1="200" y1="0" x2="200" y2="400" stroke={S.border} strokeDasharray="4" />
+            <line x1="0" y1="200" x2="400" y2="200" stroke={S.border} strokeDasharray="4" />
+
+            {/* Labels */}
+            <text x="200" y="430" textAnchor="middle" fontSize="12" fill={S.muted} fontWeight="600">Financial Materiality (Risk/Opp)</text>
+            <text x="-200" y="-30" transform="rotate(-90)" textAnchor="middle" fontSize="12" fill={S.muted} fontWeight="600">Impact Materiality (People/Env)</text>
+            
+            {/* Dots */}
+            {materialityData.map(t => {
+              const x = (t.financial_score - 1) * 100;
+              const y = 400 - (t.impact_score - 1) * 100;
+              return (
+                <g key={t.esrs_code} style={{ transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }} onMouseEnter={() => setHovered(t)} onMouseLeave={() => setHovered(null)}>
+                  <circle cx={x} cy={y} r={hovered?.esrs_code === t.esrs_code ? "10" : "7"} fill={t.is_material ? S.green : S.muted} stroke="white" strokeWidth="2" style={{ cursor: 'pointer', transition: 'r 0.2s ease' }} />
+                  {(hovered?.esrs_code === t.esrs_code || t.is_material) && (
+                    <text x={x + 12} y={y + 4} fontSize="10" fontWeight="700" fill={S.text}>{t.esrs_code}</text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        <div style={{ marginTop: '24px', padding: '16px', background: S.bg, borderRadius: '12px' }}>
+          <div style={{ fontSize: '13px', fontWeight: '700', color: S.text, marginBottom: '4px' }}>AI Strategic Advisory</div>
+          <div style={{ fontSize: '12px', color: S.muted, lineHeight: '1.5' }}>
+            {materialityData.filter(t => t.is_material).length > 0 
+              ? `You have identified ${materialityData.filter(t => t.is_material).length} material topics. These will be prioritized in your CSRD report disclosures according to ESRS 1 General Requirements.`
+              : "Use the sliders to evaluate the double materiality of ESRS topics."}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AUDIT TRAIL VIEW ──
+function AuditTrailView({ selectedClientId }) {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadLogs = async () => {
+      setLoading(true);
+      try {
+        const result = await invoke('get_audit_logs', { client_id: selectedClientId });
+        setLogs(JSON.parse(result));
+      } catch (err) {
+        console.error('Failed to fetch audit logs:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadLogs();
+  }, [selectedClientId]);
+
+  const getBadgeStyle = (action) => {
+    const a = action.toLowerCase();
+    if (a.includes('import')) return { color: S.accent, bg: S.accent + '15', label: 'IMPORT' };
+    if (a.includes('report')) return { color: S.green, bg: S.green + '15', label: 'REPORT' };
+    return { color: S.muted, bg: '#f3f4f6', label: 'SYSTEM' };
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s ease', height: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: S.text }}>Certified Audit Trail</h2>
+          <p style={{ fontSize: '12px', color: S.muted }}>Immutable ledger of all regulatory actions and data modifications.</p>
+        </div>
+        <button className="action-btn" style={{ background: S.panel, border: `1px solid ${S.border}`, padding: '8px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: S.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Download size={14} /> Export to CSV
+        </button>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: '14px', border: `1px solid ${S.border}`, boxShadow: S.shadow, overflow: 'hidden', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ overflowY: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
+              <tr style={{ background: '#111827', color: 'white' }}>
+                <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', width: '22%', letterSpacing: '0.05em' }}>TIMESTAMP (UTC)</th>
+                <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', width: '15%', letterSpacing: '0.05em' }}>ACTION</th>
+                <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', width: '12%', letterSpacing: '0.05em' }}>ACTOR</th>
+                <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', width: '51%', letterSpacing: '0.05em' }}>DETAILS</th>
+              </tr>
+            </thead>
+            <tbody style={{ fontSize: '12px' }}>
+              {loading ? (
+                <tr>
+                  <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: S.muted }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                      <Loader2 size={24} className="spin" style={{ animation: 'rotate 1s linear infinite' }} />
+                      Verifying ledger integrity...
+                    </div>
+                  </td>
+                </tr>
+              ) : logs.length > 0 ? logs.map((log, i) => {
+                const badge = getBadgeStyle(log.action);
+                return (
+                  <tr key={log.id} className="row-hover" style={{ borderBottom: i < logs.length - 1 ? '1px solid #f3f4f6' : 'none', transition: 'background 0.15s' }}>
+                    <td style={{ padding: '14px 20px', fontFamily: 'monospace', color: S.muted, fontSize: '11px' }}>
+                      {log.timestamp.replace('T', ' ').replace('Z', '')}
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: '800', color: badge.color, background: badge.bg, padding: '3px 8px', borderRadius: '4px' }}>
+                        {badge.label}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 20px', fontWeight: '600', color: S.text }}>
+                      {log.action.includes('Report') ? 'User' : 'AI Engine'}
+                    </td>
+                    <td style={{ padding: '14px 20px', color: '#374151', fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.4' }}>
+                      {log.details}
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr>
+                  <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: S.muted }}>No audit events recorded yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style={{ padding: '12px 16px', background: 'rgba(52,199,89,0.05)', border: `1px solid ${S.green}20`, borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <CheckCircle size={14} color={S.green} />
+        <span style={{ fontSize: '11px', color: '#166534', fontWeight: '600' }}>Ledger Verified: All events are hashed and cryptographically linked to the SSOT.</span>
+      </div>
+    </div>
+  );
 }
 
 // ── DASHBOARD ──

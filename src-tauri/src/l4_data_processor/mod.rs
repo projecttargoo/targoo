@@ -400,6 +400,15 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
         })
         .collect();
 
+    // Log to Audit Trail
+    let file_names = all_records.iter().map(|r| r.source_file.clone()).collect::<std::collections::HashSet<_>>().into_iter().collect::<Vec<_>>().join(", ");
+    let _ = crate::l6_audit::log_audit_event(
+        app_handle,
+        client_id,
+        "Data Import".to_string(),
+        format!("Imported files: {}. Records processed: {}.", file_names, imported_count)
+    );
+
     Ok(ImportResult {
         imported_count,
         errors,

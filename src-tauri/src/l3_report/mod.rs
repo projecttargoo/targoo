@@ -175,5 +175,13 @@ pub async fn generate_report(
     let file = File::create(&path).map_err(|e| format!("Failed to create file: {}", e))?;
     docx.build().pack(file).map_err(|e| format!("Failed to build docx: {}", e))?;
 
+    // Log to Audit Trail
+    let _ = crate::l6_audit::log_audit_event(
+        app_handle,
+        client_id,
+        "Report Generation".to_string(),
+        format!("CSRD Word Report generated for {}.", company_name)
+    );
+
     Ok(path.to_string_lossy().to_string())
 }

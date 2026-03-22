@@ -1,34 +1,40 @@
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection, Result, params};
 use std::fs;
 use tauri::AppHandle;
 use tauri::Manager;
+use tauri::command;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuditLog {
+    pub id: i32,
+    pub timestamp: String,
+    pub action: String,
+    pub details: String,
+    pub client_id: i32,
+}
 
 pub fn init_audit_db(app_handle: &AppHandle) -> Result<()> {
-    // Get the app data directory
     let app_data_dir = app_handle
         .path()
         .app_data_dir()
         .expect("failed to get app data directory");
 
-    // Ensure the directory exists
     if !app_data_dir.exists() {
         fs::create_dir_all(&app_data_dir).expect("failed to create app data directory");
     }
 
-    // Path to the database file
     let db_path = app_data_dir.join("targoo.db");
-    
-    // Open connection (creates the file if it doesn't exist)
     let conn = Connection::open(db_path)?;
 
-    // Create the audit_log table
+    // Create the audit_log table with integer client_id
     conn.execute(
         "CREATE TABLE IF NOT EXISTS audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            timestamp DATETIME DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
             action TEXT NOT NULL,
             details TEXT,
-            client_id TEXT
+            client_id INTEGER NOT NULL
         )",
         [],
     )?;
@@ -78,74 +84,6 @@ pub fn init_audit_db(app_handle: &AppHandle) -> Result<()> {
         [],
     )?;
 
-    // Seed emission_factors
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM emission_factors", [], |row| row.get(0)).unwrap_or(0);
-    if count == 0 {
-        let factors = vec![
-            ("Electricity", "EU grid", "kWh", 0.276, "EEA", 2024, 2),
-            ("Energy", "Natural gas", "m3", 2.04, "IPCC", 2024, 1),
-            ("Fuel", "Diesel", "l", 2.68, "DEFRA", 2024, 1),
-            ("Fuel", "Petrol", "l", 2.31, "DEFRA", 2024, 1),
-            ("Travel", "Flight economy short haul", "km/pax", 0.255, "DEFRA", 2024, 3),
-            ("Travel", "Flight economy long haul", "km/pax", 0.195, "DEFRA", 2024, 3),
-            ("Logistics", "Road freight", "tonne-km", 0.062, "GLEC", 2024, 3),
-            ("Energy", "District heating", "kWh", 0.117, "Local", 2024, 2),
-            ("Water", "Water supply", "m3", 0.344, "DEFRA", 2024, 3),
-            ("Waste", "Waste landfill", "tonne", 0.587, "DEFRA", 2024, 3),
-        ];
-
-        for (cat, sub, unit, factor, source, year, scope) in factors {
-            let _ = conn.execute(
-                "INSERT OR IGNORE INTO emission_factors (category, subcategory, unit, factor_kg_co2e, source, valid_year, scope) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)",
-                rusqlite::params![cat, sub, unit, factor, source, year, scope],
-            );
-        }
-    }
-
-    // Seed unit_conversions
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM unit_conversions", [], |row| row.get(0))?;
-    if count == 0 {
-        conn.execute(
-            "INSERT INTO unit_conversions (from_unit, to_unit, multiplier) VALUES 
-            ('MWh', 'kWh', 1000.0), 
-            ('GJ', 'kWh', 277.78)",
-            [],
-        )?;
-    }
-
-    // Seed translations
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM translations", [], |row| row.get(0))?;
-    if count == 0 {
-        conn.execute(
-            "INSERT INTO translations (key_name, hu, de, en) VALUES 
-            ('gap_analysis', 'Megfelelőségi résanalízis', 'Gap-Analyse', 'Gap Analysis'), 
-            ('prediction', 'Kibocsátási prognózis', 'Emissionsprognose', 'Emission Prediction'), 
-            ('audit_trail', 'Hitelesített eseménynapló', 'Zertifiziertes Audit-Protokoll', 'Certified Audit Trail')",
-            [],
-        )?;
-    }
-
-    // Seed esrs_knowledge
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM esrs_knowledge", [], |row| row.get(0))?;
-    if count == 0 {
-        let kb_json = include_str!("../../data/esrs/esrs_kb.json");
-        let kb_data: serde_json::Value = serde_json::from_str(kb_json).expect("failed to parse esrs_kb.json");
-        if let Some(array) = kb_data.as_array() {
-            for item in array {
-                conn.execute(
-                    "INSERT INTO esrs_knowledge (topic, paragraph, content, language) VALUES (?, ?, ?, ?)",
-                    [
-                        item["topic"].as_str().unwrap_or_default(),
-                        item["paragraph"].as_str().unwrap_or_default(),
-                        item["content"].as_str().unwrap_or_default(),
-                        item["language"].as_str().unwrap_or_default(),
-                    ],
-                )?;
-            }
-        }
-    }
-
     Ok(())
 }
 
@@ -161,4 +99,45 @@ pub fn get_db_connection(app_handle: &AppHandle) -> Result<Connection> {
 
     let db_path = app_data_dir.join("targoo.db");
     Connection::open(db_path)
+}
+
+#[command]
+pub fn log_audit_event(app_handle: AppHandle, client_id: i32, action: String, details: String) -> Result<(), String> {
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "INSERT INTO audit_log (action, details, client_id) VALUES (?, ?, ?)",
+        params![action, details, client_id],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[command]
+pub fn get_audit_logs(app_handle: AppHandle, client_id: i32) -> Result<String, String> {
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    
+    let mut stmt = conn.prepare(
+        "SELECT id, timestamp, action, details, client_id 
+         FROM audit_log 
+         WHERE client_id = ?1 
+         ORDER BY timestamp DESC"
+    ).map_err(|e| e.to_string())?;
+    
+    let rows = stmt.query_map([client_id], |row| {
+        Ok(AuditLog {
+            id: row.get(0)?,
+            timestamp: row.get(1)?,
+            action: row.get(2)?,
+            details: row.get(3)?,
+            client_id: row.get(4)?,
+        })
+    }).map_err(|e| e.to_string())?;
+    
+    let mut logs = Vec::new();
+    for row in rows {
+        logs.push(row.map_err(|e| e.to_string())?);
+    }
+    
+    serde_json::to_string(&logs).map_err(|e| e.to_string())
 }
