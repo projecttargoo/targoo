@@ -25,10 +25,10 @@ const menuItems = [
   { id: 'clients', icon: Users, label: 'Clients' },
   { id: 'data', icon: Database, label: 'Data Intake' },
   { id: 'gap', icon: BarChart2, label: 'Gap Analysis' },
-  { id: 'materiality', icon: Scale, label: 'Analysis' },
-  { id: 'emissions', icon: Leaf, label: 'Emissions' },
-  { id: 'esrs', icon: ClipboardList, label: 'Compliance' },
-  { id: 'reports', icon: FileText, label: 'Reports' },
+  { id: 'materiality', icon: Scale, label: 'Materiality Assessment' },
+  { id: 'emissions', icon: Leaf, label: 'Emissions Ledger' },
+  { id: 'esrs', icon: ClipboardList, label: 'ESRS Tracker' },
+  { id: 'reports', icon: FileText, label: 'CSRD Reports' },
   { id: 'audit', icon: Search, label: 'Audit Trail' },
   { id: 'settings', icon: Settings, label: 'Settings' }
 ];
