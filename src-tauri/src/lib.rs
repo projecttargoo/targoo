@@ -236,11 +236,14 @@ fn debug_esg_state(app_handle: AppHandle, client_id: i32) -> String {
 #[tauri::command]
 fn get_scope_distribution(app_handle: AppHandle, client_id: i32) -> String {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        let scope1 = state::get_esg_total(&conn, client_id, "scope1_gas")
-            + state::get_esg_total(&conn, client_id, "scope1_fuel")
-            + state::get_esg_total(&conn, client_id, "scope1_refrigerant");
-        let scope2 = state::get_esg_total(&conn, client_id, "scope2_electricity");
-        let scope3 = state::get_esg_total(&conn, client_id, "scope3_supplier");
+        let gas = state::get_esg_total(&conn, client_id, "scope1_gas");
+        let fuel = state::get_esg_total(&conn, client_id, "scope1_fuel");
+        let refrigerant = state::get_esg_total(&conn, client_id, "scope1_refrigerant");
+        let electricity = state::get_esg_total(&conn, client_id, "scope2_electricity");
+        
+        let scope1 = (gas * 2.04 + fuel * 2.68 + refrigerant * 2088.0) / 1000.0;
+        let scope2 = (electricity * 0.276) / 1000.0;
+        let scope3 = 0.0; // Supplier module pending
         let total = scope1 + scope2 + scope3;
         
         serde_json::json!({
@@ -259,17 +262,24 @@ fn get_co2_trend(app_handle: AppHandle, client_id: i32) -> String {
     if let Ok(conn) = get_db_connection(&app_handle) {
         let mut stmt = match conn.prepare(
             "SELECT 
-                COALESCE(timestamp, created_at) as period,
-                SUM(value) as total
+                SUBSTR(COALESCE(timestamp, created_at), 1, 7) as period,
+                SUM(
+                    CASE 
+                        WHEN category = 'scope1_gas' THEN value * 2.04
+                        WHEN category = 'scope1_fuel' THEN value * 2.68
+                        WHEN category = 'scope1_refrigerant' THEN value * 2088.0
+                        WHEN category = 'scope2_electricity' THEN value * 0.276
+                        ELSE 0 
+                    END
+                ) / 1000.0 as total_co2
             FROM esg_state 
-            WHERE category IN ('scope1_gas', 'scope1_fuel', 'scope1_refrigerant', 'scope2_electricity')
-            AND client_id = ?1
+            WHERE client_id = ?1
             GROUP BY period
             ORDER BY period ASC
             LIMIT 12"
         ) {
             Ok(s) => s,
-            Err(_) => return "[]".to_string(),
+            Err(e) => return format!("[]"),
         };
 
         let results: Vec<serde_json::Value> = stmt.query_map([client_id], |row| {
@@ -324,6 +334,40 @@ fn get_esrs_compliance(app_handle: AppHandle, client_id: i32) -> String {
     }
 }
 
+#[tauri::command]
+fn get_esg_ledger(app_handle: AppHandle, client_id: i32) -> Result<String, String> {
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    
+    let mut stmt = conn.prepare(
+        "SELECT id, category, source, value, unit, normalized_value, normalized_unit, origin_file, confidence, timestamp 
+         FROM esg_state 
+         WHERE client_id = ?1 
+         ORDER BY id DESC"
+    ).map_err(|e| e.to_string())?;
+    
+    let rows = stmt.query_map([client_id], |row| {
+        Ok(serde_json::json!({
+            "id": row.get::<_, i32>(0)?,
+            "category": row.get::<_, String>(1)?,
+            "source": row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            "value": row.get::<_, f64>(3)?,
+            "unit": row.get::<_, String>(4)?,
+            "normalized_value": row.get::<_, Option<f64>>(5)?,
+            "normalized_unit": row.get::<_, Option<String>>(6)?,
+            "origin_file": row.get::<_, Option<String>>(7)?.unwrap_or_default(),
+            "confidence": row.get::<_, f32>(8)?,
+            "timestamp": row.get::<_, Option<String>>(9)?
+        }))
+    }).map_err(|e| e.to_string())?;
+    
+    let mut ledger = Vec::new();
+    for row in rows {
+        ledger.push(row.map_err(|e| e.to_string())?);
+    }
+    
+    serde_json::to_string(&ledger).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -374,6 +418,7 @@ pub fn run() {
             get_scope_distribution,
             get_co2_trend,
             get_esrs_compliance,
+            get_esg_ledger,
             debug_esg_state,
             run_materiality_check,
             add_client,

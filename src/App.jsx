@@ -563,7 +563,7 @@ case 'data': return <DataView {...dataState} />;
 case 'gap': return <GapAnalysisView {...gapState} />;
 case 'emissions': return <EmissionsView ledgerData={ledgerData} />;
 case 'esrs': return <ESRSView />;
-case 'reports': return <ReportsView />;
+case 'reports': return <ReportsView activeClient={activeClient} />;
 default: return <PlaceholderView tabId={activeTab} />;
 }
 }
@@ -1194,53 +1194,100 @@ return (
 }
 
 // ── REPORTS VIEW ──
-function ReportsView() {
-const handleGenerateReport = async () => {
-  try {
-    const filePath = await invoke('generate_report', {
-      clientId: selectedClientId,
-      companyName: activeClient.name,
-      language: 'English'
-    });
-    alert('Report generated: ' + filePath);
-  } catch (err) {
-    alert('Report generation failed: ' + err);
-  }
-};
+function ReportsView({ activeClient }) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [lastReportPath, setLastReportPath] = useState(null);
 
-return (
-<div style={{ display: 'flex', flexDirection: 'column', gap: '18px', animation: 'fadeIn 0.3s ease' }}>
-<div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
-{[
-{ title: 'CSRD Draft Report', desc: 'Full ESRS disclosure · Audit-ready · Branded', icon: '📄', ready: true },
-{ title: 'Management Summary', desc: 'Executive overview · PDF · Signed', icon: '📊', ready: true },
-{ title: 'Gap Analysis Report', desc: 'Compliance gap details · Action plan', icon: '🔍', ready: false }
-].map(r => (
-<div key={r.title} style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', transition: 'all 0.2s ease' }}
-onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-<div style={{ fontSize: '28px', marginBottom: '12px' }}>{r.icon}</div>
-<div style={{ fontSize: '14px', fontWeight: '600', color: '#111827', marginBottom: '5px' }}>{r.title}</div>
-<div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '18px', lineHeight: '1.5' }}>{r.desc}</div>
-<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-<span style={{ fontSize: '11px', fontWeight: '600', color: r.ready ? '#34c759' : '#ff9500', background: r.ready ? 'rgba(52,199,89,0.08)' : 'rgba(255,149,0,0.08)', padding: '3px 10px', borderRadius: '20px' }}>{r.ready ? 'Ready' : 'Pending'}</span>
-<button className="action-btn" onClick={r.ready ? handleGenerateReport : undefined} style={{ background: r.ready ? '#007aff' : '#e5e7eb', color: r.ready ? 'white' : '#6b7280', border: 'none', padding: '7px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', cursor: r.ready ? 'pointer' : 'default', transition: 'all 0.15s' }}>Generate</button>
-</div>
-</div>
-))}
-</div>
-<div style={{ background: '#fff', borderRadius: '14px', padding: '18px 22px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-<span style={{ fontSize: '13px', fontWeight: '500', color: '#6b7280' }}>Language:</span>
-{['Deutsch', 'English', 'Français'].map(l => (
-<button key={l} className="action-btn" style={{ padding: '6px 14px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#f5f5f7', color: '#111827', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s' }}>{l}</button>
-))}
-<span style={{ fontSize: '13px', fontWeight: '500', color: '#6b7280', marginLeft: '8px' }}>Format:</span>
-{['PDF', 'Word .docx'].map(f => (
-<button key={f} className="action-btn" style={{ padding: '6px 14px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#f5f5f7', color: '#111827', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s' }}>{f}</button>
-))}
-</div>
-</div>
-);
+  const handleGenerateReport = async () => {
+    setIsGenerating(true);
+    setLastReportPath(null);
+    try {
+      const filePath = await invoke('generate_report', {
+        clientId: activeClient.id,
+        companyName: activeClient.name,
+        language: 'English'
+      });
+      setLastReportPath(filePath);
+    } catch (err) {
+      alert('Report generation failed: ' + err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const reports = [
+    { id: 'csrd', title: 'CSRD Draft Report', desc: 'Full ESRS disclosure · Audit-ready · Branded', icon: FileText, ready: true },
+    { id: 'exec', title: 'Management Summary', desc: 'Executive overview · PDF · Signed', icon: BarChart2, ready: true },
+    { id: 'gap', title: 'Gap Analysis Report', desc: 'Compliance gap details · Action plan', icon: Search, ready: false }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s ease' }}>
+      <div>
+        <h2 style={{ fontSize: '18px', fontWeight: '700', color: S.text }}>Reporting Engine</h2>
+        <p style={{ fontSize: '12px', color: S.muted }}>Generate regulatory-grade disclosures directly from SSOT data.</p>
+      </div>
+
+      {lastReportPath && (
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px 18px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ background: S.green, color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Check size={12} strokeWidth={3} />
+          </div>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: '#166534' }}>Report Generated Successfully</div>
+            <div style={{ fontSize: '11px', color: '#166534', opacity: 0.8 }}>Saved to: <span style={{ fontFamily: 'monospace' }}>{lastReportPath}</span></div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px' }}>
+        {reports.map(r => (
+          <div key={r.id} style={{ background: '#fff', borderRadius: '14px', padding: '24px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', transition: 'all 0.2s ease', opacity: r.ready ? 1 : 0.6 }}>
+            <div style={{ width: '44px', height: '44px', background: r.ready ? S.accentBg : '#f3f4f6', color: r.ready ? S.accent : S.muted, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <r.icon size={22} />
+            </div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginBottom: '6px' }}>{r.title}</div>
+            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '20px', lineHeight: '1.5' }}>{r.desc}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: r.ready ? S.green : S.amber, background: (r.ready ? S.green : S.amber) + '10', padding: '3px 10px', borderRadius: '20px' }}>
+                {r.ready ? 'Ready' : 'Pending'}
+              </span>
+              <button 
+                className="action-btn" 
+                onClick={r.ready ? handleGenerateReport : undefined} 
+                disabled={!r.ready || isGenerating}
+                style={{ background: r.ready ? S.accent : '#e5e7eb', color: r.ready ? 'white' : '#6b7280', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: r.ready && !isGenerating ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.15s' }}
+              >
+                {isGenerating && r.id === 'csrd' ? (
+                  <>
+                    <Loader2 size={14} className="spin" style={{ animation: 'rotate 1s linear infinite' }} />
+                    Constructing...
+                  </>
+                ) : (
+                  <>Generate</>
+                )}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: '14px', padding: '20px 24px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ fontSize: '13px', fontWeight: '600', color: '#6b7280' }}>Document Settings:</div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {['English', 'Deutsch'].map(l => (
+            <button key={l} style={{ padding: '6px 12px', borderRadius: '6px', border: `1px solid ${l === 'English' ? S.accent : S.border}`, background: l === 'English' ? S.accentBg : S.bg, color: l === 'English' ? S.accent : S.text, fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>{l}</button>
+          ))}
+        </div>
+        <div style={{ height: '20px', width: '1px', background: S.border }}></div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {['.docx', '.pdf'].map(f => (
+            <button key={f} style={{ padding: '6px 12px', borderRadius: '6px', border: `1px solid ${f === '.docx' ? S.accent : S.border}`, background: f === '.docx' ? S.accentBg : S.bg, color: f === '.docx' ? S.accent : S.text, fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>{f}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── PLACEHOLDER ──

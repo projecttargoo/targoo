@@ -6,6 +6,7 @@ use tauri::{command, AppHandle, State};
 use std::sync::Mutex;
 use crate::l1_rag::{GemmaEngine};
 use crate::l6_audit::get_db_connection;
+use crate::state;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EsrsReportRow {
@@ -27,11 +28,33 @@ pub async fn generate_report(
     // 1. Fetch AI Analysis Data
     let analysis = crate::l1_rag::analyze_imported_data(app_handle.clone(), client_id, engine_state).await?;
     
-    // 2. Fetch Imported Data from DB for Summary info
+    // 2. Fetch Real SSOT Data from DB
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
-    let imported_count: i64 = conn.query_row("SELECT COUNT(*) FROM imported_data", [], |row| row.get(0)).unwrap_or(0);
+    
+    let industry: String = conn.query_row(
+        "SELECT industry FROM clients WHERE id = ?1",
+        [client_id],
+        |row| row.get(0)
+    ).unwrap_or_else(|_| "Unknown".to_string());
 
-    // 3. Calculate Overall ESG Score (Mock logic based on E1 compliance)
+    let scope1_gas = state::get_esg_total(&conn, client_id, "scope1_gas");
+    let scope1_fuel = state::get_esg_total(&conn, client_id, "scope1_fuel");
+    let scope1_ref = state::get_esg_total(&conn, client_id, "scope1_refrigerant");
+    let scope2 = state::get_esg_total(&conn, client_id, "scope2_electricity");
+    let scope3 = state::get_esg_total(&conn, client_id, "scope3_supplier");
+    
+    let s1_gas_co2 = (scope1_gas * 2.04) / 1000.0;
+    let s1_fuel_co2 = (scope1_fuel * 2.68) / 1000.0;
+    let s1_ref_co2 = (scope1_ref * 2088.0) / 1000.0;
+    let s2_co2 = (scope2 * 0.276) / 1000.0;
+    
+    let scope1_total = s1_gas_co2 + s1_fuel_co2 + s1_ref_co2;
+    let total_carbon = scope1_total + s2_co2 + scope3;
+    
+    let workforce = state::get_esg_total(&conn, client_id, "workforce");
+    let training_cost = state::get_esg_total(&conn, client_id, "training_cost");
+
+    // 3. Calculate Overall ESG Score
     let total_checks = 4.0; 
     let compliant_count = analysis.compliant.len() as f64;
     let esg_score = ((compliant_count / total_checks) * 100.0).min(100.0) as i32;
@@ -46,16 +69,17 @@ pub async fn generate_report(
     docx = docx
         .add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text("").add_break(BreakType::Page)) // Dummy to ensure start
-        )
-        .add_paragraph(
-            Paragraph::new()
                 .add_run(Run::new().add_text(company_name.clone()).size(64).bold())
                 .align(AlignmentType::Center)
         )
         .add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text("CSRD Sustainability Report 2024").size(36))
+                .add_run(Run::new().add_text(format!("Industry: {}", industry)).size(28))
+                .align(AlignmentType::Center)
+        )
+        .add_paragraph(
+            Paragraph::new()
+                .add_run(Run::new().add_text("CSRD Sustainability Report 2024").size(36).bold())
                 .align(AlignmentType::Center)
         )
         .add_paragraph(
@@ -70,84 +94,78 @@ pub async fn generate_report(
         )
         .add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
 
-    // --- EXECUTIVE SUMMARY ---
-    let exec_title = if is_de { "MANAGEMENT-ZUSAMMENFASSUNG" } else { "EXECUTIVE SUMMARY" };
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(exec_title).size(28).bold()));
+    // --- SECTION 1: EXECUTIVE SUMMARY ---
+    let exec_title = if is_de { "MANAGEMENT-ZUSAMMENFASSUNG" } else { "SECTION 1: EXECUTIVE SUMMARY" };
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(exec_title).size(32).bold()));
     
     docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("Overall ESG Score: {}/100", esg_score)).size(24).bold()));
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("Data Points Analyzed: {}", imported_count)).size(16)));
     
-    let findings_title = if is_de { "Top 3 Feststellungen" } else { "Top 3 Findings" };
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(findings_title).size(20).bold()));
-    if analysis.compliant.is_empty() {
-        docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("- No compliance items found yet.")));
-    } else {
-        for finding in analysis.compliant.iter().take(3) {
-            docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("• {}", finding))));
-        }
-    }
+    let summary_text = format!(
+        "This report provides a comprehensive overview of the sustainability performance for {}. As of {}, the total recorded carbon footprint is {:.2} tCO2e. The organization shows a compliance level of {}% across the initial ESRS assessment criteria.",
+        company_name, date, total_carbon, esg_score
+    );
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(summary_text).size(22)));
 
-    let gaps_title = if is_de { "Kritische Lücken" } else { "Critical Gaps" };
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(gaps_title).size(20).bold()));
-    if analysis.missing.is_empty() && analysis.warnings.is_empty() {
-        docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("- No critical gaps identified.")));
-    } else {
-        for gap in analysis.missing.iter().take(2) {
-            docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("• {}", gap))));
-        }
-        for warning in analysis.warnings.iter().take(1) {
-            docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("• Warning: {}", warning))));
-        }
-    }
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("AI Advisory Insights:").size(24).bold()));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(analysis.proactive_message.clone()).size(20)));
 
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("AI Advisory Message:").size(18).bold()));
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(analysis.proactive_message.clone()).size(16)));
-
-    // --- GAP ANALYSIS TABLE ---
+    // --- SECTION 2: ENVIRONMENTAL (ESRS E1) ---
     docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("GAP ANALYSIS TABLE FOR ESRS STANDARDS").size(24).bold()));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("SECTION 2: ENVIRONMENTAL (ESRS E1)").size(32).bold()));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("Climate change mitigation and energy consumption breakdown.").size(22)));
 
-    let mut table = Table::new(vec![]);
-    // Header
-    let header_row = TableRow::new(vec![
+    let mut env_table = Table::new(vec![]);
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Metric").bold())),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Value (tCO2e)").bold())),
+    ]));
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Scope 1: Direct Emissions"))),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", scope1_total)))),
+    ]));
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Scope 2: Energy Indirect Emissions"))),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", s2_co2)))),
+    ]));
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Total Carbon Footprint").bold())),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_carbon)).bold())),
+    ]));
+    docx = docx.add_table(env_table);
+
+    // --- SECTION 3: SOCIAL (ESRS S1) ---
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("\nSECTION 3: SOCIAL (ESRS S1)").size(32).bold()));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("Current Workforce: {:.0} Employees", workforce)).size(22)));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("Training & Development Investment: {:.2} EUR", training_cost)).size(22)));
+
+    // --- SECTION 4: COMPLIANCE TABLE ---
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("SECTION 4: ESRS COMPLIANCE STATUS").size(32).bold()));
+
+    let mut comp_table = Table::new(vec![]);
+    comp_table = comp_table.add_row(TableRow::new(vec![
         TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("ESRS Standard").bold())),
         TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Status").bold())),
-        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Missing items").bold())),
-        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Paragraph reference").bold())),
-    ]);
-    table = table.add_row(header_row);
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Reference").bold())),
+    ]));
 
-    // List of ESRS standards per requirement
     let standards = vec![
-        ("ESRS E1", "Climate change", "E1.44, E1.46", "Scope 1, 2, 3 Emissions, Energy Consumption"),
-        ("ESRS E2", "Pollution", "E2.22", "Air pollutants, Water pollutants"),
-        ("ESRS E3", "Water and marine resources", "E3.12", "Water consumption, Water recycling"),
-        ("ESRS E4", "Biodiversity and ecosystems", "E4.18", "Impact on protected areas"),
-        ("ESRS E5", "Resource use and circular economy", "E5.24", "Waste generated, Material use"),
-        ("ESRS S1", "Own workforce", "S1.12", "Employee numbers, Gender pay gap"),
-        ("ESRS S2", "Workers in the value chain", "S2.08", "Human rights risks in supply chain"),
-        ("ESRS S3", "Affected communities", "S3.05", "Community impact assessments"),
-        ("ESRS S4", "Consumers and end-users", "S4.04", "Privacy, Health and safety"),
+        ("ESRS E1", "Climate Change", total_carbon > 0.0, "E1.44"),
+        ("ESRS E3", "Water & Marine", state::get_esg_total(&conn, client_id, "water") > 0.0, "E3.12"),
+        ("ESRS E5", "Resource Use", state::get_esg_total(&conn, client_id, "waste") > 0.0, "E5.24"),
+        ("ESRS S1", "Own Workforce", workforce > 0.0, "S1.12"),
+        ("ESRS G1", "Business Conduct", false, "G1.01"),
     ];
 
-    for (id, name, ref_code, items) in standards {
-        let status = if id == "ESRS E1" {
-            if esg_score > 75 { "✅" } else if esg_score > 30 { "⚠️" } else { "❌" }
-        } else {
-            "❌" 
-        };
-        
-        let missing = if status == "✅" { if is_de { "Keine" } else { "None" } } else { items };
-
-        let row = TableRow::new(vec![
+    for (id, name, is_complete, ref_code) in standards {
+        let status = if is_complete { "✅ Complete" } else { "❌ Missing" };
+        comp_table = comp_table.add_row(TableRow::new(vec![
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{}: {}", id, name)))),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(status)).align(AlignmentType::Center)),
-            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(missing))),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(status))),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(ref_code))),
-        ]);
-        table = table.add_row(row);
+        ]));
     }
-    docx = docx.add_table(table);
+    docx = docx.add_table(comp_table);
 
     // 5. Save Document
     let desktop_dir = dirs::desktop_dir().ok_or("Could not find Desktop directory")?;
