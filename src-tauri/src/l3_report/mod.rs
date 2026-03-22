@@ -20,11 +20,12 @@ pub struct EsrsReportRow {
 pub async fn generate_report(
     app_handle: AppHandle,
     engine_state: State<'_, Mutex<Option<GemmaEngine>>>,
+    client_id: i32,
     company_name: String,
     language: String,
 ) -> Result<String, String> {
     // 1. Fetch AI Analysis Data
-    let analysis = crate::l1_rag::analyze_imported_data(app_handle.clone(), engine_state).await?;
+    let analysis = crate::l1_rag::analyze_imported_data(app_handle.clone(), client_id, engine_state).await?;
     
     // 2. Fetch Imported Data from DB for Summary info
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;

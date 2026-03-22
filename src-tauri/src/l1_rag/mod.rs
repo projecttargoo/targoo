@@ -174,53 +174,69 @@ pub struct AnalysisResult {
 #[command]
 pub async fn analyze_imported_data(
     app_handle: AppHandle,
+    client_id: i32,
     engine_state: State<'_, Mutex<Option<GemmaEngine>>>
 ) -> Result<AnalysisResult, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
-    // Read imported data
-    let mut stmt = conn.prepare("SELECT category, metric, value, unit FROM imported_data").map_err(|e| e.to_string())?;
-    let imported_rows = stmt.query_map([], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, Option<String>>(3)?))
-    }).map_err(|e| e.to_string())?;
+    // SSOT Data Context: Query the esg_state for the current client_id
+    let gas_raw = crate::state::get_esg_total(&conn, client_id, "scope1_gas");
+    let fuel_raw = crate::state::get_esg_total(&conn, client_id, "scope1_fuel");
+    let ref_raw = crate::state::get_esg_total(&conn, client_id, "scope1_refrigerant");
+    let elec_raw = crate::state::get_esg_total(&conn, client_id, "scope2_electricity");
+    let scope3 = crate::state::get_esg_total(&conn, client_id, "scope3_supplier");
+    let workforce = crate::state::get_esg_total(&conn, client_id, "workforce");
+    let training_cost = crate::state::get_esg_total(&conn, client_id, "training_cost");
 
-    let mut imported_metrics = Vec::new();
-    for row in imported_rows {
-        let (cat, metric, val, unit) = row.map_err(|e| e.to_string())?;
-        imported_metrics.push(format!("{}: {} ({} {})", cat, metric, val, unit.unwrap_or_default()));
-    }
+    // Carbon Footprint calculation using Emission Factors (tCO2e)
+    let gas_co2 = (gas_raw * 2.04) / 1000.0;
+    let fuel_co2 = (fuel_raw * 2.68) / 1000.0;
+    let ref_co2 = (ref_raw * 2088.0) / 1000.0;
+    let scope2_co2 = (elec_raw * 0.276) / 1000.0;
+    
+    let total_carbon = gas_co2 + fuel_co2 + ref_co2 + scope2_co2 + scope3;
 
     let mut compliant = Vec::new();
     let mut missing = Vec::new();
-    let mut warnings = Vec::new();
+    let warnings = Vec::new();
+    let mut insights = Vec::new();
 
-    let has_scope1 = imported_metrics.iter().any(|m| m.to_lowercase().contains("scope 1") || m.to_lowercase().contains("fuel"));
-    let has_scope2 = imported_metrics.iter().any(|m| m.to_lowercase().contains("scope 2") || m.to_lowercase().contains("electricity"));
-    let has_scope3 = imported_metrics.iter().any(|m| m.to_lowercase().contains("scope 3"));
-    let has_energy = imported_metrics.iter().any(|m| m.to_lowercase().contains("energy") || m.to_lowercase().contains("kwh"));
+    // ESRS Compliance Checks
+    if total_carbon > 0.0 {
+        compliant.push("Scope 1 & 2 emissions data found - ESRS E1.44 compliant".to_string());
+    } else {
+        missing.push("Missing mandatory greenhouse gas emissions data (ESRS E1.44)".to_string());
+    }
 
-    if has_scope1 { compliant.push("Scope 1 emissions found - ESRS E1.44 compliant".to_string()); }
-    else { missing.push("Missing Scope 1 data - ESRS E1.44 mandatory".to_string()); }
+    if workforce > 0.0 {
+        compliant.push("Workforce headcount data found - ESRS S1.1 compliant".to_string());
+    } else {
+        missing.push("Missing mandatory workforce data (ESRS S1.1)".to_string());
+    }
 
-    if has_scope2 { compliant.push("Scope 2 emissions found - ESRS E1.44 compliant".to_string()); }
-    else { missing.push("Missing Scope 2 data - ESRS E1.44 mandatory".to_string()); }
+    // Rule-Based Insights
+    if total_carbon > 0.0 && gas_co2 > (total_carbon * 0.5) {
+        insights.push("High dependency on fossil heating detected. (Ref: ESRS E1.44)".to_string());
+    }
 
-    if has_scope3 { compliant.push("Scope 3 data detected".to_string()); }
-    else { warnings.push("Missing Scope 3 data - ESRS E1.46 requires all 15 categories".to_string()); }
+    if workforce > 100.0 && training_cost == 0.0 {
+        insights.push("Missing mandatory S1 Development data for large workforce. (Ref: ESRS S1.13)".to_string());
+    }
 
-    if has_energy { compliant.push("Energy consumption data found - ESRS E1.35 compliant".to_string()); }
-    else { missing.push("Energy consumption data incomplete - ESRS E1.35 mandatory".to_string()); }
+    let summary_context = format!(
+        "ESG Profile for Client {}:\n- Total Carbon: {:.2} tCO2e\n- Scope 1 Gas: {:.2} tCO2e\n- Workforce: {:.0}\n- Training Cost: {:.2} EUR\n\nRule-based Insights:\n{}",
+        client_id, total_carbon, gas_co2, workforce, training_cost, insights.join("\n")
+    );
 
     let engine_lock = engine_state.lock().map_err(|e| e.to_string())?;
     let proactive_message = if let Some(engine) = engine_lock.as_ref() {
-        let context = format!(
-            "Company has imported the following ESG data:\n{}\n\nMandatory ESRS E1 requirements include Scope 1, 2, 3 emissions and energy consumption.",
-            imported_metrics.join("\n")
-        );
-        let question = "Analyze the imported data against ESRS E1 requirements. Identify what is missing or compliant. Be proactive and reference exact ESRS paragraphs.";
-        ask_gemma(engine, question, &context)?
+        let question = "Analyze these ESG metrics and insights. Provide a professional executive summary citing relevant ESRS paragraphs.";
+        ask_gemma(engine, question, &summary_context)?
     } else {
-        "AI Engine not ready for deep analysis. Using rule-based results only.".to_string()
+        format!(
+            "**Rule-based Advisory Notice**\n\n{}\n\n*Note: AI Engine is offline. These results are generated via rule-based heuristics.*",
+            summary_context
+        )
     };
 
     Ok(AnalysisResult {

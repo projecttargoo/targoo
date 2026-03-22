@@ -213,8 +213,8 @@ try {
 
   // Automatically call analyze_imported_data after successful import
   try {
-    const analysis = await invoke('analyze_imported_data');
-    const parsed = JSON.parse(analysis);
+    const analysis = await invoke('analyze_imported_data', { clientId: selectedClientId });
+    const parsed = analysis; // result is already parsed by Tauri bridge
     const proactiveMsg = parsed.proactive_message || 
       `Analysis complete. Found ${parsed.missing?.length || 0} compliance gaps.`;
     setChatHistory(prev => [...prev, { role: 'ai', text: proactiveMsg }]);
@@ -1108,7 +1108,11 @@ return (
 function ReportsView() {
 const handleGenerateReport = async () => {
   try {
-    const filePath = await invoke('generate_report');
+    const filePath = await invoke('generate_report', {
+      clientId: selectedClientId,
+      companyName: activeClient.name,
+      language: 'English'
+    });
     alert('Report generated: ' + filePath);
   } catch (err) {
     alert('Report generation failed: ' + err);
