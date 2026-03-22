@@ -574,8 +574,143 @@ case 'emissions': return <EmissionsView ledgerData={ledgerData} />;
 case 'esrs': return <ESRSView />;
 case 'reports': return <ReportsView activeClient={activeClient} />;
 case 'audit': return <AuditTrailView selectedClientId={activeClient.id} />;
+case 'settings': return <SettingsView />;
 default: return <PlaceholderView tabId={activeTab} />;
 }
+}
+
+// ── SETTINGS VIEW ──
+function SettingsView() {
+  const [profile, setProfile] = useState({ name: 'Fritz Schmidt', company: 'Hans Advisory GmbH' });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => setIsSaving(false), 1000);
+  };
+
+  const cardStyle = {
+    background: S.panel,
+    borderRadius: '16px',
+    padding: '24px',
+    border: `1px solid ${S.border}`,
+    boxShadow: S.shadow,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px'
+  };
+
+  const labelStyle = {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: S.muted,
+    display: 'block',
+    marginBottom: '6px'
+  };
+
+  const inputStyle = {
+    width: '100%',
+    background: S.bg,
+    border: `1px solid ${S.border}`,
+    borderRadius: '8px',
+    padding: '10px 14px',
+    fontSize: '13px',
+    color: S.text,
+    outline: 'none',
+    transition: 'border-color 0.2s ease'
+  };
+
+  const sectionTitleStyle = {
+    fontSize: '15px',
+    fontWeight: '700',
+    color: S.text,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '4px'
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+      <div>
+        <h2 style={{ fontSize: '22px', fontWeight: '700', color: S.text }}>Settings</h2>
+        <p style={{ fontSize: '13px', color: S.muted }}>Manage your professional profile and ESG engine configuration.</p>
+      </div>
+
+      <div style={cardStyle}>
+        <div style={sectionTitleStyle}>
+          <User size={18} color={S.accent} />
+          Consultant Profile
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div>
+            <label style={labelStyle}>Consultant Name</label>
+            <input 
+              style={inputStyle} 
+              value={profile.name} 
+              onChange={e => setProfile({...profile, name: e.target.value})}
+              placeholder="e.g. Fritz Schmidt"
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Advisory Company</label>
+            <input 
+              style={inputStyle} 
+              value={profile.company} 
+              onChange={e => setProfile({...profile, company: e.target.value})}
+              placeholder="e.g. Hans Advisory GmbH"
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+          <button 
+            className="action-btn"
+            onClick={handleSave}
+            style={{ background: S.accent, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            {isSaving ? <Loader2 size={14} className="spin" style={{ animation: 'rotate 1s linear infinite' }} /> : <Save size={14} />}
+            {isSaving ? 'Saving...' : 'Save Profile'}
+          </button>
+        </div>
+      </div>
+
+      <div style={cardStyle}>
+        <div style={sectionTitleStyle}>
+          <Shield size={18} color={S.accent} />
+          System & License
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={labelStyle}>Local Database Path</label>
+            <div style={{ ...inputStyle, background: '#f9fafb', fontFamily: 'monospace', fontSize: '11px', color: S.muted, cursor: 'default', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              /users/codespace/library/application support/targoo/targoo.db
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Hardware Fingerprint</label>
+            <div style={{ ...inputStyle, background: '#f9fafb', fontFamily: 'monospace', fontSize: '11px', color: S.muted, cursor: 'default' }}>
+              TRG-882-XQ-991-F72
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ ...cardStyle, border: `1px solid ${S.red}20` }}>
+        <div style={sectionTitleStyle}>
+          <Database size={18} color={S.red} />
+          Data Controls
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <p style={{ fontSize: '12px', color: S.muted, maxWidth: '400px' }}>
+            Permanently erase all imported ESG data, snapshots, and normalization records from your local workspace.
+          </p>
+          <button className="action-btn" style={{ background: 'transparent', color: S.red, border: `1px solid ${S.red}40`, padding: '10px 18px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+            Clear Workspace
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 function MaterialityView({ materialityData, setMaterialityData, selectedClientId }) {
   const [hovered, setHovered] = useState(null);
