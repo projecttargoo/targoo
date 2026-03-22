@@ -154,6 +154,11 @@ pub fn get_db_connection(app_handle: &AppHandle) -> Result<Connection> {
         .path()
         .app_data_dir()
         .expect("failed to get app data directory");
+    
+    if !app_data_dir.exists() {
+        std::fs::create_dir_all(&app_data_dir).expect("failed to create app data directory");
+    }
+
     let db_path = app_data_dir.join("targoo.db");
     Connection::open(db_path)
 }

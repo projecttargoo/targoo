@@ -318,30 +318,30 @@ pub fn run() {
         .manage(l8_workspace::WorkspaceState { active_project_id: Mutex::new(None) })
         .manage(l2_gap_analysis::GapAnalysisState { is_running: Arc::new(AtomicBool::new(false)) })
         .setup(|app| {
-            let conn = get_db_connection(app.handle())?;
-            
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS clients (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                    name TEXT NOT NULL, 
-                    industry TEXT NOT NULL, 
-                    last_audit TEXT NOT NULL,
-                    score INTEGER DEFAULT 0,
-                    carbon REAL DEFAULT 0.0
-                )",
-                [],
-            )?;
+            if let Ok(conn) = get_db_connection(app.handle()) {
+                let _ = conn.execute(
+                    "CREATE TABLE IF NOT EXISTS clients (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                        name TEXT NOT NULL, 
+                        industry TEXT NOT NULL, 
+                        last_audit TEXT NOT NULL,
+                        score INTEGER DEFAULT 0,
+                        carbon REAL DEFAULT 0.0
+                    )",
+                    [],
+                );
 
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS documents (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                    name TEXT NOT NULL, 
-                    size TEXT NOT NULL, 
-                    status TEXT NOT NULL, 
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )",
-                [],
-            )?;
+                let _ = conn.execute(
+                    "CREATE TABLE IF NOT EXISTS documents (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                        name TEXT NOT NULL, 
+                        size TEXT NOT NULL, 
+                        status TEXT NOT NULL, 
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )",
+                    [],
+                );
+            }
 
             if let Err(e) = l6_audit::init_audit_db(app.handle()) { eprintln!("audit db error: {}", e); }
             if let Err(e) = l7_materiality::init_materiality_db(app.handle()) { eprintln!("materiality db error: {}", e); }
