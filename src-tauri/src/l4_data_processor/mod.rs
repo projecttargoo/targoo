@@ -216,9 +216,7 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
     let _ = init_import_db(&app_handle);
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
 
-    // Clear previous ESG state for fresh import
     let _ = state::clear_esg_state_for_client(&conn, 1);
-    println!("ESG state cleared for fresh import");
 
     let mut all_records = Vec::new();
     let mut errors = Vec::new();
