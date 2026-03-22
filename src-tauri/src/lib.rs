@@ -71,10 +71,8 @@ fn get_dashboard_stats(app_handle: AppHandle, client_id: i32) -> DashboardStats 
         let scope1_fuel_co2 = (scope1_fuel_raw * 2.68) / 1000.0;
         let scope1_ref_co2 = (scope1_ref_raw * 2088.0) / 1000.0;
         let scope2_co2 = (scope2_raw * 0.276) / 1000.0;
-
-        let scope1 = scope1_gas_co2 + scope1_fuel_co2 + scope1_ref_co2;
-        let scope2 = scope2_co2;
-        let carbon = scope1 + scope2 + scope3;
+        let scope1_total = scope1_gas_co2 + scope1_fuel_co2 + scope1_ref_co2;
+        let carbon = scope1_total + scope2_co2 + scope3;
         
         let energy_kwh = scope2_raw;
         let energy_mwh = scope2_raw / 1000.0;
@@ -84,7 +82,7 @@ fn get_dashboard_stats(app_handle: AppHandle, client_id: i32) -> DashboardStats 
             let env_score = if carbon < 5000.0 { 80 } else if carbon < 15000.0 { 60 } else { 40 };
             let soc_score = if workforce > 0 { 75 } else { 50 };
             (env_score + soc_score) / 2
-        } else { 0 }; // Fix: Fritz needs to see 0 if no data
+        } else { 0 };
 
         return DashboardStats {
             esg_score,
@@ -92,8 +90,8 @@ fn get_dashboard_stats(app_handle: AppHandle, client_id: i32) -> DashboardStats 
             energy_kwh,
             energy_mwh,
             workforce,
-            scope1,
-            scope2,
+            scope1: scope1_total,
+            scope2: scope2_co2,
             scope3,
             scope1_gas: scope1_gas_raw,
             scope1_fuel: scope1_fuel_raw,

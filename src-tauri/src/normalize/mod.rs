@@ -65,9 +65,9 @@ pub fn classify(column: &str, unit: &str) -> (String, f32) {
     if col.contains("waste") || col.contains("hulladék") || col.contains("abfall") || col.contains("recycl") || col.contains("szemét") {
         return ("waste".into(), 0.90);
     }
-    // WORKFORCE
-    if col.contains("headcount") || col.contains("employee") || col.contains("workforce") || col.contains("létszám") || col.contains("letszam") || col.contains("mitarbeiter") || col.contains("worker") {
-        return ("workforce".into(), 0.95);
+    // GENDER / DIVERSITY
+    if col.contains("female") || col.contains("gender") || col.contains("diversity") || col.contains("női") || col.contains("noi") {
+        return ("diversity_ratio".into(), 0.90);
     }
     // TRAINING
     if col.contains("training") || col.contains("képzés") || col.contains("schulung") {
@@ -77,9 +77,9 @@ pub fn classify(column: &str, unit: &str) -> (String, f32) {
     if col.contains("accident") || col.contains("baleset") || col.contains("unfall") || col.contains("injury") {
         return ("work_accidents".into(), 0.90);
     }
-    // GENDER / DIVERSITY
-    if col.contains("female") || col.contains("gender") || col.contains("diversity") || col.contains("női") || col.contains("noi") {
-        return ("diversity_ratio".into(), 0.90);
+    // WORKFORCE
+    if col.contains("headcount") || col.contains("employee") || col.contains("workforce") || col.contains("létszám") || col.contains("letszam") || col.contains("mitarbeiter") || col.contains("worker") {
+        return ("workforce".into(), 0.95);
     }
 
     // UNIT FALLBACK
