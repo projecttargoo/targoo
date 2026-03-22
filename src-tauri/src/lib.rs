@@ -345,15 +345,14 @@ pub fn run() {
                 [],
             )?;
 
-            l6_audit::init_audit_db(app.handle())?;
-            l7_materiality::init_materiality_db(app.handle())?;
-            l8_workspace::init_workspace_db(app.handle())?;
-            l1_rag::populate_esrs_database(app.handle())?;
-            l1_rag::load_esrs_from_json(app.handle())?;
-            l4_data_processor::init_import_db(app.handle())?;
+            if let Err(e) = l6_audit::init_audit_db(app.handle()) { eprintln!("audit db error: {}", e); }
+            if let Err(e) = l7_materiality::init_materiality_db(app.handle()) { eprintln!("materiality db error: {}", e); }
+            if let Err(e) = l8_workspace::init_workspace_db(app.handle()) { eprintln!("workspace db error: {}", e); }
+            if let Err(e) = l1_rag::populate_esrs_database(app.handle()) { eprintln!("esrs db error: {}", e); }
+            if let Err(e) = l1_rag::load_esrs_from_json(app.handle()) { eprintln!("json error: {}", e); }
+            if let Err(e) = l4_data_processor::init_import_db(app.handle()) { eprintln!("import db error: {}", e); }
             if let Ok(conn) = get_db_connection(app.handle()) {
                 let _ = state::create_esg_state_table(&conn);
-                println!("ESG_STATE table initialized");
             }
             Ok(())
         })
