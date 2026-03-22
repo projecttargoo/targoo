@@ -240,9 +240,11 @@ pub fn run() {
             l8_workspace::init_workspace_db(app.handle())?;
             l1_rag::populate_esrs_database(app.handle())?;
             l1_rag::load_esrs_from_json(app.handle())?;
-            let conn = get_db_connection(app.handle()).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
-            state::create_esg_state_table(&conn).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
             l4_data_processor::init_import_db(app.handle())?;
+            if let Ok(conn) = get_db_connection(app.handle()) {
+                let _ = state::create_esg_state_table(&conn);
+                println!("ESG_STATE table initialized");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
