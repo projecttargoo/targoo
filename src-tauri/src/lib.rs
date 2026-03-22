@@ -334,8 +334,8 @@ fn get_esrs_compliance(app_handle: AppHandle, client_id: i32) -> String {
         
         let carbon_footprint = (scope1_gas * 2.04 + scope1_fuel * 2.68 + scope1_ref * 2088.0 + scope2 * 0.276) / 1000.0 + scope3;
         
-        let has_water = state::get_esg_total(&conn, client_id, "water") > 0.0;
-        let has_waste = state::get_esg_total(&conn, client_id, "waste") > 0.0;
+        let has_water = state::get_esg_count(&conn, client_id, "water") > 0;
+        let has_waste = state::get_esg_count(&conn, client_id, "waste") > 0;
         let workforce = state::get_esg_total(&conn, client_id, "workforce");
         let has_training = state::get_esg_total(&conn, client_id, "training_cost") > 0.0;
         let has_diversity = state::get_esg_total(&conn, client_id, "diversity_ratio") > 0.0;
@@ -346,8 +346,8 @@ fn get_esrs_compliance(app_handle: AppHandle, client_id: i32) -> String {
             {"id": "E3", "name": "Water & Marine", "status": if has_water { "Complete" } else { "Missing" }},
             {"id": "E4", "name": "Biodiversity", "status": "Missing"},
             {"id": "E5", "name": "Resource Use", "status": if has_waste { "Complete" } else { "Missing" }},
-            {"id": "S1", "name": "Own Workforce", "status": if workforce > 0.0 { if has_training || has_diversity { "Complete" } else { "Partial" } } else { "Missing" }},
-            {"id": "S2", "name": "Workers in Value Chain", "status": if scope3 > 0.0 { "Partial" } else { "Missing" }},
+            {"id": "S1", "name": "Own Workforce", "status": if workforce > 0.0 && (has_training || has_diversity) { "Complete" } else { "Missing" }},
+            {"id": "S2", "name": "Workers in Value Chain", "status": "Missing"},
             {"id": "G1", "name": "Business Conduct", "status": "Missing"}
         ]).to_string()
     } else {
@@ -382,6 +382,19 @@ fn get_esg_ledger(app_handle: AppHandle, client_id: i32) -> Result<String, Strin
     .map_err(|e| e.to_string())?;
     
     serde_json::to_string(&entries).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_advisor_settings(app_handle: AppHandle, name: String, company: String) -> Result<(), String> {
+    let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "INSERT INTO app_settings (key, value) VALUES ('advisor_name', ?1), ('advisor_company', ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![name, company],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -419,6 +432,14 @@ pub fn run() {
                     )",
                     [],
                 );
+
+                let _ = conn.execute(
+                    "CREATE TABLE IF NOT EXISTS app_settings (
+                        key TEXT PRIMARY KEY,
+                        value TEXT
+                    )",
+                    [],
+                );
             }
 
             if let Err(e) = l6_audit::init_audit_db(app.handle()) { eprintln!("audit db error: {}", e); }
@@ -443,6 +464,7 @@ pub fn run() {
             add_client,
             get_enterprise_clients,
             ask_neuron_pilot,
+            update_advisor_settings,
             license::fetch_trial_license_status,
             license::get_fingerprint,
             license::validate_license,

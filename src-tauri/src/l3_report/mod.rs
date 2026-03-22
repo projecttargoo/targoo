@@ -2,9 +2,7 @@ use docx_rs::*;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use chrono::Local;
-use tauri::{command, AppHandle, State};
-use std::sync::Mutex;
-use crate::l1_rag::{GemmaEngine};
+use tauri::{command, AppHandle};
 use crate::l6_audit::get_db_connection;
 use crate::state;
 
@@ -26,10 +24,10 @@ pub fn generate_report(
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
     // Fetch Client info
-    let (company_name, tax_id, jurisdiction, reporting_year, industry): (String, String, String, i32, String) = conn.query_row(
-        "SELECT name, COALESCE(tax_id, ''), COALESCE(jurisdiction, 'EU-ESRS'), COALESCE(reporting_year, 2024), industry FROM clients WHERE id = ?1",
+    let (company_name, tax_id, jurisdiction, reporting_year): (String, String, String, i32) = conn.query_row(
+        "SELECT name, COALESCE(tax_id, ''), COALESCE(jurisdiction, 'EU-ESRS'), COALESCE(reporting_year, 2024) FROM clients WHERE id = ?1",
         [client_id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
     ).map_err(|e| e.to_string())?;
 
     // Aggregate Carbon totals
@@ -49,7 +47,7 @@ pub fn generate_report(
     
     let workforce = state::get_esg_total(&conn, client_id, "workforce");
 
-    // Fetch Compliance Logic (Simulated here for speed, matching frontend logic)
+    // Fetch Compliance Logic
     let has_water = state::get_esg_total(&conn, client_id, "water") > 0.0;
     let has_waste = state::get_esg_total(&conn, client_id, "waste") > 0.0;
     
@@ -73,30 +71,34 @@ pub fn generate_report(
 
     // --- COVER PAGE ---
     docx = docx
-        .add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page))) // Placeholder for spacing
         .add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text(company_name.clone()).size(64).bold())
+                .add_run(Run::new().add_text("CSRD Sustainability Report").size(64).bold())
                 .align(AlignmentType::Center)
         )
         .add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text(format!("Tax ID: {} | Jurisdiction: {}", tax_id, jurisdiction)).size(24))
+                .add_run(Run::new().add_text(company_name.clone()).size(48).bold())
                 .align(AlignmentType::Center)
         )
         .add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text(format!("CSRD Official Sustainability Report {}", reporting_year)).size(36).bold())
+                .add_run(Run::new().add_text(format!("Reporting Year: {}", reporting_year)).size(24))
                 .align(AlignmentType::Center)
         )
         .add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text("Prepared by Targoo ESG Engine").size(24).italic())
+                .add_run(Run::new().add_text(format!("Tax ID: {} | Jurisdiction: {}", tax_id, jurisdiction)).size(20))
                 .align(AlignmentType::Center)
         )
         .add_paragraph(
             Paragraph::new()
-                .add_run(Run::new().add_text(format!("Generation Date: {}", date)).size(20))
+                .add_run(Run::new().add_text("Prepared by: Fritz Schmidt / Targoo ESG Advisor").size(24).italic())
+                .align(AlignmentType::Center)
+        )
+        .add_paragraph(
+            Paragraph::new()
+                .add_run(Run::new().add_text(format!("Date: {}", date)).size(20))
                 .align(AlignmentType::Center)
         )
         .add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
@@ -110,36 +112,66 @@ pub fn generate_report(
     );
     docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(summary_text).size(22)));
 
-    // --- SECTION 2: THE DATA LEDGER (TRANSPARENCY) ---
+    // --- SECTION 2: ENVIRONMENTAL (ESRS E1) ---
     docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("SECTION 2: DATA ORIGIN & LINEAGE (AUDIT PROOF)").size(32).bold()));
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("The following table represents the primary data sources used for normalization.").size(20)));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("SECTION 2: ENVIRONMENTAL (ESRS E1)").size(32).bold()));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("Greenhouse Gas Emissions Breakdown").size(24).bold()));
 
-    let mut ledger_table = Table::new(vec![]);
-    ledger_table = ledger_table.add_row(TableRow::new(vec![
+    let mut env_table = Table::new(vec![]);
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Category").bold())),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Value (tCO2e)").bold())),
+    ]));
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Scope 1: Direct Emissions"))),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", scope1_total)))),
+    ]));
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Scope 2: Energy Indirect Emissions"))),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", s2_co2)))),
+    ]));
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Scope 3: Other Indirect Emissions"))),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", scope3)))),
+    ]));
+    env_table = env_table.add_row(TableRow::new(vec![
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("TOTAL CARBON FOOTPRINT").bold())),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.2}", total_carbon)).bold())),
+    ]));
+    docx = docx.add_table(env_table);
+
+    // --- SECTION 3: DATA LINEAGE (TRANSPARENCY) ---
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("SECTION 3: DATA LINEAGE (AUDIT PROOF)").size(32).bold()));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("The following records represent the source of truth for all calculations.").size(20)));
+
+    let mut lineage_table = Table::new(vec![]);
+    lineage_table = lineage_table.add_row(TableRow::new(vec![
         TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Source File").bold())),
         TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Original Label").bold())),
-        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Confidence").bold())),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Normalized (tCO2e)").bold())),
+        TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text("Confidence %").bold())),
     ]));
 
-    let mut stmt = conn.prepare("SELECT origin_file, source, confidence FROM esg_state WHERE client_id = ?1 LIMIT 15").map_err(|e| e.to_string())?;
-    let ledger_rows = stmt.query_map([client_id], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, f64>(2)?))
+    let mut stmt = conn.prepare("SELECT origin_file, source, normalized_value, confidence FROM esg_state WHERE client_id = ?1 LIMIT 15").map_err(|e| e.to_string())?;
+    let records = stmt.query_map([client_id], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, f64>(2)?, row.get::<_, f64>(3)?))
     }).map_err(|e| e.to_string())?;
 
-    for row in ledger_rows {
-        let (file, label, conf) = row.map_err(|e| e.to_string())?;
-        ledger_table = ledger_table.add_row(TableRow::new(vec![
+    for rec in records {
+        let (file, label, val, conf) = rec.map_err(|e| e.to_string())?;
+        lineage_table = lineage_table.add_row(TableRow::new(vec![
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(file))),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(label))),
+            TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.3}", val)))),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{:.0}%", conf * 100.0)))),
         ]));
     }
-    docx = docx.add_table(ledger_table);
+    docx = docx.add_table(lineage_table);
 
-    // --- SECTION 3: ESRS GAP TABLE ---
+    // --- SECTION 4: COMPLIANCE MATRIX ---
     docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_break(BreakType::Page)));
-    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("SECTION 3: ESRS COMPLIANCE MATRIX").size(32).bold()));
+    docx = docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text("SECTION 4: ESRS COMPLIANCE MATRIX").size(32).bold()));
 
     let mut gap_table = Table::new(vec![]);
     gap_table = gap_table.add_row(TableRow::new(vec![
@@ -148,7 +180,7 @@ pub fn generate_report(
     ]));
 
     for (id, name, is_comp) in standards {
-        let status = if is_comp { "COMPLIANT" } else { "GAP DETECTED" };
+        let status = if is_comp { "✅ COMPLIANT" } else { "❌ GAP DETECTED" };
         gap_table = gap_table.add_row(TableRow::new(vec![
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(format!("{}: {}", id, name)))),
             TableCell::new().add_paragraph(Paragraph::new().add_run(Run::new().add_text(status))),
@@ -169,7 +201,7 @@ pub fn generate_report(
         app_handle,
         client_id,
         "Report Generation".to_string(),
-        format!("Official CSRD Document generated: {}", file_name)
+        format!("Audit-Proof Word Report generated: {}", file_name)
     );
 
     Ok(path.to_string_lossy().to_string())

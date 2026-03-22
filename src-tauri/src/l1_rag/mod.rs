@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use std::path::PathBuf;
 use llama_cpp::{LlamaModel, LlamaParams, SessionParams, standard_sampler::StandardSampler};
 use crate::l6_audit::get_db_connection;
+use rusqlite::Connection;
 
 mod esrs_data;
 
@@ -30,7 +31,6 @@ pub struct EsrsJsonRecord {
 pub fn load_esrs_from_json(app_handle: &AppHandle) -> Result<(), String> {
     let conn = get_db_connection(app_handle).map_err(|e| e.to_string())?;
 
-    // Fix: NEVER use current_dir() in production. Use resource_dir() or skip.
     let esrs_path = match app_handle.path().resource_dir() {
         Ok(p) => {
             let mut path: PathBuf = p;
@@ -76,17 +76,41 @@ pub struct GemmaEngine {
 }
 
 pub fn init_gemma(model_path: &str) -> Result<GemmaEngine, String> {
+    // Memory Efficiency: llama_cpp handles GGUF. We use default params for i3/4GB compatibility.
     let model = LlamaModel::load_from_file(model_path, LlamaParams::default())
         .map_err(|e| format!("Failed to load model: {:?}", e))?;
     Ok(GemmaEngine { model })
 }
 
-pub fn ask_gemma(engine: &GemmaEngine, question: &str, esrs_context: &str) -> Result<String, String> {
-    let system_prompt = "You are a Junior ESG Engineer specialized in ESRS and CSRD compliance. Always cite paragraph numbers like ESRS E1.47. Never hallucinate - only answer from provided context. Be concise and professional.";
+/// Summarizes esg_state totals for RAG context
+fn get_client_context(conn: &Connection, client_id: i32) -> String {
+    let gas = crate::state::get_esg_total(conn, client_id, "scope1_gas");
+    let fuel = crate::state::get_esg_total(conn, client_id, "scope1_fuel");
+    let ref_raw = crate::state::get_esg_total(conn, client_id, "scope1_refrigerant");
+    let electricity = crate::state::get_esg_total(conn, client_id, "scope2_electricity");
+    let scope3 = crate::state::get_esg_total(conn, client_id, "scope3_supplier");
+    let workforce = crate::state::get_esg_total(conn, client_id, "workforce");
+
+    // Convert to tCO2e for consistency in AI interpretation
+    let s1_gas_co2 = (gas * 2.04) / 1000.0;
+    let s1_fuel_co2 = (fuel * 2.68) / 1000.0;
+    let s1_ref_co2 = (ref_raw * 2088.0) / 1000.0;
+    let s2_co2 = (electricity * 0.276) / 1000.0;
+    let total_carbon = s1_gas_co2 + s1_fuel_co2 + s1_ref_co2 + s2_co2 + scope3;
+
+    format!(
+        "Client Context (Current SSOT):\n- Total Carbon Footprint: {:.2} tCO2e\n- Scope 1 (Direct): {:.2} tCO2e\n- Scope 2 (Energy): {:.2} tCO2e\n- Scope 3 (Value Chain): {:.2} tCO2e\n- Total Workforce: {:.0} employees\n",
+        total_carbon, (s1_gas_co2 + s1_fuel_co2 + s1_ref_co2), s2_co2, scope3, workforce
+    )
+}
+
+pub fn ask_gemma(engine: &GemmaEngine, question: &str, full_context: &str) -> Result<String, String> {
+    let system_prompt = "You are Targoo ESG Advisor. Answer only based on the provided ESRS knowledge and Client context. Be concise and German-auditor style. Cite specific ESRS codes (e.g., E1-1) when possible.";
     
+    // Gemma 2 Prompt Template
     let prompt = format!(
         "<start_of_turn>user\n{} \n\nContext:\n{}\n\nQuestion:\n{}<end_of_turn>\n<start_of_turn>model\n",
-        system_prompt, esrs_context, question
+        system_prompt, full_context, question
     );
 
     let mut session = engine.model.create_session(SessionParams::default())
@@ -102,16 +126,15 @@ pub fn ask_gemma(engine: &GemmaEngine, question: &str, esrs_context: &str) -> Re
     let mut response = String::new();
     for completion in completions {
         response.push_str(&completion);
-        if response.len() > 5000 { break; } // Safety limit
+        if response.len() > 5000 { break; } 
     }
 
-    Ok(response)
+    Ok(response.trim().to_string())
 }
 
 pub fn populate_esrs_database(app_handle: &AppHandle) -> Result<(), String> {
     let conn = get_db_connection(app_handle).map_err(|e| e.to_string())?;
     
-    // Check if already populated (using a simple count)
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM esrs_knowledge", [], |row| row.get(0)).unwrap_or(0);
     if count > 100 { 
         return Ok(());
@@ -134,7 +157,7 @@ pub fn get_search_results(app_handle: AppHandle, query: String) -> Result<Vec<Es
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
 
     let mut stmt = conn
-        .prepare("SELECT rowid, topic, standard_code, content, requirement_level, applicable_company_size FROM esrs_knowledge WHERE esrs_knowledge MATCH ? LIMIT 10")
+        .prepare("SELECT rowid, topic, standard_code, content, requirement_level, applicable_company_size FROM esrs_knowledge WHERE esrs_knowledge MATCH ? LIMIT 5")
         .map_err(|e| e.to_string())?;
 
     let results = stmt.query_map([query], |row| {
@@ -155,10 +178,7 @@ pub fn get_search_results(app_handle: AppHandle, query: String) -> Result<Vec<Es
 
 #[command]
 pub fn search_esrs(app_handle: AppHandle, query: String) -> Result<String, String> {
-    let results = match get_search_results(app_handle, query) {
-        Ok(res) => res,
-        Err(e) => return Err(e),
-    };
+    let results = get_search_results(app_handle, query)?;
     let search_result = SearchResult { results };
     serde_json::to_string(&search_result).map_err(|e| e.to_string())
 }
@@ -179,64 +199,28 @@ pub async fn analyze_imported_data(
 ) -> Result<AnalysisResult, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
-    // SSOT Data Context: Query the esg_state for the current client_id
-    let gas_raw = crate::state::get_esg_total(&conn, client_id, "scope1_gas");
-    let fuel_raw = crate::state::get_esg_total(&conn, client_id, "scope1_fuel");
-    let ref_raw = crate::state::get_esg_total(&conn, client_id, "scope1_refrigerant");
-    let elec_raw = crate::state::get_esg_total(&conn, client_id, "scope2_electricity");
-    let scope3 = crate::state::get_esg_total(&conn, client_id, "scope3_supplier");
-    let workforce = crate::state::get_esg_total(&conn, client_id, "workforce");
-    let training_cost = crate::state::get_esg_total(&conn, client_id, "training_cost");
-
-    // Carbon Footprint calculation using Emission Factors (tCO2e)
-    let gas_co2 = (gas_raw * 2.04) / 1000.0;
-    let fuel_co2 = (fuel_raw * 2.68) / 1000.0;
-    let ref_co2 = (ref_raw * 2088.0) / 1000.0;
-    let scope2_co2 = (elec_raw * 0.276) / 1000.0;
-    
-    let total_carbon = gas_co2 + fuel_co2 + ref_co2 + scope2_co2 + scope3;
+    let client_context = get_client_context(&conn, client_id);
 
     let mut compliant = Vec::new();
     let mut missing = Vec::new();
     let warnings = Vec::new();
-    let mut insights = Vec::new();
 
-    // ESRS Compliance Checks
-    if total_carbon > 0.0 {
-        compliant.push("Scope 1 & 2 emissions data found - ESRS E1.44 compliant".to_string());
-    } else {
-        missing.push("Missing mandatory greenhouse gas emissions data (ESRS E1.44)".to_string());
-    }
+    // Logic-based checks for the UI
+    let workforce = crate::state::get_esg_total(&conn, client_id, "workforce");
+    let total_carbon = crate::state::get_esg_total(&conn, client_id, "scope1_gas") + crate::state::get_esg_total(&conn, client_id, "scope2_electricity");
 
-    if workforce > 0.0 {
-        compliant.push("Workforce headcount data found - ESRS S1.1 compliant".to_string());
-    } else {
-        missing.push("Missing mandatory workforce data (ESRS S1.1)".to_string());
-    }
+    if total_carbon > 0.0 { compliant.push("ESRS E1 Greenhouse Gas data detected.".into()); }
+    else { missing.push("ESRS E1: Mandatory Carbon data missing.".into()); }
 
-    // Rule-Based Insights
-    if total_carbon > 0.0 && gas_co2 > (total_carbon * 0.5) {
-        insights.push("High dependency on fossil heating detected. (Ref: ESRS E1.44)".to_string());
-    }
-
-    if workforce > 100.0 && training_cost == 0.0 {
-        insights.push("Missing mandatory S1 Development data for large workforce. (Ref: ESRS S1.13)".to_string());
-    }
-
-    let summary_context = format!(
-        "ESG Profile for Client {}:\n- Total Carbon: {:.2} tCO2e\n- Scope 1 Gas: {:.2} tCO2e\n- Workforce: {:.0}\n- Training Cost: {:.2} EUR\n\nRule-based Insights:\n{}",
-        client_id, total_carbon, gas_co2, workforce, training_cost, insights.join("\n")
-    );
+    if workforce > 0.0 { compliant.push("ESRS S1 Workforce headcount detected.".into()); }
+    else { missing.push("ESRS S1: Mandatory Workforce data missing.".into()); }
 
     let engine_lock = engine_state.lock().map_err(|e| e.to_string())?;
     let proactive_message = if let Some(engine) = engine_lock.as_ref() {
-        let question = "Analyze these ESG metrics and insights. Provide a professional executive summary citing relevant ESRS paragraphs.";
-        ask_gemma(engine, question, &summary_context)?
+        let question = "Analyze this client's ESG standing and provide a 2-sentence auditor summary.";
+        ask_gemma(engine, question, &client_context)?
     } else {
-        format!(
-            "**Rule-based Advisory Notice**\n\n{}\n\n*Note: AI Engine is offline. These results are generated via rule-based heuristics.*",
-            summary_context
-        )
+        "AI Engine offline. Basic compliance check complete.".to_string()
     };
 
     Ok(AnalysisResult {
@@ -254,65 +238,39 @@ pub async fn ask_ai(
     client_id: i32,
     engine_state: State<'_, Mutex<Option<GemmaEngine>>>
 ) -> Result<String, String> {
+    // Step 1: Database Connections
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
-    let mut stmt = conn.prepare(
-        "SELECT category, SUM(COALESCE(normalized_value, value)), COALESCE(normalized_unit, unit) 
-         FROM esg_state 
-         WHERE client_id = ?1 
-         GROUP BY category"
-    ).map_err(|e| e.to_string())?;
-    
-    let imported_rows = stmt.query_map([client_id], |row| {
-        Ok(format!("{}: {} {}", 
-            row.get::<_, String>(0)?, 
-            row.get::<_, f64>(1)?, 
-            row.get::<_, String>(2)?))
-    }).map_err(|e| e.to_string())?;
-    
-    let mut imported_context = String::new();
-    for row in imported_rows {
-        imported_context.push_str(&row.map_err(|e| e.to_string())?);
-        imported_context.push('\n');
-    }
+    // Step 2: Get esg_state summary for the client (SSOT Context)
+    let client_context = get_client_context(&conn, client_id);
 
-    if imported_context.is_empty() {
-        imported_context = "No client data found in esg_state.".to_string();
-    }
-
-    let results = match get_search_results(app_handle, question.clone()) {
-        Ok(res) => res,
-        Err(e) => return Err(e),
-    };
-    
-    let esrs_context = if results.is_empty() {
-        "No specific ESRS paragraph found.".to_string()
+    // Step 3: FTS5 search in esrs_knowledge for relevant paragraphs
+    let esrs_results = get_search_results(app_handle, question.clone())?;
+    let esrs_context = if esrs_results.is_empty() {
+        "No specific ESRS regulatory text found for this query.".to_string()
     } else {
-        results.iter()
+        esrs_results.iter()
             .map(|doc| format!("[{}] {}", doc.standard_code, doc.content))
             .collect::<Vec<_>>()
             .join("\n\n")
     };
 
     let full_context = format!(
-        "Imported Company Data:\n{}\n\nRelevant ESRS Knowledge:\n{}",
-        imported_context, esrs_context
+        "{}\n\nRelevant Regulatory Requirements (ESRS):\n{}",
+        client_context, esrs_context
     );
 
+    // Step 4: AI Inference
     let engine_lock = engine_state.lock().map_err(|e| e.to_string())?;
     
-    if engine_lock.as_ref().is_none() {
+    let ai_response = if let Some(engine) = engine_lock.as_ref() {
+        ask_gemma(engine, &question, &full_context)?
+    } else {
         return Ok(format!(
-            "**AI Engine Offline.**\n\n*Rule-based ESRS Results:*\n{}\n\n*Current Client Data:*\n{}",
-            esrs_context, imported_context
+            "**AI Engine Offline.**\n\nI can still provide the context found:\n\n{}\n\n{}",
+            client_context, esrs_context
         ));
-    }
+    };
 
-    let engine = engine_lock.as_ref().unwrap();
-    let ai_response = ask_gemma(engine, &question, &full_context)?;
-
-    let mut final_response = ai_response;
-    final_response.push_str("\n\n---\n*Note: This response is generated by Gemma 3 ESG Engine using local RAG and esg_state context.*");
-
-    Ok(final_response)
+    Ok(format!("{}\n\n---\n*Certified response by Targoo Local Intelligence Bridge.*", ai_response))
 }

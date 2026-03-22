@@ -137,9 +137,22 @@ export default function App() {
       setImportResults(result);
       setSyncTime('Just now');
       await loadAllData();
-      const analysis = await invoke('analyze_imported_data', { clientId: selectedClientId });
-      const proactiveMsg = `📊 Auto-Analysis for ${filename.split(/[\\/]/).pop()}\n\n${analysis.proactive_message || 'No insights detected.'}`;
-      setChatHistory(prev => [...prev, { role: 'ai', text: proactiveMsg }]);
+      
+      // AI Insight Trigger: Automatically ask Gemma to analyze the new data
+      setChatHistory(prev => [...prev, { 
+        role: 'ai', 
+        text: `📊 Data from ${filename.split(/[\\/]/).pop()} ingested. Asking Gemma for initial compliance check...` 
+      }]);
+      
+      try {
+        const insight = await invoke('ask_ai', { 
+          question: `Analyze the compliance of the just imported data for ${activeClient.name} against ESRS E1.`, 
+          clientId: selectedClientId 
+        });
+        setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: insight }]);
+      } catch (aiErr) {
+        console.error('Initial AI insight failed:', aiErr);
+      }
     } catch (err) {
       setChatHistory(prev => [...prev, { role: 'ai', text: `❌ Error: ${err}` }]);
     } finally {
@@ -152,12 +165,12 @@ export default function App() {
     if (!chatInput.trim()) return;
     const question = chatInput;
     setChatInput('');
-    setChatHistory(prev => [...prev, { role: 'user', text: question }, { role: 'ai', text: 'Thinking...' }]);
+    setChatHistory(prev => [...prev, { role: 'user', text: question }, { role: 'ai', text: 'Gemma is analyzing your local data...' }]);
     try {
       const response = await invoke('ask_ai', { question, clientId: selectedClientId });
       setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: response }]);
     } catch (err) {
-      setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: 'AI Engine Offline.' }]);
+      setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: `AI Engine Offline: ${err}` }]);
     }
   };
 
@@ -283,7 +296,19 @@ export default function App() {
           <div style={{ padding: '18px', borderBottom: `1px solid ${S.border}` }}><div style={{ fontSize: '14px', fontWeight: '700' }}>CSRD Compass AI</div></div>
           <div style={{ flex: 1, padding: '14px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {chatHistory.map((msg, i) => (
-              <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', padding: '10px', borderRadius: '12px', fontSize: '12px', background: msg.role === 'user' ? S.accent : S.bg, color: msg.role === 'user' ? 'white' : S.text, border: msg.role === 'ai' ? `1px solid ${S.border}` : 'none', whiteSpace: 'pre-wrap' }}>
+              <div key={i} style={{ 
+                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', 
+                maxWidth: '90%', 
+                padding: '10px', 
+                borderRadius: '12px', 
+                fontSize: '12px', 
+                background: msg.role === 'user' ? S.accent : S.bg, 
+                color: msg.role === 'user' ? 'white' : S.text, 
+                border: msg.role === 'ai' ? `1px solid ${S.border}` : 'none', 
+                whiteSpace: 'pre-wrap',
+                fontFamily: msg.role === 'ai' ? '"SF Mono", "Roboto Mono", monospace' : 'inherit'
+              }}>
+                {msg.text.includes('Gemma is analyzing') && <Loader2 className="spin" size={14} style={{ animation: 'rotate 1s linear infinite', marginRight: '8px', verticalAlign: 'middle' }} />}
                 {msg.text}
               </div>
             ))}
@@ -830,10 +855,10 @@ function ReportsView({ activeClient, ledgerData }) {
   const [lang, setLang] = useState('en');
 
   const steps = [
-    "Fetching SSOT data...",
-    "Normalizing physics...",
-    "Assembling Word structures...",
-    "Finalizing document on Desktop..."
+    "Compiling ledger...",
+    "Validating ESRS mappings...",
+    "Injecting Word structures...",
+    "Ready on Desktop."
   ];
 
   const handleGenerate = async () => {
@@ -841,9 +866,9 @@ function ReportsView({ activeClient, ledgerData }) {
     setStep(0);
     setLastReportPath(null);
 
-    // Simulate progress for UI delight
+    // Simulated progress for UI delight
     const timer = setInterval(() => {
-      setStep(s => (s < 3 ? s + 1 : s));
+      setStep(s => (s < 2 ? s + 1 : s));
     }, 800);
 
     try {
@@ -862,7 +887,6 @@ function ReportsView({ activeClient, ledgerData }) {
   const openFolder = async () => {
     if (!lastReportPath) return;
     try {
-      // Use the opener plugin if available via invoke or global
       await invoke('plugin:opener|open_path', { path: lastReportPath, component: 'folder' });
     } catch (e) {
       console.error("Could not open folder automatically.");
@@ -872,11 +896,13 @@ function ReportsView({ activeClient, ledgerData }) {
   const hasData = (ledgerData || []).length > 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '40px', padding: '60px 20px', animation: 'fadeIn 0.4s ease' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '32px', padding: '60px 20px', animation: 'fadeIn 0.3s ease' }}>
       <style>{`
         .segment-btn { padding: 6px 16px; border-radius: 7px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .progress-bar { height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden; margin-top: 12px; }
-        .progress-fill { height: 100%; background: #007aff; transition: width 0.5s ease; }
+        .progress-indicator { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; width: 100%; }
+        .progress-step { display: flex; alignItems: center; gap: 10px; font-size: 13px; color: ${S.muted}; transition: all 0.3s; }
+        .progress-step.active { color: ${S.accent}; font-weight: 600; }
+        .progress-step.done { color: ${S.green}; }
       `}</style>
 
       {/* Language Selector */}
@@ -885,42 +911,38 @@ function ReportsView({ activeClient, ledgerData }) {
         <button onClick={() => setLang('de')} className="segment-btn" style={{ background: lang === 'de' ? 'white' : 'transparent', color: lang === 'de' ? S.text : S.muted, boxShadow: lang === 'de' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}>Deutsch</button>
       </div>
 
-      <div style={{ background: '#fff', padding: '48px', borderRadius: '32px', border: `1px solid ${S.border}`, boxShadow: S.shadowMd, width: '100%', maxWidth: '520px', textAlign: 'center' }}>
-        <div style={{ width: '90px', height: '90px', background: S.accentBg, borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: S.accent }}>
-          <FileText size={44} />
+      <div style={{ background: '#fff', padding: '48px', borderRadius: '24px', border: `1px solid ${S.border}`, boxShadow: S.shadowMd, width: '100%', maxWidth: '480px', textAlign: 'center' }}>
+        <div style={{ width: '80px', height: '80px', background: S.accentBg, borderRadius: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: S.accent }}>
+          <FileText size={40} />
         </div>
         
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: hasData ? S.green + '15' : S.muted + '15', padding: '4px 12px', borderRadius: '20px', marginBottom: '16px' }}>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: hasData ? S.green : S.muted }} />
-          <span style={{ fontSize: '11px', fontWeight: '800', color: hasData ? S.green : S.muted }}>{hasData ? 'READY TO GENERATE' : 'DATA MISSING'}</span>
+        <h2 style={{ fontSize: '24px', fontWeight: '800', color: S.text, letterSpacing: '-0.02em', marginBottom: '8px' }}>Report Generation Center</h2>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: S.bg, padding: '4px 12px', borderRadius: '20px', marginBottom: '24px' }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: S.accent }} />
+          <span style={{ fontSize: '11px', fontWeight: '800', color: S.muted }}>WORD DOCUMENT (.DOCX)</span>
         </div>
 
-        <h2 style={{ fontSize: '26px', fontWeight: '800', color: S.text, letterSpacing: '-0.03em', marginBottom: '8px' }}>Official CSRD Disclosure Report 2024</h2>
         <p style={{ fontSize: '14px', color: S.muted, marginBottom: '32px', lineHeight: '1.5' }}>
-          This will compile your Materiality Matrix, Emissions Ledger, and Compliance Gap Analysis into a professional audit-proof document.
+          Build a fully compliant CSRD report for <b>{activeClient.name}</b> including real SSOT data and audit-proof lineage.
         </p>
 
-        {isGenerating ? (
-          <div style={{ textAlign: 'left', background: S.bg, padding: '20px', borderRadius: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Loader2 className="spin" size={16} color={S.accent} style={{ animation: 'rotate 1s linear infinite' }} />
-              <span style={{ fontSize: '13px', fontWeight: '600' }}>{steps[step]}</span>
-            </div>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${((step + 1) / 4) * 100}%` }} />
-            </div>
+        {isGenerating || (step > 0 && step < 3) ? (
+          <div className="progress-indicator">
+            {steps.map((s, i) => (
+              <div key={i} className={`progress-step ${step === i ? 'active' : step > i ? 'done' : ''}`}>
+                {step > i ? <CheckCircle size={14} /> : step === i ? <Loader2 size={14} className="spin" style={{ animation: 'rotate 1s linear infinite' }} /> : <div style={{ width: 14 }} />}
+                {s}
+              </div>
+            ))}
           </div>
         ) : lastReportPath ? (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            <div style={{ background: S.green + '10', padding: '20px', borderRadius: '16px', border: `1px solid ${S.green}20`, marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', justifyContent: 'center' }}>
-                <CheckCircle size={20} color={S.green} />
-                <span style={{ fontSize: '15px', fontWeight: '700', color: S.green }}>Report Successfully Built</span>
-              </div>
-              <div style={{ fontSize: '12px', color: S.muted, wordBreak: 'break-all' }}>{lastReportPath.split(/[\\/]/).pop()}</div>
+            <div style={{ background: S.green + '10', padding: '16px', borderRadius: '12px', border: `1px solid ${S.green}30`, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+              <CheckCircle size={20} color={S.green} />
+              <span style={{ fontSize: '14px', fontWeight: '700', color: S.green }}>Report Saved to Desktop</span>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={handleGenerate} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: `1px solid ${S.border}`, background: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>Generate Again</button>
+              <button onClick={handleGenerate} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: `1px solid ${S.border}`, background: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>Re-build</button>
               <button onClick={openFolder} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: S.accent, color: 'white', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><UploadCloud size={16} /> Open Folder</button>
             </div>
           </div>
@@ -943,19 +965,16 @@ function ReportsView({ activeClient, ledgerData }) {
               justifyContent: 'center',
               gap: '10px',
               transition: 'all 0.2s',
-              boxShadow: hasData ? '0 8px 20px rgba(0,122,255,0.25)' : 'none'
+              boxShadow: hasData ? '0 8px 24px rgba(0,122,255,0.25)' : 'none'
             }}
-            onMouseEnter={e => hasData && (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseLeave={e => hasData && (e.currentTarget.style.transform = 'translateY(0)')}
           >
-            <Download size={20} /> Generate Word Document (.docx)
+            <Download size={20} /> Build Disclosure Report
           </button>
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: S.muted, fontSize: '12px' }}>
-        <Shield size={14} />
-        <span>Targoo Official Audit-Proof Documentation Protocol v1.2</span>
+      <div style={{ fontSize: '12px', color: S.muted, textAlign: 'center', maxWidth: '400px' }}>
+        <b>Audit Note:</b> Generates a Microsoft Word file to allow final expert narrative adjustments while maintaining data integrity from esg_state.
       </div>
     </div>
   );
