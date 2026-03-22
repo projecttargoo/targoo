@@ -99,35 +99,40 @@ setCurrentTopic(e.payload.current_topic);
 }
 }, []);
 
+// Refresh dashboard data when selectedClientId changes
 useEffect(() => {
   const loadStats = async () => {
     try {
-      const stats = await invoke('get_dashboard_stats');
+      const stats = await invoke('get_dashboard_stats', { clientId: selectedClientId });
       setDashboardStats(stats);
     } catch (err) {
-      console.log('Using demo data:', err);
+      console.error('Failed to load dashboard stats:', err);
+      setDashboardStats(null);
     }
     try {
-      const trend = await invoke('get_co2_trend');
+      const trend = await invoke('get_co2_trend', { clientId: selectedClientId });
       const trendData = JSON.parse(trend);
-      if (trendData.length > 0) setCo2Trend(trendData);
-    } catch(e) {}
+      setCo2Trend(trendData.length > 0 ? trendData : []);
+    } catch(e) { setCo2Trend([]); }
     try {
-      const compliance = await invoke('get_esrs_compliance');
+      const compliance = await invoke('get_esrs_compliance', { clientId: selectedClientId });
       setEsrsCompliance(JSON.parse(compliance));
-    } catch(e) {}
+    } catch(e) { setEsrsCompliance([]); }
   };
   loadStats();
-  
+}, [selectedClientId]);
+
+// Initial load of clients
+useEffect(() => {
   const loadClients = async () => {
     try {
-      const clientList = await invoke('get_clients');
+      const clientList = await invoke('get_enterprise_clients');
       if (clientList && clientList.length > 0) {
         setClients(clientList.map(c => ({
           id: c.id,
           name: c.name,
-          score: 74,
-          status: 'partial'
+          score: c.score || 0,
+          status: c.score >= 75 ? 'ready' : (c.score > 0 ? 'partial' : 'risk')
         })));
       }
     } catch (err) {
@@ -169,7 +174,8 @@ setChatHistory(prev => [...prev, { role: 'user', text: `Uploading ${filename}...
 try {
   const result = await invoke('import_files', { 
     filePaths: [filename],
-    fileContent: content
+    fileContent: content,
+    clientId: selectedClientId
   });
   // result is already parsed by Tauri bridge
   setImportResults({
@@ -189,20 +195,20 @@ try {
   });
   setDataImported(true);
 
-  // Refresh dashboard stats after successful import
-  const stats = await invoke('get_dashboard_stats');
-  console.log("New Dashboard Stats:", stats);
+  // Refresh all dashboard data after successful import for the current client
+  const stats = await invoke('get_dashboard_stats', { clientId: selectedClientId });
   setDashboardStats(stats);
   
   try {
-    const trend = await invoke('get_co2_trend');
+    const trend = await invoke('get_co2_trend', { clientId: selectedClientId });
     const trendData = JSON.parse(trend);
-    if (trendData.length > 0) setCo2Trend(trendData);
-  } catch(e) {}
+    setCo2Trend(trendData.length > 0 ? trendData : []);
+  } catch(e) { setCo2Trend([]); }
+  
   try {
-    const compliance = await invoke('get_esrs_compliance');
+    const compliance = await invoke('get_esrs_compliance', { clientId: selectedClientId });
     setEsrsCompliance(JSON.parse(compliance));
-  } catch(e) {}
+  } catch(e) { setEsrsCompliance([]); }
 
   // Automatically call analyze_imported_data after successful import
   try {
@@ -424,7 +430,7 @@ return (
         <div style={{ fontSize: '10px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Quick Actions</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
           {[
-            { label: '📄 Generate CSRD Report', action: 'Generate the full CSRD compliance report for Hans GmbH' },
+            { label: '📄 Generate CSRD Report', action: 'Generate the full CSRD compliance report' },
             { label: '🔍 Run Gap Analysis', action: 'Run a complete ESRS gap analysis' },
             { label: '📦 Request Supplier Data', action: 'Generate Scope 3 supplier questionnaire' },
             { label: '💡 Explain ESG Score', action: 'Explain the current ESG score drivers and how to improve' },
@@ -432,8 +438,8 @@ return (
           ].map((qa, i) => (
             <button key={i} className="action-btn" onClick={async () => { 
               if (qa.action === 'debug') {
-                const result = await invoke('debug_esg_state');
-                setChatHistory(prev => [...prev, { role: 'ai', text: 'ESG State: ' + result }]);
+                const result = await invoke('debug_esg_state', { clientId: selectedClientId });
+                setChatHistory(prev => [...prev, { role: 'ai', text: `ESG State (Client ${selectedClientId}): ` + result }]);
               } else {
                 setChatInput(qa.action); 
               }
@@ -501,10 +507,10 @@ default: return <PlaceholderView tabId={activeTab} />;
 // ── DASHBOARD ──
 function DashboardView({ client, dashboardStats, co2Trend, esrsCompliance }) {
 const kpis = [
-  { label: 'ESG Score', value: dashboardStats?.esg_score ?? 0, trend: '+6', up: true, risk: 'Medium', next: 'Reduce Scope 2', color: '#007aff', unit: '' },
-  { label: 'Carbon tCO2e', value: dashboardStats?.carbon_footprint ? dashboardStats.carbon_footprint : 0, trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
-  { label: 'Energy MWh', value: dashboardStats?.energy_mwh ? dashboardStats.energy_mwh : 0, trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
-  { label: 'Workforce', value: dashboardStats?.workforce ?? 0, trend: '0%', up: null, risk: 'Low', next: 'Update HR data', color: '#ff9500', unit: '' }
+  { label: 'ESG Score', value: dashboardStats?.esg_score ?? 0, trend: '', up: true, risk: 'Medium', next: 'Add ESRS data', color: '#007aff', unit: '' },
+  { label: 'Carbon tCO2e', value: dashboardStats?.carbon_footprint ?? 0, trend: '', up: false, risk: 'High', next: 'Upload metrics', color: '#ff3b30', unit: 't' },
+  { label: 'Energy MWh', value: dashboardStats?.energy_mwh ?? 0, trend: '', up: true, risk: 'Low', next: 'Audit utilities', color: '#34c759', unit: '' },
+  { label: 'Workforce', value: dashboardStats?.workforce ?? 0, trend: '', up: null, risk: 'Low', next: 'Import HR data', color: '#ff9500', unit: '' }
 ];
 
 return (
@@ -546,7 +552,7 @@ style={{ background: hov ? k.color + '0a' : '#fff', borderRadius: '14px', paddin
 <div style={{ fontSize: '10px', fontWeight: '600', color: hov ? k.color : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px', transition: 'color 0.2s' }}>{k.label}</div>
 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
 <div style={{ fontSize: '36px', fontWeight: '700', color: hov ? k.color : '#111827', letterSpacing: '-2px', lineHeight: 1, transition: 'color 0.25s' }}>{displayValue}<span style={{ fontSize: '14px', fontWeight: '500' }}>{k.unit}</span></div>
-<span style={{ fontSize: '10px', fontWeight: '700', padding: '3px 7px', borderRadius: '20px', color: k.up === true ? '#34c759' : k.up === false ? '#ff3b30' : '#9ca3af', background: k.up === true ? 'rgba(52,199,89,0.1)' : k.up === false ? 'rgba(255,59,48,0.1)' : 'rgba(156,163,175,0.1)' }}>{k.trend}</span>
+<span style={{ fontSize: '10px', fontWeight: '700', padding: '3px 7px', borderRadius: '20px', color: k.up === true ? '#34c759' : k.up === false ? '#ff3b30' : '#9ca3af', background: k.up === true ? 'rgba(52,199,89,0.1)' : k.up === false ? 'rgba(255,59,48,0.1)' : 'rgba(156,163,175,0.1)' }}>{k.trend || '0%'}</span>
 </div>
 <div style={{ fontSize: '10px', color: hov ? k.color + 'aa' : '#9ca3af', transition: 'all 0.2s' }}>
 {hov ? `→ ${k.next}` : `Risk: ${k.risk}`}
@@ -564,9 +570,9 @@ function CO2Chart({ co2Trend }) {
         v: d.value.toFixed(0) + 't'
       }))
     : [
-        {x:20,y:100,l:'Jan',v:'248t'},{x:90,y:72,l:'Feb',v:'231t'},
-        {x:160,y:85,l:'Mar',v:'219t'},{x:230,y:55,l:'Apr',v:'205t'},
-        {x:300,y:38,l:'May',v:'198t'},{x:370,y:22,l:'Jun',v:'192t'}
+        {x:20,y:100,l:'Jan',v:'0t'},{x:90,y:72,l:'Feb',v:'0t'},
+        {x:160,y:85,l:'Mar',v:'0t'},{x:230,y:55,l:'Apr',v:'0t'},
+        {x:300,y:38,l:'May',v:'0t'},{x:370,y:22,l:'Jun',v:'0t'}
       ];
 const [hov, setHov] = useState(null);
 const smooth = 'M20,100 C55,86 90,72 90,72 C125,79 160,85 160,85 C195,70 230,55 230,55 C265,46 300,38 300,38 C335,30 370,22 370,22';
@@ -575,7 +581,7 @@ const area = smooth + ' L370,130 L20,130 Z';
 return (
 <div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
 <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '2px' }}>CO₂ Emission Trend</div>
-<div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '16px' }}>Jan–Jun 2024 · tCO2e</div>
+<div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '16px' }}>{co2Trend.length > 0 ? 'Monthly Breakdown' : 'No Data Available'} · tCO2e</div>
 <svg width="100%" height="140" viewBox="0 0 400 150" style={{ overflow: 'visible' }}>
 <defs>
 <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
@@ -665,12 +671,12 @@ return (
 <svg width="80" height="80" viewBox="0 0 80 80">
 <circle cx="40" cy="40" r="32" stroke="#f3f4f6" strokeWidth="7" fill="none" />
 <circle cx="40" cy="40" r="32" stroke="#34c759" strokeWidth="7" fill="none"
-strokeDasharray="201" strokeDashoffset="64" strokeLinecap="round" transform="rotate(-90 40 40)" />
-<text x="40" y="44" textAnchor="middle" fill="#111827" fontSize="14" fontWeight="700" fontFamily="-apple-system,sans-serif">68%</text>
+strokeDasharray="201" strokeDashoffset="201" strokeLinecap="round" transform="rotate(-90 40 40)" />
+<text x="40" y="44" textAnchor="middle" fill="#111827" fontSize="14" fontWeight="700" fontFamily="-apple-system,sans-serif">0%</text>
 </svg>
 <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-<div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#34c759', fontWeight: '600' }}>
-<CheckCircle size={14} /> Data Validated
+<div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: S.muted, fontWeight: '600' }}>
+<CheckCircle size={14} /> Data Pending
 </div>
 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#ff9500', fontWeight: '500' }}>
 <AlertTriangle size={14} /> ESRS E1-5 Pending
@@ -710,11 +716,11 @@ function ESRSComplianceTable({ esrsCompliance }) {
     sc: r.status === 'Complete' ? '#34c759' : r.status === 'Partial' ? '#ff9500' : '#ff3b30',
     sb: r.status === 'Complete' ? 'rgba(52,199,89,0.08)' : r.status === 'Partial' ? 'rgba(255,149,0,0.08)' : 'rgba(255,59,48,0.08)'
   })) : [
-    {id:'E1',name:'Climate Change',status:'Partial',sc:'#ff9500',sb:'rgba(255,149,0,0.08)'},
-    {id:'E2',name:'Pollution',status:'Complete',sc:'#34c759',sb:'rgba(52,199,89,0.08)'},
+    {id:'E1',name:'Climate Change',status:'Missing',sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'},
+    {id:'E2',name:'Pollution',status:'Missing',sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'},
     {id:'E3',name:'Water & Marine',status:'Missing',sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'},
-    {id:'S1',name:'Own Workforce',status:'Partial',sc:'#ff9500',sb:'rgba(255,149,0,0.08)'},
-    {id:'G1',name:'Business Conduct',status:'Complete',sc:'#34c759',sb:'rgba(52,199,89,0.08)'}
+    {id:'S1',name:'Own Workforce',status:'Missing',sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'},
+    {id:'G1',name:'Business Conduct',status:'Missing',sc:'#ff3b30',sb:'rgba(255,59,48,0.08)'}
   ];
 return (
 <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
@@ -848,7 +854,7 @@ const handleAddClient = async () => {
 useEffect(() => {
   const loadClients = async () => {
     try {
-      const list = await invoke('get_clients');
+      const list = await invoke('get_enterprise_clients');
       if (list?.length) setRealClients(list);
     } catch (err) {}
   };
@@ -858,13 +864,13 @@ useEffect(() => {
 const displayClients = realClients.length > 0 ? realClients.map(c => ({
   n: c.name,
   i: c.industry,
-  s: 74,
-  st: 'In Progress',
-  sc: '#ff9500'
+  s: c.score || 0,
+  st: c.score >= 75 ? 'Audit Ready' : (c.score > 0 ? 'In Progress' : 'Action Required'),
+  sc: c.score >= 75 ? S.green : (c.score > 0 ? S.amber : S.red)
 })) : [
-  { n: 'Hans GmbH Demo', i: 'Automotive', s: 74, st: 'In Progress', sc: '#ff9500' },
-  { n: 'Müller & Co', i: 'Chemicals', s: 62, st: 'Action Required', sc: '#ff3b30' },
-  { n: 'Schweizer AG', i: 'Electronics', s: 81, st: 'Audit Ready', sc: '#34c759' }
+  { n: 'Hans GmbH Demo', i: 'Automotive', s: 0, st: 'Action Required', sc: '#ff3b30' },
+  { n: 'Müller & Co', i: 'Chemicals', s: 0, st: 'Action Required', sc: '#ff3b30' },
+  { n: 'Schweizer AG', i: 'Electronics', s: 0, st: 'Action Required', sc: '#ff3b30' }
 ];
 
 return (
@@ -977,9 +983,9 @@ return (
 <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', animation: 'fadeIn 0.3s ease' }}>
 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
 {[
-{ l: 'Scope 1', v: '48.2t', d: 'Direct emissions', c: '#34c759' },
-{ l: 'Scope 2', v: '39.1t', d: 'Purchased energy', c: '#007aff' },
-{ l: 'Scope 3', v: '105.2t', d: 'Value chain', c: '#af52de' }
+{ l: 'Scope 1', v: '0.0t', d: 'Direct emissions', c: '#34c759' },
+{ l: 'Scope 2', v: '0.0t', d: 'Purchased energy', c: '#007aff' },
+{ l: 'Scope 3', v: '0.0t', d: 'Value chain', c: '#af52de' }
 ].map(s => (
 <div key={s.l} style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
 <div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>{s.l}</div>
@@ -991,8 +997,8 @@ return (
 <div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb' }}>
 <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '18px' }}>Emissions Breakdown</div>
 {[
-{ l: 'Energy', v: 65, c: '#34c759' }, { l: 'Transport', v: 45, c: '#007aff' },
-{ l: 'Supply Chain', v: 80, c: '#af52de' }, { l: 'Waste', v: 20, c: '#ff9500' }
+{ l: 'Energy', v: 0, c: '#34c759' }, { l: 'Transport', v: 0, c: '#007aff' },
+{ l: 'Supply Chain', v: 0, c: '#af52de' }, { l: 'Waste', v: 0, c: '#ff9500' }
 ].map(b => (
 <div key={b.l} style={{ marginBottom: '14px' }}>
 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
@@ -1025,13 +1031,13 @@ return (
 </thead>
 <tbody>
 {[
-{ id: 'E1', t: 'Climate Change', s: 'Partial', g: true, sc: '#ff9500', sb: 'rgba(255,149,0,0.08)' },
-{ id: 'E2', t: 'Pollution', s: 'Complete', g: false, sc: '#34c759', sb: 'rgba(52,199,89,0.08)' },
+{ id: 'E1', t: 'Climate Change', s: 'Missing', g: true, sc: '#ff3b30', sb: 'rgba(255,59,48,0.08)' },
+{ id: 'E2', t: 'Pollution', s: 'Missing', g: true, sc: '#ff3b30', sb: 'rgba(255,59,48,0.08)' },
 { id: 'E3', t: 'Water & Marine', s: 'Missing', g: true, sc: '#ff3b30', sb: 'rgba(255,59,48,0.08)' },
 { id: 'E4', t: 'Biodiversity', s: 'Missing', g: true, sc: '#ff3b30', sb: 'rgba(255,59,48,0.08)' },
-{ id: 'S1', t: 'Own Workforce', s: 'Partial', g: true, sc: '#ff9500', sb: 'rgba(255,149,0,0.08)' },
+{ id: 'S1', t: 'Own Workforce', s: 'Missing', g: true, sc: '#ff3b30', sb: 'rgba(255,59,48,0.08)' },
 { id: 'S2', t: 'Workers in Value Chain', s: 'Missing', g: true, sc: '#ff3b30', sb: 'rgba(255,59,48,0.08)' },
-{ id: 'G1', t: 'Business Conduct', s: 'Complete', g: false, sc: '#34c759', sb: 'rgba(52,199,89,0.08)' }
+{ id: 'G1', t: 'Business Conduct', s: 'Missing', g: true, sc: '#ff3b30', sb: 'rgba(255,59,48,0.08)' }
 ].map((r, i) => (
 <tr key={i} className="row-hover" style={{ borderBottom: '1px solid #f3f4f6', transition: 'background 0.15s' }}>
 <td style={{ padding: '12px 20px', fontSize: '13px', fontWeight: '700', color: '#111827' }}>{r.id}</td>
