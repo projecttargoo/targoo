@@ -246,12 +246,15 @@ return (
     onChange={async (e) => {
       const files = Array.from(e.target.files);
       for (const file of files) {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const content = Array.from(new Uint8Array(event.target.result));
-          await handleFileUpload(file.name, content);
-        };
-        reader.readAsArrayBuffer(file);
+        await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            const content = Array.from(new Uint8Array(event.target.result));
+            await handleFileUpload(file.name, content);
+            resolve();
+          };
+          reader.readAsArrayBuffer(file);
+        });
       }
       e.target.value = ''; // Reset input
     }}
