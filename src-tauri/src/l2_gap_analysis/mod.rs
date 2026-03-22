@@ -41,6 +41,7 @@ pub fn gap_analysis(
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     let client_id = input.client_id;
 
+    // Mandatory ESRS Topics for deep evidence check
     let esrs_topics = vec![
         ("E1", "Climate change"),
         ("E2", "Pollution"),
@@ -48,28 +49,30 @@ pub fn gap_analysis(
         ("E4", "Biodiversity and ecosystems"),
         ("E5", "Resource use and circular economy"),
         ("S1", "Own workforce"),
-        ("S2", "Workers in the value chain"),
-        ("S3", "Affected communities"),
-        ("S4", "Consumers and end-users"),
         ("G1", "Business conduct"),
     ];
 
     let mut results = HashMap::new();
     let total = esrs_topics.len();
 
-    // Data pre-fetch for efficiency
+    // Data pre-fetch for SSOT evidence check
     let gas = crate::state::get_esg_total(&conn, client_id, "scope1_gas");
     let fuel = crate::state::get_esg_total(&conn, client_id, "scope1_fuel");
     let refrigerant = crate::state::get_esg_total(&conn, client_id, "scope1_refrigerant");
     let electricity = crate::state::get_esg_total(&conn, client_id, "scope2_electricity");
+    let scope3 = crate::state::get_esg_total(&conn, client_id, "scope3_supplier");
+    
+    let carbon_footprint = (gas * 2.04 + fuel * 2.68 + refrigerant * 2088.0 + electricity * 0.276) / 1000.0 + scope3;
+    
     let water = crate::state::get_esg_total(&conn, client_id, "water");
     let workforce = crate::state::get_esg_total(&conn, client_id, "workforce");
     let training = crate::state::get_esg_total(&conn, client_id, "training_cost");
+    let diversity = crate::state::get_esg_total(&conn, client_id, "diversity_ratio");
     let waste = crate::state::get_esg_total(&conn, client_id, "waste");
 
-    // Check for G1 keywords in ledger
-    let has_g1: bool = conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM esg_state WHERE client_id = ?1 AND (source LIKE '%compliance%' OR source LIKE '%corruption%'))",
+    // Check for G1 keywords in ledger source fields
+    let has_g1_evidence: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM esg_state WHERE client_id = ?1 AND (source LIKE '%compliance%' OR source LIKE '%corruption%' OR source LIKE '%payment%'))",
         params![client_id],
         |row| row.get(0)
     ).unwrap_or(false);
@@ -81,35 +84,29 @@ pub fn gap_analysis(
 
         let label = format!("ESRS {}: {}", code, name);
         
-        // Progress emission
+        // Progress emission for i3 responsiveness
         app_handle.emit("gap_progress", ProgressPayload {
             progress: ((i + 1) as f64 / total as f64) * 100.0,
             current_topic: label.clone(),
         }).map_err(|e| e.to_string())?;
 
-        // Real Comparison Logic
+        // Evidence-based Status Logic
         let status = match *code {
-            "E1" => {
-                let has_s1 = gas > 0.0 || fuel > 0.0 || refrigerant > 0.0;
-                let has_s2 = electricity > 0.0;
-                if has_s1 && has_s2 { "green" }
-                else if has_s1 || has_s2 { "yellow" }
-                else { "red" }
-            },
+            "E1" => if carbon_footprint > 0.0 { "green" } else { "red" },
             "E3" => if water > 0.0 { "green" } else { "red" },
             "E5" => if waste > 0.0 { "green" } else { "red" },
             "S1" => {
-                if workforce > 0.0 && training > 0.0 { "green" }
+                if workforce > 0.0 && (training > 0.0 || diversity > 0.0) { "green" }
                 else if workforce > 0.0 { "yellow" }
                 else { "red" }
             },
-            "G1" => if has_g1 { "green" } else { "red" },
-            _ => "red", // Default for topics not yet mapped to data
+            "G1" => if has_g1_evidence { "green" } else { "red" },
+            _ => "red", // Default for E2, E4 until specific sensors are added
         };
 
         results.insert(label, status.to_string());
         
-        // Brief artificial delay to ensure UI progress bar is visible on fast DBs
+        // Brief sleep to ensure UI shows the progress properly
         sleep(Duration::from_millis(150));
     }
 

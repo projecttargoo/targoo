@@ -98,21 +98,27 @@ pub fn get_materiality_assessment(app_handle: AppHandle, client_id: i32) -> Resu
 pub fn update_materiality_score(
     app_handle: AppHandle,
     client_id: i32,
-    topic_id: String, // esrs_code
+    topic_id: String, // mapped to esrs_code in DB
     impact_score: f64,
     financial_score: f64,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
-    // Logic: Automatically set is_material = true if score > 3.0
+    // Apple-level logic: thresholds > 3.0 on a 5-point scale define materiality
     let is_material = impact_score > 3.0 || financial_score > 3.0;
 
+    // Optimized UPSERT using UNIQUE(client_id, esrs_code)
+    // topic_name is left as empty string if it's a new insert, but it's usually pre-seeded
     conn.execute(
-        "UPDATE materiality_assessments 
-         SET impact_score = ?, financial_score = ?, is_material = ?, assessed_at = CURRENT_TIMESTAMP
-         WHERE client_id = ? AND esrs_code = ?",
-        params![impact_score, financial_score, is_material, client_id, topic_id],
+        "INSERT INTO materiality_assessments (client_id, topic_name, esrs_code, impact_score, financial_score, is_material)
+         VALUES (?1, '', ?2, ?3, ?4, ?5)
+         ON CONFLICT(client_id, esrs_code) DO UPDATE SET
+            impact_score = excluded.impact_score,
+            financial_score = excluded.financial_score,
+            is_material = excluded.is_material,
+            assessed_at = CURRENT_TIMESTAMP",
+        params![client_id, topic_id, impact_score, financial_score, is_material],
     ).map_err(|e| e.to_string())?;
 
-    Ok(())
+    Ok(is_material)
 }

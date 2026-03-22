@@ -1,6 +1,6 @@
 use std::sync::{Mutex, Arc};
 use std::sync::atomic::AtomicBool;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use rusqlite::{params, Connection};
 use tauri::{AppHandle, Manager};
 
@@ -16,6 +16,18 @@ mod license;
 mod model_downloader;
 mod normalize;
 mod state;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LedgerEntry {
+    pub id: i32,
+    pub origin_file: String,
+    pub source: String,
+    pub category: String,
+    pub value: f64,
+    pub unit: String,
+    pub normalized_value: f64,
+    pub confidence: f32,
+}
 
 #[derive(Serialize, Debug)]
 pub struct ProductionClient {
@@ -348,33 +360,28 @@ fn get_esg_ledger(app_handle: AppHandle, client_id: i32) -> Result<String, Strin
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
     let mut stmt = conn.prepare(
-        "SELECT id, category, source, value, unit, normalized_value, normalized_unit, origin_file, confidence, timestamp 
+        "SELECT id, origin_file, source, category, value, unit, normalized_value, confidence 
          FROM esg_state 
          WHERE client_id = ?1 
-         ORDER BY id DESC"
+         ORDER BY category ASC"
     ).map_err(|e| e.to_string())?;
     
-    let rows = stmt.query_map([client_id], |row| {
-        Ok(serde_json::json!({
-            "id": row.get::<_, i32>(0)?,
-            "category": row.get::<_, String>(1)?,
-            "source": row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-            "value": row.get::<_, f64>(3)?,
-            "unit": row.get::<_, String>(4)?,
-            "normalized_value": row.get::<_, Option<f64>>(5)?,
-            "normalized_unit": row.get::<_, Option<String>>(6)?,
-            "origin_file": row.get::<_, Option<String>>(7)?.unwrap_or_default(),
-            "confidence": row.get::<_, f32>(8)?,
-            "timestamp": row.get::<_, Option<String>>(9)?
-        }))
-    }).map_err(|e| e.to_string())?;
+    let entries = stmt.query_map([client_id], |row| {
+        Ok(LedgerEntry {
+            id: row.get(0)?,
+            origin_file: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+            source: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            category: row.get(3)?,
+            value: row.get(4)?,
+            unit: row.get(5)?,
+            normalized_value: row.get::<_, Option<f64>>(6)?.unwrap_or(0.0),
+            confidence: row.get::<_, f64>(7)? as f32,
+        })
+    }).map_err(|e| e.to_string())?
+    .collect::<rusqlite::Result<Vec<_>>>()
+    .map_err(|e| e.to_string())?;
     
-    let mut ledger = Vec::new();
-    for row in rows {
-        ledger.push(row.map_err(|e| e.to_string())?);
-    }
-    
-    serde_json::to_string(&ledger).map_err(|e| e.to_string())
+    serde_json::to_string(&entries).map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
