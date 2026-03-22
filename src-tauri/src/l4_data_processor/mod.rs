@@ -212,11 +212,11 @@ fn parse_csv(file_path: &str, errors: &mut Vec<String>) -> Vec<ImportedRecord> {
 }
 
 #[command]
-pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content: Vec<u8>) -> Result<ImportResult, String> {
+pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content: Vec<u8>, client_id: i32) -> Result<ImportResult, String> {
     let _ = init_import_db(&app_handle);
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
 
-    let _ = state::clear_esg_state_for_client(&conn, 1);
+    let _ = state::clear_esg_state_for_client(&conn, client_id);
 
     let mut all_records = Vec::new();
     let mut errors = Vec::new();
@@ -290,12 +290,13 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
                 timestamp,
             );
             
-            if normalized.category != "unknown" {
-                if let Ok(_) = state::upsert_esg_state(&conn, &normalized, 1) {
+            // Fix logic: Fritz needs all data. We save even unclassified metrics to esg_state.
+            if let Ok(_) = state::upsert_esg_state(&conn, &normalized, client_id) {
+                if normalized.category != "unknown" {
                     println!("SUCCESS: category={} value={} metric='{}'", normalized.category, normalized.value, rec.metric);
+                } else {
+                    println!("WARNING: Unclassified metric saved for client {}: metric='{}'", client_id, rec.metric);
                 }
-            } else {
-                println!("SKIPPED: Could not classify metric='{}' unit='{}'", rec.metric, unit);
             }
         } else {
             println!("ERROR: Could not parse value '{}' for metric '{}'", rec.value, rec.metric);

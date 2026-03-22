@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
-use tauri::{command, State, AppHandle};
+use tauri::{command, State, AppHandle, Manager};
 use std::sync::Mutex;
+use std::path::PathBuf;
 use llama_cpp::{LlamaModel, LlamaParams, SessionParams, standard_sampler::StandardSampler};
 use crate::l6_audit::get_db_connection;
 
@@ -29,11 +30,15 @@ pub struct EsrsJsonRecord {
 pub fn load_esrs_from_json(app_handle: &AppHandle) -> Result<(), String> {
     let conn = get_db_connection(app_handle).map_err(|e| e.to_string())?;
 
-    let base_path = std::env::current_dir().map_err(|e| e.to_string())?;
-    let esrs_path = if base_path.ends_with("src-tauri") {
-        base_path.join("data").join("esrs")
-    } else {
-        base_path.join("src-tauri").join("data").join("esrs")
+    // Fix: NEVER use current_dir() in production. Use resource_dir() or skip.
+    let esrs_path = match app_handle.path().resource_dir() {
+        Ok(p) => {
+            let mut path: PathBuf = p;
+            path.push("data");
+            path.push("esrs");
+            path
+        },
+        Err(_) => return Ok(()),
     };
 
     if !esrs_path.exists() {
@@ -173,7 +178,7 @@ pub async fn analyze_imported_data(
 ) -> Result<AnalysisResult, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
-    // 1. Read imported data
+    // Read imported data
     let mut stmt = conn.prepare("SELECT category, metric, value, unit FROM imported_data").map_err(|e| e.to_string())?;
     let imported_rows = stmt.query_map([], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, Option<String>>(3)?))
@@ -185,7 +190,6 @@ pub async fn analyze_imported_data(
         imported_metrics.push(format!("{}: {} ({} {})", cat, metric, val, unit.unwrap_or_default()));
     }
 
-    // 2. Simple Rule-based Checks (Pre-AI)
     let mut compliant = Vec::new();
     let mut missing = Vec::new();
     let mut warnings = Vec::new();
@@ -207,7 +211,6 @@ pub async fn analyze_imported_data(
     if has_energy { compliant.push("Energy consumption data found - ESRS E1.35 compliant".to_string()); }
     else { missing.push("Energy consumption data incomplete - ESRS E1.35 mandatory".to_string()); }
 
-    // 3. AI Proactive Message
     let engine_lock = engine_state.lock().map_err(|e| e.to_string())?;
     let proactive_message = if let Some(engine) = engine_lock.as_ref() {
         let context = format!(
@@ -236,7 +239,6 @@ pub async fn ask_ai(
 ) -> Result<String, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
-    // Fetch imported data context
     let mut stmt = conn.prepare("SELECT category, metric, value, unit FROM imported_data LIMIT 50").map_err(|e| e.to_string())?;
     let imported_rows = stmt.query_map([], |row| {
         Ok(format!("{}: {} {} {}", row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, Option<String>>(3)?.unwrap_or_default()))

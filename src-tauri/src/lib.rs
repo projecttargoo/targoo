@@ -55,16 +55,16 @@ pub struct MaterialityTopic {
 }
 
 #[tauri::command]
-fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
+fn get_dashboard_stats(app_handle: AppHandle, client_id: i32) -> DashboardStats {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        let scope1_gas = state::get_esg_total(&conn, 1, "scope1_gas");
-        let scope1_fuel = state::get_esg_total(&conn, 1, "scope1_fuel");
-        let scope1_refrigerant = state::get_esg_total(&conn, 1, "scope1_refrigerant");
-        let scope2 = state::get_esg_total(&conn, 1, "scope2_electricity");
-        let scope3 = state::get_esg_total(&conn, 1, "scope3_supplier");
-        let workforce = state::get_esg_total(&conn, 1, "workforce") as u32;
-        let training_cost = state::get_esg_total(&conn, 1, "training_cost");
-        let work_accidents = state::get_esg_total(&conn, 1, "work_accidents") as i64;
+        let scope1_gas = state::get_esg_total(&conn, client_id, "scope1_gas");
+        let scope1_fuel = state::get_esg_total(&conn, client_id, "scope1_fuel");
+        let scope1_refrigerant = state::get_esg_total(&conn, client_id, "scope1_refrigerant");
+        let scope2 = state::get_esg_total(&conn, client_id, "scope2_electricity");
+        let scope3 = state::get_esg_total(&conn, client_id, "scope3_supplier");
+        let workforce = state::get_esg_total(&conn, client_id, "workforce") as u32;
+        let training_cost = state::get_esg_total(&conn, client_id, "training_cost");
+        let work_accidents = state::get_esg_total(&conn, client_id, "work_accidents") as i64;
         
         let scope1 = scope1_gas + scope1_fuel + scope1_refrigerant;
         let carbon = scope1 + scope2 + scope3;
@@ -76,7 +76,7 @@ fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
             let env_score = if carbon < 5000.0 { 80 } else if carbon < 15000.0 { 60 } else { 40 };
             let soc_score = if workforce > 0 { 75 } else { 50 };
             (env_score + soc_score) / 2
-        } else { 74 };
+        } else { 0 }; // Fix: Fritz needs to see 0 if no data
 
         return DashboardStats {
             esg_score,
@@ -176,7 +176,6 @@ fn ask_neuron_pilot(
 ) -> Result<String, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
 
-    // Fetch current client context for the chat
     let client = conn.query_row(
         "SELECT id, name, industry, last_audit, score, carbon FROM clients WHERE id = ?",
         [client_id],
@@ -199,16 +198,16 @@ fn ask_neuron_pilot(
 }
 
 #[tauri::command]
-fn debug_esg_state(app_handle: AppHandle) -> String {
+fn debug_esg_state(app_handle: AppHandle, client_id: i32) -> String {
     if let Ok(conn) = get_db_connection(&app_handle) {
         let mut stmt = match conn.prepare(
-            "SELECT category, SUM(value) as total FROM esg_state GROUP BY category"
+            "SELECT category, SUM(value) as total FROM esg_state WHERE client_id = ?1 GROUP BY category"
         ) {
             Ok(s) => s,
             Err(e) => return format!("Query error: {}", e),
         };
         
-        let results: Vec<String> = stmt.query_map([], |row| {
+        let results: Vec<String> = stmt.query_map([client_id], |row| {
             Ok(format!("{}: {}", 
                 row.get::<_, String>(0).unwrap_or_default(),
                 row.get::<_, f64>(1).unwrap_or(0.0)
@@ -219,7 +218,7 @@ fn debug_esg_state(app_handle: AppHandle) -> String {
         .collect();
         
         if results.is_empty() {
-            return "esg_state is EMPTY".to_string();
+            return format!("esg_state is EMPTY for client {}", client_id);
         }
         
         results.join(" | ")
@@ -229,13 +228,13 @@ fn debug_esg_state(app_handle: AppHandle) -> String {
 }
 
 #[tauri::command]
-fn get_scope_distribution(app_handle: AppHandle) -> String {
+fn get_scope_distribution(app_handle: AppHandle, client_id: i32) -> String {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        let scope1 = state::get_esg_total(&conn, 1, "scope1_gas")
-            + state::get_esg_total(&conn, 1, "scope1_fuel")
-            + state::get_esg_total(&conn, 1, "scope1_refrigerant");
-        let scope2 = state::get_esg_total(&conn, 1, "scope2_electricity");
-        let scope3 = 0.0_f64;
+        let scope1 = state::get_esg_total(&conn, client_id, "scope1_gas")
+            + state::get_esg_total(&conn, client_id, "scope1_fuel")
+            + state::get_esg_total(&conn, client_id, "scope1_refrigerant");
+        let scope2 = state::get_esg_total(&conn, client_id, "scope2_electricity");
+        let scope3 = state::get_esg_total(&conn, client_id, "scope3_supplier");
         let total = scope1 + scope2 + scope3;
         
         serde_json::json!({
@@ -250,7 +249,7 @@ fn get_scope_distribution(app_handle: AppHandle) -> String {
 }
 
 #[tauri::command]
-fn get_co2_trend(app_handle: AppHandle) -> String {
+fn get_co2_trend(app_handle: AppHandle, client_id: i32) -> String {
     if let Ok(conn) = get_db_connection(&app_handle) {
         let mut stmt = match conn.prepare(
             "SELECT 
@@ -258,7 +257,7 @@ fn get_co2_trend(app_handle: AppHandle) -> String {
                 SUM(value) as total
             FROM esg_state 
             WHERE category IN ('scope1_gas', 'scope1_fuel', 'scope1_refrigerant', 'scope2_electricity')
-            AND client_id = 1
+            AND client_id = ?1
             GROUP BY period
             ORDER BY period ASC
             LIMIT 12"
@@ -267,7 +266,7 @@ fn get_co2_trend(app_handle: AppHandle) -> String {
             Err(_) => return "[]".to_string(),
         };
 
-        let results: Vec<serde_json::Value> = stmt.query_map([], |row| {
+        let results: Vec<serde_json::Value> = stmt.query_map([client_id], |row| {
             Ok((
                 row.get::<_, String>(0).unwrap_or_default(),
                 row.get::<_, f64>(1).unwrap_or(0.0),
@@ -288,18 +287,18 @@ fn get_co2_trend(app_handle: AppHandle) -> String {
 }
 
 #[tauri::command]
-fn get_esrs_compliance(app_handle: AppHandle) -> String {
+fn get_esrs_compliance(app_handle: AppHandle, client_id: i32) -> String {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        let has_scope1 = state::get_esg_total(&conn, 1, "scope1_gas") > 0.0
-            || state::get_esg_total(&conn, 1, "scope1_fuel") > 0.0;
-        let has_scope2 = state::get_esg_total(&conn, 1, "scope2_electricity") > 0.0;
-        let has_scope3 = state::get_esg_total(&conn, 1, "scope3_supplier") > 0.0;
-        let has_workforce = state::get_esg_total(&conn, 1, "workforce") > 0.0;
+        let has_scope1 = state::get_esg_total(&conn, client_id, "scope1_gas") > 0.0
+            || state::get_esg_total(&conn, client_id, "scope1_fuel") > 0.0;
+        let has_scope2 = state::get_esg_total(&conn, client_id, "scope2_electricity") > 0.0;
+        let has_scope3 = state::get_esg_total(&conn, client_id, "scope3_supplier") > 0.0;
+        let has_workforce = state::get_esg_total(&conn, client_id, "workforce") > 0.0;
 
         serde_json::json!([
             {"id": "E1", "name": "Climate Change", "status": if has_scope1 && has_scope2 { "Complete" } else if has_scope1 || has_scope2 { "Partial" } else { "Missing" }},
             {"id": "E2", "name": "Pollution", "status": "Missing"},
-            {"id": "E3", "name": "Water & Marine", "status": if state::get_esg_total(&conn, 1, "water") > 0.0 { "Partial" } else { "Missing" }},
+            {"id": "E3", "name": "Water & Marine", "status": if state::get_esg_total(&conn, client_id, "water") > 0.0 { "Partial" } else { "Missing" }},
             {"id": "E4", "name": "Biodiversity", "status": "Missing"},
             {"id": "S1", "name": "Own Workforce", "status": if has_workforce { "Partial" } else { "Missing" }},
             {"id": "S2", "name": "Workers in Value Chain", "status": if has_scope3 { "Partial" } else { "Missing" }},
@@ -321,7 +320,6 @@ pub fn run() {
         .setup(|app| {
             let conn = get_db_connection(app.handle())?;
             
-            // Initial Table creation
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS clients (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, 
