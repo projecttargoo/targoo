@@ -75,7 +75,7 @@ pub fn get_esg_count(
     category: &str,
 ) -> i64 {
     conn.query_row(
-        "SELECT COALESCE(SUM(value), 0) FROM esg_state WHERE client_id = ?1 AND category = ?2",
+        "SELECT COUNT(*) FROM esg_state WHERE client_id = ?1 AND category = ?2",
         params![client_id, category],
         |row| row.get(0),
     ).unwrap_or(0)
@@ -87,6 +87,10 @@ pub fn clear_esg_state_for_client(
 ) -> Result<(), rusqlite::Error> {
     conn.execute(
         "DELETE FROM esg_state WHERE client_id = ?1",
+        params![client_id],
+    )?;
+    conn.execute(
+        "DELETE FROM esg_snapshots WHERE client_id = ?1",
         params![client_id],
     )?;
     Ok(())
