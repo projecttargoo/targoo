@@ -95,6 +95,18 @@ pub fn classify(column: &str, unit: &str) -> (String, f32) {
     ("unknown".into(), 0.10)
 }
 
+pub fn extract_unit_from_column(column: &str) -> String {
+    let col = column.to_lowercase();
+    if col.contains("kwh") { return "kwh".into(); }
+    if col.contains("mwh") { return "mwh".into(); }
+    if col.contains("m3") || col.contains("m³") { return "m3".into(); }
+    if col.contains("liter") || col.contains("(l)") { return "liter".into(); }
+    if col.contains("(kg)") || col.contains("kg)") { return "kg".into(); }
+    if col.contains("eur") { return "eur".into(); }
+    if col.contains("fő") || col.contains("person") || col.contains("headcount") { return "headcount".into(); }
+    "".into()
+}
+
 pub fn map_to_normalized(
     column: &str,
     value: f64,
@@ -102,13 +114,18 @@ pub fn map_to_normalized(
     origin_file: &str,
     timestamp: Option<String>,
 ) -> NormalizedRow {
-    let (category, confidence) = classify(column, unit);
-    let normalized_unit = Some(normalize_unit(unit));
+    let effective_unit = if unit.is_empty() {
+        extract_unit_from_column(column)
+    } else {
+        unit.to_string()
+    };
+    let (category, confidence) = classify(column, &effective_unit);
+    let normalized_unit = Some(normalize_unit(&effective_unit));
 
     NormalizedRow {
         category,
         value,
-        unit: unit.to_string(),
+        unit: effective_unit,
         normalized_value: None,
         normalized_unit,
         confidence,
