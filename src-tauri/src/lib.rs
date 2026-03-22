@@ -170,6 +170,36 @@ fn ask_neuron_pilot(
     ))
 }
 
+#[tauri::command]
+fn debug_esg_state(app_handle: AppHandle) -> String {
+    if let Ok(conn) = get_db_connection(&app_handle) {
+        let mut stmt = match conn.prepare(
+            "SELECT category, SUM(value) as total FROM esg_state GROUP BY category"
+        ) {
+            Ok(s) => s,
+            Err(e) => return format!("Query error: {}", e),
+        };
+        
+        let results: Vec<String> = stmt.query_map([], |row| {
+            Ok(format!("{}: {}", 
+                row.get::<_, String>(0).unwrap_or_default(),
+                row.get::<_, f64>(1).unwrap_or(0.0)
+            ))
+        })
+        .unwrap()
+        .filter_map(|r| r.ok())
+        .collect();
+        
+        if results.is_empty() {
+            return "esg_state is EMPTY".to_string();
+        }
+        
+        results.join(" | ")
+    } else {
+        "DB connection failed".to_string()
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -217,6 +247,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_dashboard_stats,
+            debug_esg_state,
             run_materiality_check,
             add_client,
             get_enterprise_clients,
