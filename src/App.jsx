@@ -180,6 +180,7 @@ try {
 
   // Refresh dashboard stats after successful import
   const stats = await invoke('get_dashboard_stats');
+  console.log("New Dashboard Stats:", stats);
   setDashboardStats(stats);
 
   // Automatically call analyze_imported_data after successful import
@@ -466,10 +467,10 @@ default: return <PlaceholderView tabId={activeTab} />;
 // ── DASHBOARD ──
 function DashboardView({ client, dashboardStats }) {
 const kpis = [
-{ label: 'ESG Score', value: dashboardStats?.esg_score || 74, trend: '+6', up: true, risk: 'Medium', next: 'Reduce Scope 2', color: '#007aff', unit: '' },
-{ label: 'Carbon tCO2e', value: dashboardStats?.carbon_footprint?.toFixed(1) || '198', trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
-{ label: 'Energy MWh', value: dashboardStats?.energy_intensity?.toFixed(0) || '420', trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
-{ label: 'Workforce', value: dashboardStats?.workforce || 342, trend: '0%', up: null, risk: 'Low', next: 'Update HR data', color: '#ff9500', unit: '' }
+{ label: 'ESG Score', value: dashboardStats?.esg_score ?? 74, trend: '+6', up: true, risk: 'Medium', next: 'Reduce Scope 2', color: '#007aff', unit: '' },
+{ label: 'Carbon tCO2e', value: dashboardStats?.carbon_footprint ?? 198, trend: '+2%', up: false, risk: 'High', next: 'Upload Scope 3', color: '#ff3b30', unit: 't' },
+{ label: 'Energy MWh', value: dashboardStats?.energy_intensity ?? 420, trend: '-4%', up: true, risk: 'Low', next: 'Maintain target', color: '#34c759', unit: '' },
+{ label: 'Workforce', value: dashboardStats?.workforce ?? 342, trend: '0%', up: null, risk: 'Low', next: 'Update HR data', color: '#ff9500', unit: '' }
 ];
 
 return (
@@ -503,12 +504,14 @@ return (
 
 function KPICard({ k }) {
 const [hov, setHov] = useState(false);
+const displayValue = typeof k.value === 'number' ? k.value.toFixed(1) : k.value;
+
 return (
 <div className="kpi-card" onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
 style={{ background: hov ? k.color + '0a' : '#fff', borderRadius: '14px', padding: '20px', border: hov ? `1px solid ${k.color}30` : '1px solid #e5e7eb', boxShadow: hov ? `0 8px 24px ${k.color}18` : '0 1px 3px rgba(0,0,0,0.06)', transition: 'all 0.25s cubic-bezier(0.4,0,0.2,1)', cursor: 'default', position: 'relative', overflow: 'hidden' }}>
 <div style={{ fontSize: '10px', fontWeight: '600', color: hov ? k.color : '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px', transition: 'color 0.2s' }}>{k.label}</div>
 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-<div style={{ fontSize: '36px', fontWeight: '700', color: hov ? k.color : '#111827', letterSpacing: '-2px', lineHeight: 1, transition: 'color 0.25s' }}>{k.value}<span style={{ fontSize: '14px', fontWeight: '500' }}>{k.unit}</span></div>
+<div style={{ fontSize: '36px', fontWeight: '700', color: hov ? k.color : '#111827', letterSpacing: '-2px', lineHeight: 1, transition: 'color 0.25s' }}>{displayValue}<span style={{ fontSize: '14px', fontWeight: '500' }}>{k.unit}</span></div>
 <span style={{ fontSize: '10px', fontWeight: '700', padding: '3px 7px', borderRadius: '20px', color: k.up === true ? '#34c759' : k.up === false ? '#ff3b30' : '#9ca3af', background: k.up === true ? 'rgba(52,199,89,0.1)' : k.up === false ? 'rgba(255,59,48,0.1)' : 'rgba(156,163,175,0.1)' }}>{k.trend}</span>
 </div>
 <div style={{ fontSize: '10px', color: hov ? k.color + 'aa' : '#9ca3af', transition: 'all 0.2s' }}>
