@@ -14,6 +14,8 @@ mod l7_materiality;
 mod l8_workspace;
 mod license;
 mod model_downloader;
+mod normalize;
+mod state;
 
 #[derive(Serialize, Debug)]
 pub struct ProductionClient {
@@ -46,41 +48,31 @@ pub struct MaterialityTopic {
 #[tauri::command]
 fn get_dashboard_stats(app_handle: AppHandle) -> DashboardStats {
     if let Ok(conn) = get_db_connection(&app_handle) {
-        // Debug: Print DB path
-        let app_dir = app_handle.path().app_data_dir().unwrap_or_default();
-        let db_path = app_dir.join("targoo.db");
-        println!("Dashboard Stats DB Path: {:?}", db_path);
-
-        let workforce: i64 = conn.query_row(
-            "SELECT CAST(value AS INTEGER) FROM imported_data WHERE metric LIKE '%Headcount%' OR metric LIKE '%workforce%' OR metric LIKE '%employee%' OR metric LIKE '%Létszám%' LIMIT 1",
-            [], |row| row.get(0)
-        ).unwrap_or(340);
+        let energy = state::get_esg_total(&conn, 1, "scope2_electricity");
+        let gas = state::get_esg_total(&conn, 1, "scope1_gas");
+        let fuel = state::get_esg_total(&conn, 1, "scope1_fuel");
+        let refrigerant = state::get_esg_total(&conn, 1, "scope1_refrigerant");
+        let workforce = state::get_esg_count(&conn, 1, "workforce");
         
-        let carbon: f64 = conn.query_row(
-            "SELECT SUM(CAST(value AS REAL)) FROM imported_data WHERE metric LIKE '%Gas%' OR metric LIKE '%Diesel%' OR metric LIKE '%CO2%' OR metric LIKE '%carbon%' OR metric LIKE '%emission%'",
-            [], |row| row.get(0)
-        ).unwrap_or(198.0);
+        let carbon = gas + fuel + refrigerant;
         
-        let energy: f64 = conn.query_row(
-            "SELECT SUM(CAST(value AS REAL)) FROM imported_data WHERE metric LIKE '%kWh%' OR metric LIKE '%Electricity%' OR metric LIKE '%Energy%' OR metric LIKE '%MWh%'",
-            [], |row| row.get(0)
-        ).unwrap_or(420.0);
+        println!("ESG_STATE: energy={} carbon={} workforce={}", energy, carbon, workforce);
         
         return DashboardStats {
             esg_score: 74,
-            carbon_footprint: if carbon > 0.0 { carbon } else { 198.0 },
-            energy_intensity: if energy > 0.0 { energy } else { 420.0 },
+            carbon_footprint: if carbon > 0.0 { carbon } else { 0.0 },
+            energy_intensity: if energy > 0.0 { energy } else { 0.0 },
             workforce: workforce as u32,
-            status_message: "Data loaded from imports".to_string(),
+            status_message: "ESG_STATE loaded".to_string(),
         };
     }
     
     DashboardStats {
         esg_score: 74,
-        carbon_footprint: 198.0,
-        energy_intensity: 420.0,
-        workforce: 340,
-        status_message: "Using demo data".to_string(),
+        carbon_footprint: 0.0,
+        energy_intensity: 0.0,
+        workforce: 0,
+        status_message: "DB connection failed".to_string(),
     }
 }
 
@@ -218,6 +210,8 @@ pub fn run() {
             l8_workspace::init_workspace_db(app.handle())?;
             l1_rag::populate_esrs_database(app.handle())?;
             l1_rag::load_esrs_from_json(app.handle())?;
+            let conn = get_db_connection(app.handle()).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
+            state::create_esg_state_table(&conn).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
             l4_data_processor::init_import_db(app.handle())?;
             Ok(())
         })

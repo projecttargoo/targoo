@@ -3,13 +3,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::{command, AppHandle, Manager};
 use crate::l6_audit::get_db_connection;
+use crate::normalize;
+use crate::state;
 
 pub mod esrs_mapper;
 pub mod pdf_parser;
 pub mod xml_parser;
 pub mod excel_cleaner;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportedRecord {
     pub source_file: String,
     pub category: String,
@@ -256,7 +258,7 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
     let mut imported_count = 0;
     let mut categories_found = std::collections::HashSet::new();
 
-    for rec in all_records {
+    for rec in all_records.clone() {
         categories_found.insert(rec.category.clone());
         let res = conn.execute(
             "INSERT INTO imported_data (source_file, category, metric, value, unit, year) VALUES (?, ?, ?, ?, ?, ?)",
@@ -265,6 +267,26 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
         match res {
             Ok(_) => imported_count += 1,
             Err(e) => errors.push(format!("DB Error: {}", e)),
+        }
+    }
+
+    // NORMALIZE AND UPSERT TO ESG_STATE
+    for rec in &all_records {
+        if let Ok(value) = rec.value.parse::<f64>() {
+            let unit = rec.unit.clone().unwrap_or_default();
+            let timestamp = rec.year.map(|y| format!("{}-01-01", y));
+            
+            let normalized = normalize::map_to_normalized(
+                &rec.metric,
+                value,
+                &unit,
+                &rec.source_file,
+                timestamp,
+            );
+            
+            if normalized.category != "unknown" {
+                let _ = state::upsert_esg_state(&conn, &normalized, 1);
+            }
         }
     }
 
