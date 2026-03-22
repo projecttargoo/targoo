@@ -200,6 +200,27 @@ fn debug_esg_state(app_handle: AppHandle) -> String {
     }
 }
 
+#[tauri::command]
+fn get_scope_distribution(app_handle: AppHandle) -> String {
+    if let Ok(conn) = get_db_connection(&app_handle) {
+        let scope1 = state::get_esg_total(&conn, 1, "scope1_gas")
+            + state::get_esg_total(&conn, 1, "scope1_fuel")
+            + state::get_esg_total(&conn, 1, "scope1_refrigerant");
+        let scope2 = state::get_esg_total(&conn, 1, "scope2_electricity");
+        let scope3 = 0.0_f64;
+        let total = scope1 + scope2 + scope3;
+        
+        serde_json::json!({
+            "scope1": scope1,
+            "scope2": scope2,
+            "scope3": scope3,
+            "total": total
+        }).to_string()
+    } else {
+        "{}".to_string()
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -249,6 +270,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_dashboard_stats,
+            get_scope_distribution,
             debug_esg_state,
             run_materiality_check,
             add_client,
