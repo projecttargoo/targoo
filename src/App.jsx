@@ -45,6 +45,7 @@ export default function App() {
 const [dashboardStats, setDashboardStats] = useState(null);
 const [co2Trend, setCo2Trend] = useState([]);
 const [esrsCompliance, setEsrsCompliance] = useState([]);
+const [ledgerData, setLedgerData] = useState([]);
 const [clients, setClients] = useState(initialClients);
 const [activeTab, setActiveTab] = useState('dashboard');
 const [chatInput, setChatInput] = useState('');
@@ -118,6 +119,10 @@ useEffect(() => {
       const compliance = await invoke('get_esrs_compliance', { clientId: selectedClientId });
       setEsrsCompliance(JSON.parse(compliance));
     } catch(e) { setEsrsCompliance([]); }
+    try {
+      const ledger = await invoke('get_esg_ledger', { clientId: selectedClientId });
+      setLedgerData(JSON.parse(ledger));
+    } catch(e) { setLedgerData([]); }
   };
   loadStats();
 }, [selectedClientId]);
@@ -210,13 +215,16 @@ try {
     const compliance = await invoke('get_esrs_compliance', { clientId: selectedClientId });
     setEsrsCompliance(JSON.parse(compliance));
   } catch(e) { setEsrsCompliance([]); }
+  try {
+    const ledger = await invoke('get_esg_ledger', { clientId: selectedClientId });
+    setLedgerData(JSON.parse(ledger));
+  } catch(e) { setLedgerData([]); }
 
   // Automatically call analyze_imported_data after successful import
+
   try {
     const analysis = await invoke('analyze_imported_data', { clientId: selectedClientId });
-    const parsed = analysis; // result is already parsed by Tauri bridge
-    const proactiveMsg = parsed.proactive_message || 
-      `Analysis complete. Found ${parsed.missing?.length || 0} compliance gaps.`;
+    const proactiveMsg = `📊 Auto-Analysis for ${filename.split(/[\\/]/).pop()}\n\n${analysis.proactive_message || 'No specific insights detected.'}`;
     setChatHistory(prev => [...prev, { role: 'ai', text: proactiveMsg }]);
   } catch (err) {
     console.log('Analysis error:', err);
@@ -289,16 +297,26 @@ return (
   />
 
   {/* ── ALERT BAR ── */}
-  <div style={{ background: '#fff3cd', borderBottom: '1px solid #ffc107', padding: '8px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-      <span style={{ fontSize: '12px', fontWeight: '700', color: '#856404' }}>⚠ 2 critical compliance risks detected</span>
-      <span style={{ fontSize: '12px', color: '#856404' }}>Potential fine: <b>€2.4M</b></span>
-      <span style={{ fontSize: '12px', color: '#856404' }}>Deadline: <b>298 days</b></span>
-    </div>
-    <button className="action-btn" onClick={() => {}} style={{ background: '#dc3545', color: 'white', border: 'none', padding: '5px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.15s' }}>
-      Fix All Compliance Gaps
-    </button>
-  </div>
+  {(() => {
+    const missingCount = esrsCompliance.filter(i => i.status === 'Missing').length;
+    const hasRisks = missingCount > 0;
+    return (
+      <div style={{ background: hasRisks ? '#fff3cd' : '#e0f2fe', borderBottom: `1px solid ${hasRisks ? '#ffc107' : '#bae6fd'}`, padding: '8px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, transition: 'all 0.3s ease' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span style={{ fontSize: '12px', fontWeight: '700', color: hasRisks ? '#856404' : '#0369a1' }}>
+            {hasRisks ? `⚠ ${missingCount} critical compliance risks detected` : '✓ No critical compliance risks detected'}
+          </span>
+          {hasRisks && <span style={{ fontSize: '12px', color: '#856404' }}>Potential fine: <b>€{(missingCount * 1.2).toFixed(1)}M</b></span>}
+          <span style={{ fontSize: '12px', color: hasRisks ? '#856404' : '#0369a1' }}>Audit Deadline: <b>298 days</b></span>
+        </div>
+        {hasRisks && (
+          <button className="action-btn" onClick={() => setActiveTab('esrs')} style={{ background: '#dc3545', color: 'white', border: 'none', padding: '5px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.15s' }}>
+            Fix All Compliance Gaps
+          </button>
+        )}
+      </div>
+    );
+  })()}
 
   {/* ── TOP BAR ── */}
   <div style={{ height: '48px', background: S.panel, borderBottom: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0, zIndex: 10 }}>
@@ -429,6 +447,7 @@ return (
         dashboardStats={dashboardStats}
         co2Trend={co2Trend}
         esrsCompliance={esrsCompliance}
+        ledgerData={ledgerData}
       />
     </main>
 
@@ -480,17 +499,33 @@ return (
       </div>
 
       <div style={{ flex: 1, padding: '14px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {chatHistory.map((msg, i) => (
-          <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%', padding: '10px 12px', borderRadius: '12px', fontSize: '12px', lineHeight: '1.5', background: msg.role === 'user' ? S.accent : S.bg, color: msg.role === 'user' ? 'white' : S.text, border: msg.role === 'ai' ? `1px solid ${S.border}` : 'none', animation: 'fadeIn 0.2s ease' }}>
-            {msg.text}
-            {msg.role === 'ai' && msg.text.includes('Fix') && (
-              <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                <button className="action-btn" onClick={() => setChatInput('Show me step by step how to fix this')} style={{ padding: '5px 10px', background: S.accent, color: 'white', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>Fix now</button>
-                <button className="action-btn" onClick={() => setChatInput('Show details about this compliance issue')} style={{ padding: '5px 10px', background: 'transparent', color: S.accent, border: `1px solid ${S.accent}`, borderRadius: '6px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>Details</button>
-              </div>
-            )}
-          </div>
-        ))}
+        {chatHistory.map((msg, i) => {
+          const isHighRisk = msg.role === 'ai' && (msg.text.includes('High Risk') || msg.text.includes('dependency'));
+          return (
+            <div key={i} style={{ 
+              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', 
+              maxWidth: '88%', 
+              padding: '10px 12px', 
+              borderRadius: '12px', 
+              fontSize: '12px', 
+              lineHeight: '1.5', 
+              background: msg.role === 'user' ? S.accent : S.bg, 
+              color: msg.role === 'user' ? 'white' : S.text, 
+              border: isHighRisk ? `1px solid ${S.red}40` : (msg.role === 'ai' ? `1px solid ${S.border}` : 'none'),
+              boxShadow: isHighRisk ? `0 0 12px ${S.red}10` : 'none',
+              animation: 'fadeIn 0.2s ease',
+              whiteSpace: 'pre-wrap'
+            }}>
+              {msg.text}
+              {msg.role === 'ai' && msg.text.includes('Fix') && (
+                <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                  <button className="action-btn" onClick={() => setChatInput('Show me step by step how to fix this')} style={{ padding: '5px 10px', background: S.accent, color: 'white', border: 'none', borderRadius: '6px', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>Fix now</button>
+                  <button className="action-btn" onClick={() => setChatInput('Show details about this compliance issue')} style={{ padding: '5px 10px', background: 'transparent', color: S.accent, border: `1px solid ${S.accent}`, borderRadius: '6px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>Details</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
         <div ref={chatEndRef} />
       </div>
 
@@ -520,13 +555,13 @@ return (
 }
 
 // ── MAIN CONTENT ──
-function MainContent({ activeTab, activeClient, gapState, dataState, dashboardStats, co2Trend, esrsCompliance }) {
+function MainContent({ activeTab, activeClient, gapState, dataState, dashboardStats, co2Trend, esrsCompliance, ledgerData }) {
 switch (activeTab) {
 case 'dashboard': return <DashboardView client={activeClient} dashboardStats={dashboardStats} co2Trend={co2Trend} esrsCompliance={esrsCompliance} />;
 case 'clients': return <ClientsView />;
 case 'data': return <DataView {...dataState} />;
 case 'gap': return <GapAnalysisView {...gapState} />;
-case 'emissions': return <EmissionsView />;
+case 'emissions': return <EmissionsView ledgerData={ledgerData} />;
 case 'esrs': return <ESRSView />;
 case 'reports': return <ReportsView />;
 default: return <PlaceholderView tabId={activeTab} />;
@@ -591,52 +626,62 @@ style={{ background: hov ? k.color + '0a' : '#fff', borderRadius: '14px', paddin
 }
 
 function CO2Chart({ co2Trend }) {
+  const maxVal = Math.max(...(co2Trend || []).map(d => d.value), 10);
   const pts = co2Trend && co2Trend.length > 0 
     ? co2Trend.map((d, i) => ({
-        x: 20 + i * 70,
-        y: 120 - Math.min((d.value / 50000) * 100, 110),
-        l: d.period?.substring(0, 7) || '',
-        v: d.value.toFixed(0) + 't'
+        x: 20 + i * (360 / (co2Trend.length - 1 || 1)),
+        y: 120 - (d.value / maxVal) * 100,
+        l: d.period || '',
+        v: d.value.toFixed(1) + 't'
       }))
     : [
         {x:20,y:100,l:'Jan',v:'0t'},{x:90,y:72,l:'Feb',v:'0t'},
         {x:160,y:85,l:'Mar',v:'0t'},{x:230,y:55,l:'Apr',v:'0t'},
         {x:300,y:38,l:'May',v:'0t'},{x:370,y:22,l:'Jun',v:'0t'}
       ];
-const [hov, setHov] = useState(null);
-const smooth = 'M20,100 C55,86 90,72 90,72 C125,79 160,85 160,85 C195,70 230,55 230,55 C265,46 300,38 300,38 C335,30 370,22 370,22';
-const area = smooth + ' L370,130 L20,130 Z';
+  
+  const [hov, setHov] = useState(null);
+  
+  // Create smooth path
+  const pathD = pts.length > 1 
+    ? `M${pts.map(p => `${p.x},${p.y}`).join(' L')}`
+    : `M${pts[0].x},${pts[0].y} L${pts[0].x + 1},${pts[0].y}`;
+    
+  const areaD = `${pathD} L${pts[pts.length-1].x},130 L${pts[0].x},130 Z`;
 
-return (
-<div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-<div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '2px' }}>CO₂ Emission Trend</div>
-<div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '16px' }}>{co2Trend.length > 0 ? 'Monthly Breakdown' : 'No Data Available'} · tCO2e</div>
-<svg width="100%" height="140" viewBox="0 0 400 150" style={{ overflow: 'visible' }}>
-<defs>
-<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-<stop offset="0%" stopColor="#007aff" stopOpacity="0.12" />
-<stop offset="100%" stopColor="#007aff" stopOpacity="0" />
-</linearGradient>
-</defs>
-<path d={area} fill="url(#g1)" />
-<path d={smooth} fill="none" stroke="#007aff" strokeWidth="2.5" strokeLinecap="round"
-style={{ strokeDasharray: 700, strokeDashoffset: 700, animation: 'drawLine 1.8s cubic-bezier(0.4,0,0.2,1) forwards' }} />
-{pts.map((p, i) => (
-<g key={i} style={{ cursor: 'pointer' }} onMouseEnter={() => setHov(p)} onMouseLeave={() => setHov(null)}>
-<circle cx={p.x} cy={p.y} r="14" fill="transparent" />
-<circle cx={p.x} cy={p.y} r={hov === p ? 6 : 4} fill="#007aff" stroke="#fff" strokeWidth="2" style={{ transition: 'r 0.15s' }} />
-<text x={p.x} y="148" textAnchor="middle" fontSize="10" fill="#9ca3af" fontFamily="-apple-system,sans-serif">{p.l}</text>
-</g>
-))}
-{hov && (
-<g>
-<rect x={hov.x > 320 ? hov.x - 105 : hov.x - 15} y={hov.y - 44} width="82" height="34" rx="7" fill="#111827" />
-<text x={hov.x > 320 ? hov.x - 64 : hov.x + 26} y={hov.y - 24} textAnchor="middle" fontSize="13" fontWeight="700" fill="white" fontFamily="-apple-system,sans-serif">{hov.v}</text>
-</g>
-)}
-</svg>
-</div>
-);
+  return (
+    <div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', animation: 'fadeIn 0.4s ease' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '2px' }}>CO₂ Emission Trend</div>
+      <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '16px' }}>{co2Trend.length > 0 ? 'Aggregated Monthly Data' : 'No Historical Data'} · tCO2e</div>
+      <svg width="100%" height="140" viewBox="0 0 400 150" style={{ overflow: 'visible' }}>
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#007aff" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#007aff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={areaD} fill="url(#g1)" style={{ transition: 'd 0.3s' }} />
+        <path d={pathD} fill="none" stroke="#007aff" strokeWidth="2.5" strokeLinecap="round"
+          style={{ strokeDasharray: 1000, strokeDashoffset: 1000, animation: 'drawLine 2s ease-out forwards' }} />
+        {pts.map((p, i) => (
+          <g key={i} style={{ cursor: 'pointer' }} onMouseEnter={() => setHov(p)} onMouseLeave={() => setHov(null)}>
+            <circle cx={p.x} cy={p.y} r="14" fill="transparent" />
+            <circle cx={p.x} cy={p.y} r={hov === p ? 6 : 4} fill="#007aff" stroke="#fff" strokeWidth="2" style={{ transition: 'all 0.2s' }} />
+            <text x={p.x} y="148" textAnchor="middle" fontSize="9" fontWeight="600" fill="#9ca3af" fontFamily="-apple-system,sans-serif">
+              {p.l.split('-').pop()}
+            </text>
+          </g>
+        ))}
+        {hov && (
+          <g style={{ animation: 'fadeIn 0.15s ease' }}>
+            <rect x={hov.x - 40} y={hov.y - 44} width="80" height="34" rx="8" fill="#111827" />
+            <text x={hov.x} y={hov.y - 24} textAnchor="middle" fontSize="12" fontWeight="700" fill="white" fontFamily="-apple-system,sans-serif">{hov.v}</text>
+            <text x={hov.x} y={hov.y - 14} textAnchor="middle" fontSize="8" fill="#9ca3af" fontFamily="-apple-system,sans-serif">{hov.l}</text>
+          </g>
+        )}
+      </svg>
+    </div>
+  );
 }
 
 function ScopeDonut({ dashboardStats }) {
@@ -1029,41 +1074,85 @@ onClick={() => !isProcessing && handleBrowseFiles()}>
 }
 
 // ── EMISSIONS VIEW ──
-function EmissionsView() {
-return (
-<div style={{ display: 'flex', flexDirection: 'column', gap: '18px', animation: 'fadeIn 0.3s ease' }}>
-<div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
-{[
-{ l: 'Scope 1', v: '0.0t', d: 'Direct emissions', c: '#34c759' },
-{ l: 'Scope 2', v: '0.0t', d: 'Purchased energy', c: '#007aff' },
-{ l: 'Scope 3', v: '0.0t', d: 'Value chain', c: '#af52de' }
-].map(s => (
-<div key={s.l} style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-<div style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '10px' }}>{s.l}</div>
-<div style={{ fontSize: '32px', fontWeight: '700', color: s.c, letterSpacing: '-1px', marginBottom: '4px' }}>{s.v}</div>
-<div style={{ fontSize: '12px', color: '#6b7280' }}>{s.d}</div>
-</div>
-))}
-</div>
-<div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb' }}>
-<div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '18px' }}>Emissions Breakdown</div>
-{[
-{ l: 'Energy', v: 0, c: '#34c759' }, { l: 'Transport', v: 0, c: '#007aff' },
-{ l: 'Supply Chain', v: 0, c: '#af52de' }, { l: 'Waste', v: 0, c: '#ff9500' }
-].map(b => (
-<div key={b.l} style={{ marginBottom: '14px' }}>
-<div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-<span style={{ fontSize: '13px', color: '#111827', fontWeight: '500' }}>{b.l}</span>
-<span style={{ fontSize: '12px', color: '#6b7280' }}>{b.v}t CO2e</span>
-</div>
-<div style={{ height: '6px', background: '#f3f4f6', borderRadius: '3px', overflow: 'hidden' }}>
-<div style={{ height: '100%', width: `${b.v}%`, background: b.c, borderRadius: '3px', transition: 'width 0.8s ease' }} />
-</div>
-</div>
-))}
-</div>
-</div>
-);
+function EmissionsView({ ledgerData = [] }) {
+  const [filter, setFilter] = useState('');
+  
+  const filteredData = ledgerData.filter(d => 
+    d.category?.toLowerCase().includes(filter.toLowerCase()) || 
+    d.origin_file?.toLowerCase().includes(filter.toLowerCase()) ||
+    d.source?.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s ease' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: S.text }}>ESG Data Ledger</h2>
+          <p style={{ fontSize: '12px', color: S.muted }}>Full audit trail of all imported and normalized ESG metrics.</p>
+        </div>
+        <div style={{ position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: S.muted }} />
+          <input 
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            placeholder="Filter by category or file..." 
+            style={{ padding: '8px 12px 8px 34px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.panel, fontSize: '12px', width: '260px', outline: 'none' }} 
+          />
+        </div>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <thead>
+            <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+              <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6b7280', width: '20%' }}>SOURCE FILE</th>
+              <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6b7280', width: '15%' }}>CATEGORY</th>
+              <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6b7280', width: '25%' }}>ORIGINAL (RAW)</th>
+              <th style={{ padding: '12px 20px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: '#6b7280', width: '25%' }}>NORMALIZED (SSOT)</th>
+              <th style={{ padding: '12px 20px', textAlign: 'right', fontSize: '11px', fontWeight: '600', color: '#6b7280', width: '15%' }}>CONFIDENCE</th>
+            </tr>
+          </thead>
+          <tbody style={{ fontSize: '12px' }}>
+            {filteredData.length > 0 ? filteredData.map((d, i) => (
+              <tr key={i} className="row-hover" style={{ borderBottom: i < filteredData.length - 1 ? '1px solid #f3f4f6' : 'none', transition: 'background 0.15s' }}>
+                <td style={{ padding: '12px 20px', color: S.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={d.origin_file}>{d.origin_file}</td>
+                <td style={{ padding: '12px 20px' }}>
+                  <span style={{ fontWeight: '600', color: S.text, textTransform: 'capitalize' }}>{d.category.replace('_', ' ')}</span>
+                </td>
+                <td style={{ padding: '12px 20px' }}>
+                  <div style={{ fontSize: '11px', color: S.muted, marginBottom: '2px' }}>{d.source}</div>
+                  <div style={{ fontFamily: 'monospace', fontWeight: '600' }}>{d.value.toLocaleString()} <span style={{ fontSize: '10px', fontWeight: '400' }}>{d.unit}</span></div>
+                </td>
+                <td style={{ padding: '12px 20px' }}>
+                  {d.normalized_value ? (
+                    <div style={{ fontFamily: 'monospace', fontWeight: '700', color: S.accent }}>
+                      {d.normalized_value.toLocaleString()} <span style={{ fontSize: '10px', fontWeight: '400' }}>{d.normalized_unit}</span>
+                    </div>
+                  ) : <span style={{ color: S.muted }}>—</span>}
+                </td>
+                <td style={{ padding: '12px 20px', textAlign: 'right' }}>
+                  <span style={{ 
+                    fontSize: '11px', 
+                    fontWeight: '700', 
+                    color: d.confidence > 0.9 ? S.green : d.confidence > 0.7 ? S.amber : S.red,
+                    background: (d.confidence > 0.9 ? S.green : d.confidence > 0.7 ? S.amber : S.red) + '10',
+                    padding: '3px 8px',
+                    borderRadius: '6px'
+                  }}>
+                    {Math.round(d.confidence * 100)}%
+                  </span>
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: S.muted }}>No data records found for this client.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 // ── ESRS VIEW ──
