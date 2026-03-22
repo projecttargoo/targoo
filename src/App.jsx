@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Users, Database, Scale, Leaf, ClipboardList, FileText, Search, Settings, Send, AlertTriangle, CheckCircle, XCircle, Loader2, UploadCloud, BarChart2, Download, User, Shield, Save } from 'lucide-react';
+import { LayoutDashboard, Users, Database, Scale, Leaf, ClipboardList, FileText, Search, Settings, Send, AlertTriangle, CheckCircle, XCircle, Loader2, UploadCloud, BarChart2, Download, User, Shield, Save, Building2, ArrowRight } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import logo from './assets/targoo.png';
 
@@ -121,7 +121,16 @@ export default function App() {
     const loadClients = async () => {
       try {
         const list = await invoke('get_enterprise_clients');
-        if (list?.length) setClients(list);
+        if (list?.length) {
+          setClients(list.map(c => ({
+            id: c.id,
+            name: c.name,
+            industry: c.industry,
+            score: c.score || 0,
+            carbon: c.carbon || 0,
+            status: c.score >= 75 ? 'ready' : (c.score > 0 ? 'partial' : 'risk')
+          })));
+        }
       } catch (err) {}
     };
     loadClients();
@@ -163,6 +172,11 @@ export default function App() {
     } catch (err) {
       setChatHistory(prev => [...prev.slice(0, -1), { role: 'ai', text: 'AI Engine Offline. Please download the model.' }]);
     }
+  };
+
+  const handleSelectClient = (clientId) => {
+    setSelectedClientId(clientId);
+    setActiveTab('dashboard');
   };
 
   const criticalRisks = esrsCompliance.filter(r => r.status === 'Missing').length;
@@ -237,6 +251,9 @@ export default function App() {
             materialityData={materialityData} 
             setMaterialityData={setMaterialityData}
             selectedClientId={selectedClientId}
+            clients={clients}
+            setClients={setClients}
+            handleSelectClient={handleSelectClient}
             auditLogs={auditLogs}
             dataState={{ isProcessing, handleFileUpload }}
             gapState={{ isAnalyzing, analysisProgress, currentTopic, analysisResults, companySize, setCompanySize, sector, setSector, runGapAnalysis: async () => {
@@ -276,7 +293,7 @@ export default function App() {
 function MainContent(props) {
   switch (props.activeTab) {
     case 'dashboard': return <DashboardView {...props} />;
-    case 'clients': return <ClientsView />;
+    case 'clients': return <ClientsView clients={props.clients} setClients={props.setClients} selectedClientId={props.selectedClientId} onSelect={props.handleSelectClient} />;
     case 'data': return <DataView {...props.dataState} />;
     case 'gap': return <GapAnalysisView {...props.gapState} />;
     case 'materiality': return <MaterialityView {...props} />;
@@ -459,5 +476,163 @@ function GapAnalysisView({ isAnalyzing, analysisResults, runGapAnalysis }) {
   );
 }
 
-function ClientsView() { return <div>Manage Clients coming soon.</div>; }
+// ── CLIENTS VIEW ──
+function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newClient, setNewClient] = useState({ name: '', industry: 'Automotive', country: 'DE' });
+  const [isCreating, setIsCreating] = useState(false);
+
+  const refreshClients = async () => {
+    try {
+      const list = await invoke('get_enterprise_clients');
+      if (list) {
+        setClients(list.map(c => ({
+          id: c.id,
+          name: c.name,
+          industry: c.industry,
+          score: c.score || 0,
+          carbon: c.carbon || 0,
+          status: c.score >= 75 ? 'ready' : (c.score > 0 ? 'partial' : 'risk')
+        })));
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleAdd = async () => {
+    if (!newClient.name) return;
+    setIsCreating(true);
+    try {
+      await invoke('create_client', { 
+        name: newClient.name, 
+        industry: newClient.industry,
+        country: newClient.country 
+      });
+      setNewClient({ name: '', industry: 'Automotive', country: 'DE' });
+      setShowAddForm(false);
+      await refreshClients();
+    } catch (err) {
+      alert('Failed to create client: ' + err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const getInitials = (name) => {
+    if (!name) return '??';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ fontSize: '22px', fontWeight: '700', color: S.text }}>Workspace Manager</h2>
+          <p style={{ fontSize: '13px', color: S.muted }}>Switch between advisory clients or register a new workspace.</p>
+        </div>
+        {!showAddForm && (
+          <button onClick={() => setShowAddForm(true)} style={{ background: S.accent, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(0,122,255,0.2)', transition: 'all 0.2s' }}>
+            <Building2 size={18} /> Add New Client
+          </button>
+        )}
+      </div>
+
+      {showAddForm && (
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', border: `1px solid ${S.accent}40`, boxShadow: S.shadowMd, animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ fontSize: '15px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Building2 size={18} color={S.accent} /> Register Workspace
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 100px auto', gap: '12px', alignItems: 'flex-end' }}>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Company Name</label>
+              <input value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} placeholder="e.g. BMW Group" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '13px', outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Industry</label>
+              <select value={newClient.industry} onChange={e => setNewClient({...newClient, industry: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
+                {['Automotive', 'Chemicals', 'Electronics', 'Energy', 'Finance', 'Manufacturing', 'Retail'].map(i => <option key={i} value={i}>{i}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Country</label>
+              <input value={newClient.country} onChange={e => setNewClient({...newClient, country: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '13px', outline: 'none' }} />
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setShowAddForm(false)} style={{ padding: '10px 16px', borderRadius: '8px', border: `1px solid ${S.border}`, background: 'white', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleAdd} disabled={isCreating} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: S.accent, color: 'white', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>{isCreating ? 'Creating...' : 'Create'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+        {clients.map(client => {
+          const isActive = client.id === selectedClientId;
+          return (
+            <div key={client.id} style={{ 
+              background: '#fff', 
+              borderRadius: '18px', 
+              padding: '24px', 
+              border: isActive ? `2px solid ${S.accent}` : `1px solid ${S.border}`,
+              boxShadow: isActive ? '0 8px 24px rgba(0,122,255,0.12)' : S.shadow,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {isActive && <div style={{ position: 'absolute', top: '12px', right: '12px', width: '8px', height: '8px', borderRadius: '50%', background: S.green, boxShadow: `0 0 10px ${S.green}`, animation: 'pulse 2s infinite' }} />}
+              
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
+                <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: isActive ? S.accent : S.bg, color: isActive ? 'white' : S.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700' }}>
+                  {getInitials(client.name)}
+                </div>
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: S.text, marginBottom: '2px' }}>{client.name}</div>
+                  <div style={{ fontSize: '12px', color: S.muted, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Building2 size={12} /> {client.industry}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', padding: '12px', background: S.bg, borderRadius: '12px', marginBottom: '20px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '9px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>CO2 Footprint</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: S.text }}>{(client.carbon || 0).toFixed(1)}t</div>
+                </div>
+                <div style={{ textAlign: 'center', borderLeft: `1px solid ${S.border}`, borderRight: `1px solid ${S.border}` }}>
+                  <div style={{ fontSize: '9px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>ESG Score</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: client.score >= 75 ? S.green : S.amber }}>{client.score || 0}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '9px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>Status</div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', color: client.score >= 75 ? S.green : S.muted }}>{client.score >= 75 ? 'Ready' : 'Draft'}</div>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => onSelect(client.id)}
+                style={{ 
+                  width: '100%', 
+                  padding: '12px', 
+                  borderRadius: '10px', 
+                  border: 'none', 
+                  background: isActive ? S.accent : S.bg, 
+                  color: isActive ? 'white' : S.text, 
+                  fontSize: '13px', 
+                  fontWeight: '600', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease'
+                }}>
+                {isActive ? 'Currently Active' : 'Select Workspace'}
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 function ESRSView({ esrsCompliance }) { return <div>Compliance Tracker for {esrsCompliance.length} topics.</div>; }
