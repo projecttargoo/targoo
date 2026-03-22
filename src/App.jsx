@@ -531,8 +531,8 @@ return (
 
   {/* BOTTOM ROW */}
   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-    <AuditReadiness />
-    <NextActions />
+    <AuditReadiness esrsCompliance={esrsCompliance} />
+    <NextActions esrsCompliance={esrsCompliance} />
   </div>
 
   {/* ESRS TABLE */}
@@ -663,49 +663,71 @@ onMouseEnter={() => setHov(i)} onMouseLeave={() => setHov(null)}>
 );
 }
 
-function AuditReadiness() {
-return (
-<div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-<div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '18px' }}>Audit Readiness</div>
-<div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-<svg width="80" height="80" viewBox="0 0 80 80">
-<circle cx="40" cy="40" r="32" stroke="#f3f4f6" strokeWidth="7" fill="none" />
-<circle cx="40" cy="40" r="32" stroke="#34c759" strokeWidth="7" fill="none"
-strokeDasharray="201" strokeDashoffset="201" strokeLinecap="round" transform="rotate(-90 40 40)" />
-<text x="40" y="44" textAnchor="middle" fill="#111827" fontSize="14" fontWeight="700" fontFamily="-apple-system,sans-serif">0%</text>
-</svg>
-<div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-<div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: S.muted, fontWeight: '600' }}>
-<CheckCircle size={14} /> Data Pending
-</div>
-<div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#ff9500', fontWeight: '500' }}>
-<AlertTriangle size={14} /> ESRS E1-5 Pending
-</div>
-<div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#ff3b30', fontWeight: '500' }}>
-<XCircle size={14} /> Scope 3 Missing
-</div>
-</div>
-</div>
-</div>
-);
+function AuditReadiness({ esrsCompliance = [] }) {
+  const total = esrsCompliance.length || 1;
+  const complete = esrsCompliance.filter(i => i.status === 'Complete').length;
+  const partial = esrsCompliance.filter(i => i.status === 'Partial').length;
+  const percentage = Math.round(((complete + (0.5 * partial)) / total) * 100);
+  
+  const circ = 201; // 2 * PI * 32
+  const offset = circ - (percentage / 100) * circ;
+
+  const topGaps = esrsCompliance
+    .filter(i => i.status !== 'Complete')
+    .slice(0, 3);
+
+  return (
+    <div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '18px' }}>Audit Readiness</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="32" stroke="#f3f4f6" strokeWidth="7" fill="none" />
+          <circle cx="40" cy="40" r="32" stroke="#34c759" strokeWidth="7" fill="none"
+            strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" transform="rotate(-90 40 40)" 
+            style={{ transition: 'stroke-dashoffset 1s ease-out' }} />
+          <text x="40" y="44" textAnchor="middle" fill="#111827" fontSize="14" fontWeight="700" fontFamily="-apple-system,sans-serif">{percentage}%</text>
+        </svg>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+          {topGaps.length > 0 ? topGaps.map(g => (
+            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: g.status === 'Partial' ? '#ff9500' : '#ff3b30', fontWeight: '500' }}>
+              {g.status === 'Partial' ? <AlertTriangle size={14} /> : <XCircle size={14} />}
+              {g.id} {g.status}
+            </div>
+          )) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: S.green, fontWeight: '600' }}>
+              <CheckCircle size={14} /> All standards mapped
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function NextActions() {
-return (
-<div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-<div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '14px' }}>Next Actions</div>
-{[
-{ text: 'Upload Scope 3 supplier data', p: 'High', c: '#ff3b30', b: 'rgba(255,59,48,0.08)' },
-{ text: 'Complete ESRS E1–E3 disclosures', p: 'High', c: '#ff3b30', b: 'rgba(255,59,48,0.08)' },
-{ text: 'Review water metrics (ESRS E3)', p: 'Medium', c: '#ff9500', b: 'rgba(255,149,0,0.08)' }
-].map((a, i) => (
-<div key={i} className="row-hover" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: i < 2 ? '1px solid #f3f4f6' : 'none', transition: 'background 0.15s' }}>
-<span style={{ fontSize: '12px', color: '#374151' }}>{a.text}</span>
-<span style={{ fontSize: '10px', fontWeight: '700', color: a.c, background: a.b, padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap', marginLeft: '8px' }}>{a.p}</span>
-</div>
-))}
-</div>
-);
+function NextActions({ esrsCompliance = [] }) {
+  const actions = esrsCompliance
+    .filter(i => i.status !== 'Complete')
+    .map(i => ({
+      text: i.status === 'Missing' ? `Collect data for ${i.id} ${i.name}` : `Complete disclosures for ${i.id}`,
+      p: i.status === 'Missing' ? 'High' : 'Medium',
+      c: i.status === 'Missing' ? '#ff3b30' : '#ff9500',
+      b: i.status === 'Missing' ? 'rgba(255,59,48,0.08)' : 'rgba(255,149,0,0.08)'
+    }))
+    .slice(0, 4);
+
+  return (
+    <div style={{ background: '#fff', borderRadius: '14px', padding: '22px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#111827', marginBottom: '14px' }}>Next Actions</div>
+      {actions.length > 0 ? actions.map((a, i) => (
+        <div key={i} className="row-hover" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: i < actions.length - 1 ? '1px solid #f3f4f6' : 'none', transition: 'background 0.15s' }}>
+          <span style={{ fontSize: '12px', color: '#374151' }}>{a.text}</span>
+          <span style={{ fontSize: '10px', fontWeight: '700', color: a.c, background: a.b, padding: '2px 8px', borderRadius: '20px', whiteSpace: 'nowrap', marginLeft: '8px' }}>{a.p}</span>
+        </div>
+      )) : (
+        <div style={{ fontSize: '12px', color: S.muted, padding: '10px 0' }}>No pending actions. You are audit ready!</div>
+      )}
+    </div>
+  );
 }
 
 function ESRSComplianceTable({ esrsCompliance }) {
