@@ -16,7 +16,7 @@ pub fn init_audit_db(app_handle: &AppHandle) -> Result<()> {
     }
 
     // Path to the database file
-    let db_path = app_data_dir.join("audit.db");
+    let db_path = app_data_dir.join("targoo.db");
     
     // Open connection (creates the file if it doesn't exist)
     let conn = Connection::open(db_path)?;
@@ -154,6 +154,6 @@ pub fn get_db_connection(app_handle: &AppHandle) -> Result<Connection> {
         .path()
         .app_data_dir()
         .expect("failed to get app data directory");
-    let db_path = app_data_dir.join("audit.db");
+    let db_path = app_data_dir.join("targoo.db");
     Connection::open(db_path)
 }

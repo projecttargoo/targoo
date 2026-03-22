@@ -1,5 +1,5 @@
 use crate::l4_data_processor::ImportedRecord;
-use crate::get_db_connection;
+use crate::l6_audit::get_db_connection;
 use rusqlite::params;
 use std::collections::HashSet;
 use tauri::{command, AppHandle};

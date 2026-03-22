@@ -2,7 +2,7 @@ use calamine::{open_workbook, Reader, Xlsx, Data};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::{command, AppHandle, Manager};
-use crate::get_db_connection;
+use crate::l6_audit::get_db_connection;
 use crate::normalize;
 use crate::state;
 
