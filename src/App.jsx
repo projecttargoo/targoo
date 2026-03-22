@@ -404,9 +404,17 @@ return (
             { label: '📄 Generate CSRD Report', action: 'Generate the full CSRD compliance report for Hans GmbH' },
             { label: '🔍 Run Gap Analysis', action: 'Run a complete ESRS gap analysis' },
             { label: '📦 Request Supplier Data', action: 'Generate Scope 3 supplier questionnaire' },
-            { label: '💡 Explain ESG Score', action: 'Explain the current ESG score drivers and how to improve' }
+            { label: '💡 Explain ESG Score', action: 'Explain the current ESG score drivers and how to improve' },
+            { label: '🔍 Debug ESG State', action: 'debug' }
           ].map((qa, i) => (
-            <button key={i} className="action-btn" onClick={() => { setChatInput(qa.action); }} style={{ textAlign: 'left', padding: '7px 10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: '11px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s ease' }}>
+            <button key={i} className="action-btn" onClick={async () => { 
+              if (qa.action === 'debug') {
+                const result = await invoke('debug_esg_state');
+                setChatHistory(prev => [...prev, { role: 'ai', text: 'ESG State: ' + result }]);
+              } else {
+                setChatInput(qa.action); 
+              }
+            }} style={{ textAlign: 'left', padding: '7px 10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, color: S.text, fontSize: '11px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s ease' }}>
               {qa.label}
             </button>
           ))}
