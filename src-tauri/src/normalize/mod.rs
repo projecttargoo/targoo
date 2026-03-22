@@ -42,27 +42,27 @@ pub fn classify(column: &str, unit: &str) -> (String, f32) {
     let u = normalize_unit(unit);
 
     // SCOPE 2 - Electricity
-    if col.contains("electric") || col.contains("strom") || col.contains("áram") || col.contains("villamos") || col.contains("electricity") {
+    if col.contains("electric") || col.contains("strom") || col.contains("áram") || col.contains("villamos") || col.contains("electricity") || col.contains("energia") {
         return ("scope2_electricity".into(), 0.95);
     }
     // SCOPE 1 - Gas
-    if col.contains("natural gas") || col.contains("erdgas") || col.contains("gáz") || col.contains("földgáz") || col.contains("foldgaz") {
+    if col.contains("natural gas") || col.contains("erdgas") || col.contains("gáz") || col.contains("földgáz") || col.contains("foldgaz") || col.contains("gas") {
         return ("scope1_gas".into(), 0.95);
     }
     // SCOPE 1 - Diesel/Fuel
-    if col.contains("diesel") || col.contains("fuel") || col.contains("benzin") || col.contains("petrol") || col.contains("flotta") {
+    if col.contains("diesel") || col.contains("fuel") || col.contains("benzin") || col.contains("petrol") || col.contains("flotta") || col.contains("üzemanyag") {
         return ("scope1_fuel".into(), 0.95);
     }
     // SCOPE 1 - Refrigerant
-    if col.contains("refrigerant") || col.contains("hűtő") || col.contains("hutokozeg") || col.contains("kaelte") || col.contains("coolant") || col.contains("töltés") {
+    if col.contains("refrigerant") || col.contains("hűtő") || col.contains("hutokozeg") || col.contains("kaelte") || col.contains("coolant") || col.contains("töltés") || col.contains("klíma") {
         return ("scope1_refrigerant".into(), 0.95);
     }
     // WATER
-    if col.contains("water") || col.contains("víz") || col.contains("wasser") || col.contains("vízfogyasztás") {
+    if col.contains("water") || col.contains("víz") || col.contains("wasser") || col.contains("vízfogyasztás") || col.contains("viz") {
         return ("water".into(), 0.90);
     }
     // WASTE
-    if col.contains("waste") || col.contains("hulladék") || col.contains("abfall") || col.contains("recycl") {
+    if col.contains("waste") || col.contains("hulladék") || col.contains("abfall") || col.contains("recycl") || col.contains("szemét") {
         return ("waste".into(), 0.90);
     }
     // WORKFORCE

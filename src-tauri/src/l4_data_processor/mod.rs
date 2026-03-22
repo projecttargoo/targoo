@@ -273,7 +273,10 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
     // NORMALIZE AND UPSERT TO ESG_STATE
     println!("Normalizing {} records to esg_state", all_records.len());
     for rec in &all_records {
-        if let Ok(value) = rec.value.parse::<f64>() {
+        // Clean value string: replace comma with dot and remove spaces
+        let cleaned_val = rec.value.replace(",", ".").replace(" ", "").replace("\u{a0}", "");
+        
+        if let Ok(value) = cleaned_val.parse::<f64>() {
             let unit = rec.unit.clone().unwrap_or_default();
             let timestamp = rec.year.map(|y| format!("{}-01-01", y));
             
@@ -287,9 +290,13 @@ pub fn import_files(app_handle: AppHandle, file_paths: Vec<String>, file_content
             
             if normalized.category != "unknown" {
                 if let Ok(_) = state::upsert_esg_state(&conn, &normalized, 1) {
-                    println!("Upserted: category={} value={}", normalized.category, normalized.value);
+                    println!("SUCCESS: category={} value={} metric='{}'", normalized.category, normalized.value, rec.metric);
                 }
+            } else {
+                println!("SKIPPED: Could not classify metric='{}' unit='{}'", rec.metric, unit);
             }
+        } else {
+            println!("ERROR: Could not parse value '{}' for metric '{}'", rec.value, rec.metric);
         }
     }
 
