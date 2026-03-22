@@ -22,6 +22,9 @@ pub struct ProductionClient {
     pub id: i32,
     pub name: String,
     pub industry: String,
+    pub tax_id: String,
+    pub reporting_year: i32,
+    pub jurisdiction: String,
     pub last_audit: String,
     pub score: i32,
     pub carbon: f64,
@@ -155,7 +158,7 @@ fn get_enterprise_clients(
 ) -> Result<Vec<ProductionClient>, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     
-    let mut stmt = conn.prepare("SELECT id, name, industry, last_audit, score, carbon FROM clients ORDER BY name ASC")
+    let mut stmt = conn.prepare("SELECT id, name, industry, COALESCE(tax_id, ''), COALESCE(reporting_year, 2024), COALESCE(jurisdiction, 'EU-ESRS'), last_audit, score, carbon FROM clients ORDER BY name ASC")
         .map_err(|e| e.to_string())?;
     
     let clients = stmt.query_map([], |row| {
@@ -163,9 +166,12 @@ fn get_enterprise_clients(
             id: row.get(0)?,
             name: row.get(1)?,
             industry: row.get(2)?,
-            last_audit: row.get(3)?,
-            score: row.get(4)?,
-            carbon: row.get(5)?,
+            tax_id: row.get(3)?,
+            reporting_year: row.get(4)?,
+            jurisdiction: row.get(5)?,
+            last_audit: row.get(6)?,
+            score: row.get(7)?,
+            carbon: row.get(8)?,
         })
     }).map_err(|e| e.to_string())?
     .collect::<rusqlite::Result<Vec<_>>>()
@@ -190,6 +196,9 @@ fn ask_neuron_pilot(
                 id: row.get(0)?,
                 name: row.get(1)?,
                 industry: row.get(2)?,
+                tax_id: "".to_string(),
+                reporting_year: 2024,
+                jurisdiction: "".to_string(),
                 last_audit: row.get(3)?,
                 score: row.get(4)?,
                 carbon: row.get(5)?,
@@ -385,7 +394,10 @@ pub fn run() {
                         industry TEXT NOT NULL, 
                         last_audit TEXT NOT NULL,
                         score INTEGER DEFAULT 0,
-                        carbon REAL DEFAULT 0.0
+                        carbon REAL DEFAULT 0.0,
+                        tax_id TEXT,
+                        reporting_year INTEGER DEFAULT 2024,
+                        jurisdiction TEXT
                     )",
                     [],
                 );

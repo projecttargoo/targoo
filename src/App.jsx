@@ -204,7 +204,9 @@ export default function App() {
       {/* ── TOP BAR ── */}
       <div style={{ height: '48px', background: S.panel, borderBottom: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <span style={{ fontSize: '13px', fontWeight: '700', color: S.text }}>{activeClient.name}</span>
+          <span style={{ fontSize: '13px', fontWeight: '700', color: S.text }}>
+            {activeClient.name} <span style={{ color: S.muted, fontWeight: '500', marginLeft: '4px' }}>· {activeClient.reporting_year || 2024} · {activeClient.jurisdiction || 'EU-ESRS'}</span>
+          </span>
           <span style={{ fontSize: '11px', fontWeight: '600', color: activeClient.score >= 75 ? S.green : S.red, background: (activeClient.score >= 75 ? S.green : S.red) + '15', padding: '3px 10px', borderRadius: '20px' }}>
             {activeClient.score >= 75 ? '● Audit Ready' : '⚠ Action Required'}
           </span>
@@ -479,7 +481,14 @@ function GapAnalysisView({ isAnalyzing, analysisResults, runGapAnalysis }) {
 // ── CLIENTS VIEW ──
 function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', industry: 'Automotive', country: 'DE' });
+  const [newClient, setNewClient] = useState({ 
+    name: '', 
+    industry: 'Automotive', 
+    country: 'DE',
+    tax_id: '',
+    reporting_year: 2024,
+    jurisdiction: 'DE-HGB'
+  });
   const [isCreating, setIsCreating] = useState(false);
 
   const refreshClients = async () => {
@@ -487,11 +496,7 @@ function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
       const list = await invoke('get_enterprise_clients');
       if (list) {
         setClients(list.map(c => ({
-          id: c.id,
-          name: c.name,
-          industry: c.industry,
-          score: c.score || 0,
-          carbon: c.carbon || 0,
+          ...c,
           status: c.score >= 75 ? 'ready' : (c.score > 0 ? 'partial' : 'risk')
         })));
       }
@@ -505,9 +510,14 @@ function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
       await invoke('create_client', { 
         name: newClient.name, 
         industry: newClient.industry,
-        country: newClient.country 
+        country: newClient.country,
+        taxId: newClient.tax_id,
+        reportingYear: parseInt(newClient.reporting_year),
+        jurisdiction: newClient.jurisdiction,
+        employeeCount: 0,
+        revenue: 0.0
       });
-      setNewClient({ name: '', industry: 'Automotive', country: 'DE' });
+      setNewClient({ name: '', industry: 'Automotive', country: 'DE', tax_id: '', reporting_year: 2024, jurisdiction: 'DE-HGB' });
       setShowAddForm(false);
       await refreshClients();
     } catch (err) {
@@ -521,6 +531,13 @@ function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
     if (!name) return '??';
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
+
+  const jurisdictions = [
+    { value: 'DE-HGB', label: 'Germany (HGB)' },
+    { value: 'AT-NaDiVeG', label: 'Austria (NaDiVeG)' },
+    { value: 'CH-OR', label: 'Switzerland (OR)' },
+    { value: 'EU-ESRS', label: 'European Union (ESRS)' }
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeIn 0.3s ease' }}>
@@ -541,7 +558,7 @@ function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
           <div style={{ fontSize: '15px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Building2 size={18} color={S.accent} /> Register Workspace
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 100px auto', gap: '12px', alignItems: 'flex-end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Company Name</label>
               <input value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} placeholder="e.g. BMW Group" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '13px', outline: 'none' }} />
@@ -553,8 +570,20 @@ function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Country</label>
-              <input value={newClient.country} onChange={e => setNewClient({...newClient, country: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '13px', outline: 'none' }} />
+              <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Tax ID / UID</label>
+              <input value={newClient.tax_id} onChange={e => setNewClient({...newClient, tax_id: e.target.value})} placeholder="e.g. DE123456789" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '13px', outline: 'none' }} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '16px', alignItems: 'flex-end' }}>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Jurisdiction</label>
+              <select value={newClient.jurisdiction} onChange={e => setNewClient({...newClient, jurisdiction: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
+                {jurisdictions.map(j => <option key={j.value} value={j.value}>{j.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: '600', color: S.muted, display: 'block', marginBottom: '6px' }}>Reporting Year</label>
+              <input type="number" value={newClient.reporting_year} onChange={e => setNewClient({...newClient, reporting_year: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${S.border}`, background: S.bg, fontSize: '13px', outline: 'none' }} />
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setShowAddForm(false)} style={{ padding: '10px 16px', borderRadius: '8px', border: `1px solid ${S.border}`, background: 'white', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
@@ -578,7 +607,11 @@ function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
               position: 'relative',
               overflow: 'hidden'
             }}>
-              {isActive && <div style={{ position: 'absolute', top: '12px', right: '12px', width: '8px', height: '8px', borderRadius: '50%', background: S.green, boxShadow: `0 0 10px ${S.green}`, animation: 'pulse 2s infinite' }} />}
+              {client.jurisdiction && (
+                <div style={{ position: 'absolute', top: '12px', right: '12px', background: S.accentBg, color: S.accent, padding: '3px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '700' }}>
+                  {client.jurisdiction}
+                </div>
+              )}
               
               <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
                 <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: isActive ? S.accent : S.bg, color: isActive ? 'white' : S.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700' }}>
@@ -589,6 +622,7 @@ function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
                   <div style={{ fontSize: '12px', color: S.muted, display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Building2 size={12} /> {client.industry}
                   </div>
+                  <div style={{ fontSize: '10px', color: S.muted, marginTop: '2px' }}>{client.tax_id || 'No Tax ID'}</div>
                 </div>
               </div>
 
@@ -598,12 +632,12 @@ function ClientsView({ clients, setClients, selectedClientId, onSelect }) {
                   <div style={{ fontSize: '13px', fontWeight: '700', color: S.text }}>{(client.carbon || 0).toFixed(1)}t</div>
                 </div>
                 <div style={{ textAlign: 'center', borderLeft: `1px solid ${S.border}`, borderRight: `1px solid ${S.border}` }}>
-                  <div style={{ fontSize: '9px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>ESG Score</div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: client.score >= 75 ? S.green : S.amber }}>{client.score || 0}</div>
+                  <div style={{ fontSize: '9px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>Year</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: S.text }}>{client.reporting_year || 2024}</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '9px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>Status</div>
-                  <div style={{ fontSize: '11px', fontWeight: '700', color: client.score >= 75 ? S.green : S.muted }}>{client.score >= 75 ? 'Ready' : 'Draft'}</div>
+                  <div style={{ fontSize: '9px', fontWeight: '700', color: S.muted, textTransform: 'uppercase', marginBottom: '4px' }}>ESG Score</div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: client.score >= 75 ? S.green : S.amber }}>{client.score || 0}</div>
                 </div>
               </div>
 

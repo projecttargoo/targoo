@@ -10,6 +10,9 @@ pub struct Client {
     pub name: String,
     pub industry: String,
     pub country: String,
+    pub tax_id: String,
+    pub reporting_year: i32,
+    pub jurisdiction: String,
     pub employee_count: i32,
     pub revenue: f64,
     pub created_at: String,
@@ -38,12 +41,20 @@ pub fn init_workspace_db(app_handle: &AppHandle) -> Result<()> {
             name TEXT NOT NULL,
             industry TEXT,
             country TEXT,
+            tax_id TEXT,
+            reporting_year INTEGER DEFAULT 2024,
+            jurisdiction TEXT,
             employee_count INTEGER,
             revenue REAL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )",
         [],
     )?;
+
+    // Migrations: Add new columns if they don't exist
+    let _ = conn.execute("ALTER TABLE clients ADD COLUMN tax_id TEXT", []);
+    let _ = conn.execute("ALTER TABLE clients ADD COLUMN reporting_year INTEGER DEFAULT 2024", []);
+    let _ = conn.execute("ALTER TABLE clients ADD COLUMN jurisdiction TEXT", []);
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS projects (
@@ -67,13 +78,16 @@ pub fn create_client(
     name: String,
     industry: String,
     country: String,
+    tax_id: String,
+    reporting_year: i32,
+    jurisdiction: String,
     employee_count: i32,
     revenue: f64,
 ) -> Result<i64, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
     conn.execute(
-        "INSERT INTO clients (name, industry, country, employee_count, revenue) VALUES (?, ?, ?, ?, ?)",
-        params![name, industry, country, employee_count, revenue],
+        "INSERT INTO clients (name, industry, country, tax_id, reporting_year, jurisdiction, employee_count, revenue) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        params![name, industry, country, tax_id, reporting_year, jurisdiction, employee_count, revenue],
     ).map_err(|e| e.to_string())?;
     
     Ok(conn.last_insert_rowid())
@@ -82,7 +96,7 @@ pub fn create_client(
 #[command]
 pub fn get_clients(app_handle: AppHandle) -> Result<Vec<Client>, String> {
     let conn = get_db_connection(&app_handle).map_err(|e| e.to_string())?;
-    let mut stmt = conn.prepare("SELECT id, name, industry, country, employee_count, revenue, created_at FROM clients")
+    let mut stmt = conn.prepare("SELECT id, name, industry, country, tax_id, reporting_year, jurisdiction, employee_count, revenue, created_at FROM clients")
         .map_err(|e| e.to_string())?;
     
     let clients = stmt.query_map([], |row| {
@@ -91,9 +105,12 @@ pub fn get_clients(app_handle: AppHandle) -> Result<Vec<Client>, String> {
             name: row.get(1)?,
             industry: row.get(2)?,
             country: row.get(3)?,
-            employee_count: row.get(4)?,
-            revenue: row.get(5)?,
-            created_at: row.get(6)?,
+            tax_id: row.get(4).unwrap_or_default(),
+            reporting_year: row.get(5).unwrap_or(2024),
+            jurisdiction: row.get(6).unwrap_or_default(),
+            employee_count: row.get(7).unwrap_or(0),
+            revenue: row.get(8).unwrap_or(0.0),
+            created_at: row.get(9)?,
         })
     }).map_err(|e| e.to_string())?
     .collect::<Result<Vec<_>, _>>()
